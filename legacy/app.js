@@ -4,9 +4,9 @@ const SAVED_KEY = "ark-passive-simulator-saved-v3";
 
 const DEFAULT_STATE = {
   base: {
-    critStat: 80,
-    specStat: 50,
-    swiftStat: 70,
+    critStat: 76,
+    specStat: 75,
+    swiftStat: 77,
     dominationStat: 0,
     enduranceStat: 0,
     expertiseStat: 0,

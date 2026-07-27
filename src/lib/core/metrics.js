@@ -8,9 +8,9 @@ import { readNumber, clamp, cloneState, makeId } from "./util.js";
 
 const DEFAULT_STATE = {
   base: {
-    critStat: 80,
-    specStat: 50,
-    swiftStat: 70,
+    critStat: 76,
+    specStat: 75,
+    swiftStat: 77,
     dominationStat: 0,
     enduranceStat: 0,
     expertiseStat: 0,
