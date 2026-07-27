@@ -106,14 +106,12 @@
         <div class="section-hd">
           <h3>탐색 대상 <em class="tag">노드 · 각인 · 펫</em></h3>
         </div>
-        <p class="hint">이 셋만 탐색이 바꿉니다. 아래 장비와 조건은 전부 고정한 채로 조합을 찾습니다.</p>
-
         <div class="fields">
           <div class="field">
             <span>진화 노드</span>
-            <div class="with-sheet">
-              <small>{formatInteger(nodePoints)} / {formatInteger(app.character.settings.pointBudget)}P</small>
-              <button class="btn sm" type="button" onclick={() => resetSection("nodes")}>비우기</button>
+            <div class="readout">
+              <b>{formatInteger(nodePoints)} / {formatInteger(app.character.settings.pointBudget)}P</b>
+              <button class="btn sm" type="button" onclick={() => (open = false)}>보드에서 편집</button>
             </div>
           </div>
           <div class="field">
@@ -159,7 +157,7 @@
             <div class="with-sheet">
               <input id="d-quality" type="number" min="0" max={WEAPON_QUALITY_MAX} step="1"
                      bind:value={app.character.weapon.quality} onchange={persist} />
-              <small>무기 추가 피해 +{formatNumber(weaponDamage)}%</small>
+              <small class="derived">→ 무기 추가 피해 +{formatNumber(weaponDamage)}%</small>
             </div>
           </div>
           {#each STATS as stat}
@@ -174,10 +172,13 @@
           <input type="checkbox" bind:checked={app.character.collection.ranch} onchange={persist} />
           <span>{STANDALONE_SOURCES.ranchCollection.label} · {STANDALONE_SOURCES.ranchCollection.summary}</span>
         </label>
-        <p class="hint">
-          무기 품질은 <b>y = 0.002x² + 10</b>이라 품질 0에서도 10%입니다.
-          이름이 다른 피해 그룹이라 일반 추가 피해와 곱연산됩니다.
-        </p>
+        <details class="note">
+          <summary>무기 품질 계산</summary>
+          <p>
+            <b>y = 0.002x² + 10</b> — 품질 0에서도 10%, 100에서 30%입니다.
+            이름이 다른 피해 그룹이라 일반 추가 피해와 합산되지 않고 곱연산됩니다.
+          </p>
+        </details>
       </section>
 
       <!-- 2 · 악세서리 -->
@@ -246,6 +247,8 @@
       <section class="section">
         <div class="section-hd">
           <h3>진화 카르마</h3>
+          <span class="spacer"></span>
+          {@render resetButton("진화 카르마 초기화", "karma")}
         </div>
         <div class="fields">
           <div class="field">
@@ -264,6 +267,7 @@
         <div class="section-hd">
           <h3>아크 그리드</h3>
           <span class="spacer"></span>
+          {@render resetButton("아크 그리드 초기화", "arkGrid")}
           <button class="btn sm" type="button" onclick={onOpenArkGrid}>편집</button>
         </div>
         <div class="summary-line">
@@ -282,13 +286,19 @@
           <span class="spacer"></span>
           {@render resetButton("전투 상황 초기화", "convenience")}
         </div>
-        <p class="hint">전투 중 실제로 성립하는 조건입니다. 방향성 각인과 팔찌 옵션이 여기에 걸립니다.</p>
         <div class="checks">
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.backAttack} onchange={persist} /><span>백어택</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.headAttack} onchange={persist} /><span>헤드어택</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.convenience.goddessBlessing} onchange={persist} /><span>축복의 여신 9%</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.convenience.feast} onchange={persist} /><span>만찬 5%</span></label>
         </div>
+        <details class="note">
+          <summary>방향 설정이 바꾸는 것</summary>
+          <p>
+            방향성 각인(결투의 대가 · 기습의 대가 · 타격의 대가)과 팔찌의 방향 옵션이 여기에 걸립니다.
+            조건이 맞지 않으면 수치를 반영하지 않습니다.
+          </p>
+        </details>
       </section>
 
       <!-- 계산 기준 -->
@@ -296,7 +306,6 @@
         <div class="section-hd">
           <h3>계산 기준</h3>
         </div>
-        <p class="hint">스펙이 아니라 기대값을 어떻게 셀지 정하는 값입니다.</p>
         <div class="checks single">
           <label class="check">
             <input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} />
@@ -317,17 +326,18 @@
           </span>
           <input id="d-mana" type="range" min="0" max="100" step="5"
                  bind:value={app.character.convenience.manaShare} onchange={persist} />
+        </label>
+        <details class="note">
+          <summary>마나 스킬 딜 비중</summary>
           <p>
             전체 딜 중 마나를 소모하는 스킬이 차지하는 비율.
-            <strong>마나 효율 증가 각인, 마나 용광로, 금단의 주문 마나 추가분</strong>에만 적용됩니다.
+            <b>마나 효율 증가 각인 · 마나 용광로 · 금단의 주문 마나 추가분</b>에만 적용됩니다.
           </p>
-        </label>
-        <details class="aside">
-          <summary>끝없는 마나 · 무한한 마력 쿨감은 왜 안 깎이나요?</summary>
-          <ul>
-            <li>쿨감이 30% 당겨지면 스택·게이지 축적 속도도 같이 30% 빨라져 사이클 전체가 당겨집니다.</li>
-            <li>주력기가 마나를 쓰지 않아도 끝마/무마 쿨감은 그대로 이득이라 비중으로 깎지 않습니다.</li>
-          </ul>
+          <p>
+            끝없는 마나 · 무한한 마력의 <b>쿨감은 이 비중으로 깎지 않습니다</b>.
+            쿨감이 30% 당겨지면 스택·게이지 축적도 30% 빨라져 사이클 전체가 당겨지므로,
+            주력기가 마나를 쓰지 않아도 그대로 이득입니다.
+          </p>
         </details>
       </section>
 
@@ -338,7 +348,10 @@
           {@render resetButton("직접 입력 효과 초기화", "baseEffects")}
           <button class="btn sm" type="button" onclick={addEffect}>추가</button>
         </div>
-        <p class="hint">모델에 없는 출처는 여기에 그룹을 만들어 넣습니다. 치적 · 치피도 이곳으로 받습니다.</p>
+        <details class="note">
+          <summary>언제 쓰나요</summary>
+          <p>위 항목에 자리가 없는 출처를 그룹으로 만들어 넣습니다. 치적 · 치피도 여기로 받습니다.</p>
+        </details>
         <div class="effect-list">
           {#each app.character.baseEffects as effect (effect.id)}
             <div class="effect-row">

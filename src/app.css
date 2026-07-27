@@ -575,34 +575,48 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .field:hover { background: var(--surface-2); }
 .field:focus-within { background: var(--surface-2); }
 
+/* 조작할 수 있는 것은 조작할 수 있게 생겨야 한다. 테두리를 지웠더니
+   입력값과 계산 결과가 구분되지 않았다 — 입력은 항상 눌린 면으로 둔다. */
 .field input, .field select {
-  min-height: 26px;
-  padding: 0;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
   font-family: var(--mono);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  transition: border-color 120ms ease, background 120ms ease;
 }
-.field input { width: 90px; }
-.field input:hover, .field input:focus { color: var(--cool); }
+.field input { width: 96px; }
+.field input:hover, .field select:hover { border-color: var(--line-lift); }
+.field input:focus, .field select:focus { border-color: var(--cool); background: #0d1219; }
 
 .field select {
   width: auto;
   max-width: 190px;
-  padding-right: 15px;
+  padding-right: 24px;
   font-family: var(--sans);
   font-size: 12.5px;
-  text-align: right;
-  text-align-last: right;
+  text-align: left;
+  text-align-last: left;
   appearance: none;
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%236c7686' stroke-width='1.3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right center;
+  background-position: right 9px center;
   background-size: 8px 5px;
 }
-.field select:hover { color: var(--cool); }
 option { background: var(--surface); color: var(--txt); }
+
+/* 계산 결과는 입력이 아니다. 테두리 없이, 눈에 덜 띄게. */
+.derived {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--cool-dim);
+  font-variant-numeric: tabular-nums;
+}
 
 /* 체크 */
 .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
@@ -872,4 +886,110 @@ input.boxed[type="number"] { text-align: right; }
 .field > span:first-child {
   font-size: 12.5px;
   color: var(--txt-2);
+}
+
+/* ─── 서랍 보조 요소 ───────────────────────────────────────────────
+   app.css를 다시 쓰면서 빠졌던 규칙들. 없으면 설명문이 본문 크기로
+   나와 컨트롤보다 먼저 읽히고, 태그가 제목과 구분되지 않는다.     */
+
+.hint {
+  margin: -2px 0 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--txt-3);
+}
+.hint b, .hint strong { color: var(--txt-2); font-weight: 500; }
+
+/* 값과 그 값이 만드는 결과를 같은 줄에 두면 둘 다 값처럼 읽힌다.
+   결과는 아래 줄로 내리고 우측 정렬로 묶는다. */
+.with-sheet { display: grid; justify-items: end; gap: 2px; }
+.with-sheet small {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+.with-sheet .btn { margin-top: 2px; }
+
+.field > label em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--txt-3);
+}
+
+.section-hd h3 em.tag {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid var(--cool-ink);
+  border-radius: var(--r);
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--cool-dim);
+  white-space: nowrap;
+}
+
+/* 직접 입력 행을 3줄에서 2줄로. 이름 한 줄, 그 아래 종류·수치·삭제 */
+.effect-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 28px;
+  gap: 6px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.effect-row > input[type="text"]:first-child { grid-column: 1 / -1; }
+.effect-row .btn.icon { width: 28px; min-height: 28px; }
+
+/* ─── 설명은 접어둔다 ──────────────────────────────────────────────
+   상시 노출된 산문은 컨트롤보다 먼저 읽히고 자리를 먹는다. 필요한
+   사람만 펴보게 하고, 기본 상태에서는 한 줄만 차지한다.            */
+
+.note { margin: 6px 0 2px; }
+.note > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--txt-3);
+  cursor: pointer;
+  list-style: none;
+}
+.note > summary::-webkit-details-marker { display: none; }
+.note > summary::before {
+  content: "?";
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line-lift);
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 1;
+}
+.note > summary:hover { color: var(--txt-2); }
+.note > summary:hover::before { border-color: var(--cool-dim); color: var(--cool-dim); }
+.note[open] > summary { margin-bottom: 6px; }
+.note p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--txt-3);
+  padding-left: 19px;
+}
+.note p b, .note p strong { color: var(--txt-2); font-weight: 500; }
+.note p + p { margin-top: 5px; }
+
+/* 노드 요약 행 — 편집은 보드에서 한다 */
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.readout b {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--txt);
+  font-variant-numeric: tabular-nums;
 }

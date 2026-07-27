@@ -134,7 +134,7 @@
         <div class="with-sheet">
           <input id="gem-lv" type="number" min="0" max={GEM_MAX_LEVEL} step="1"
                  bind:value={grid.gemLevel} onchange={persist} />
-          <small>추가 피해 +{formatNumber(gemDamage)}%</small>
+          <small class="derived">→ 추가 피해 +{formatNumber(gemDamage)}%</small>
         </div>
       </div>
     </div>

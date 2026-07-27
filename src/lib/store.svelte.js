@@ -63,6 +63,10 @@ export function resetSection(section) {
   } else if (section === "gear") {
     app.character.weapon = cloneState(DEFAULT_STATE.weapon);
     app.character.collection = cloneState(DEFAULT_STATE.collection);
+  } else if (section === "karma") {
+    app.character.convenience.evolutionKarmaRank = DEFAULT_STATE.convenience.evolutionKarmaRank;
+  } else if (section === "arkGrid") {
+    app.character.arkGrid = cloneState(DEFAULT_STATE.arkGrid);
   } else if (section === "engravings") {
     app.character.engravings = {};
   } else if (section === "baseEffects") {
