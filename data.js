@@ -1,0 +1,577 @@
+const ARC_PASSIVE_CONSTANTS = {
+  baseCritDamage: 200,
+  critRatePerCrit: 0.03579099,
+  attackSpeedPerSwift: 0.0171791,
+  cooldownPerSwift: 0.0214739,
+  petStatBonus: 160,
+  goddessBlessingSpeed: 9,
+  feastSpeed: 5,
+  backAttackDamage: 5,
+  backAttackCritRate: 10,
+  headAttackDamage: 20,
+};
+
+const ACCESSORY_OPTION_VALUES = {
+  necklace: {
+    additionalDamage: { none: 0, high: 2.6, mid: 1.6, low: 0.6 },
+  },
+  ring: {
+    critRate: { none: 0, high: 1.55, mid: 0.95, low: 0.4 },
+    critDamage: { none: 0, high: 4, mid: 2.4, low: 1.1 },
+  },
+};
+
+const REFERENCE_META = {
+  title: "진화 노드 기준표",
+  sourceUrl: "https://namu.wiki/w/%EC%95%84%ED%81%AC%20%ED%8C%A8%EC%8B%9C%EB%B8%8C",
+  updatedAt: "2026-06-10 16:21:10",
+  collectedBy: "붙여넣기 노드 본문 기준",
+};
+
+const REFERENCE_RULES = [
+  "노드 툴팁에 있는 정량 효과만 기대값 계산에 반영",
+  "조건부 효과와 스킬 대상 제한 효과는 비교 목적상 풀 효율 기준으로 계산",
+  "쿨타임 감소는 끝마/무마 그룹과 최훈/타지 그룹끼리만 합산하고, 서로 다른 그룹끼리는 합산하지 않음",
+  "같은 피해 그룹은 합산, 다른 피해 그룹은 곱연산",
+  "예외적으로 '주는 피해'끼리는 곱연산",
+  "낙인력, 아군 공격력 강화, 아이덴티티 계열은 딜러 기대값에 자동 합산하지 않음",
+  "마나 소모 스킬에만 붙는 피해 효과는 '마나 스킬 딜 비중'만큼만 반영",
+  "방향성 각인과 팔찌 옵션은 백어택/헤드어택 조건이 맞을 때만 반영",
+];
+
+const REFERENCE_HIGHLIGHTS = [
+  {
+    title: "1T",
+    body: "Lv당 1포인트, 최대 40포인트. 치명/특화/제압/신속/인내/숙련을 Lv당 50 올립니다.",
+  },
+  {
+    title: "2T",
+    body: "Lv당 10포인트, 최대 30포인트. 마나, 치적, 쿨감, 진화형 피해, 공이속 버프 노드입니다.",
+  },
+  {
+    title: "3T",
+    body: "Lv당 10포인트, 최대 20포인트. 시즌2 장비 세트 효과를 변형 계승한 노드입니다.",
+  },
+  {
+    title: "4T",
+    body: "Lv당 10포인트, 최대 20포인트. 엘릭서 효과가 진화 노드로 편입된 구간입니다.",
+  },
+  {
+    title: "5T",
+    body: "Lv당 15포인트, 최대 30포인트. 조건을 만족하면 큰 진화형 피해 또는 낙인력을 제공합니다.",
+  },
+];
+
+const REFERENCE_WARNINGS = [
+  "일격의 방향성 스킬 치명타 피해는 방향성 적중률 모델 없이 전부 반영합니다.",
+  "서포터 노드의 낙인력/아군 공격력 강화/아이덴티티 효과는 별도 모델이 생기기 전까지 노트로 표시합니다.",
+];
+
+const EVOLUTION_TIERS = {
+  "진화 1": { label: "1T", cost: 1, maxPoints: 40 },
+  "진화 2": { label: "2T", cost: 10, maxPoints: 30 },
+  "진화 3": { label: "3T", cost: 10, maxPoints: 20 },
+  "진화 4": { label: "4T", cost: 10, maxPoints: 20 },
+  "진화 5": { label: "5T", cost: 15, maxPoints: 30 },
+};
+
+const EFFECT_CATEGORIES = [
+  { value: "damage:진화형 피해", label: "진화형 피해", kind: "damage" },
+  { value: "damage:추가 피해", label: "추가 피해", kind: "damage" },
+  { value: "damage:주는 피해", label: "주는 피해", kind: "damage" },
+  { value: "damage:공격력", label: "공격력", kind: "damage" },
+  { value: "damage:무기 공격력", label: "무기 공격력", kind: "damage" },
+  { value: "damage:스킬 피해", label: "스킬 피해", kind: "damage" },
+  { value: "damage:보스 피해", label: "보스 피해", kind: "damage" },
+  { value: "critRate", label: "치명타 적중률", kind: "percent" },
+  { value: "critDamage", label: "추가 치명타 피해", kind: "percent" },
+  { value: "attackSpeedOnly", label: "공격속도", kind: "percent" },
+  { value: "moveSpeedOnly", label: "이동속도", kind: "percent" },
+  { value: "cooldownReduction", label: "쿨타임 감소", kind: "percent" },
+  { value: "customDamage", label: "피해 그룹 직접 입력", kind: "customDamage" },
+];
+
+const NODE_LIBRARY = [
+  {
+    id: "e1-crit",
+    tier: "진화 1",
+    name: "치명",
+    maxLevel: 30,
+    icon: "focus",
+    effects: [{ kind: "stat", key: "critStat", label: "치명", amount: 50 }],
+  },
+  {
+    id: "e1-spec",
+    tier: "진화 1",
+    name: "특화",
+    maxLevel: 30,
+    icon: "surge",
+    effects: [{ kind: "stat", key: "specStat", label: "특화", amount: 50 }],
+  },
+  {
+    id: "e1-domination",
+    tier: "진화 1",
+    name: "제압",
+    maxLevel: 30,
+    icon: "target",
+    effects: [{ kind: "stat", key: "dominationStat", label: "제압", amount: 50 }],
+  },
+  {
+    id: "e1-swift",
+    tier: "진화 1",
+    name: "신속",
+    maxLevel: 30,
+    icon: "wind",
+    effects: [{ kind: "stat", key: "swiftStat", label: "신속", amount: 50 }],
+  },
+  {
+    id: "e1-endurance",
+    tier: "진화 1",
+    name: "인내",
+    maxLevel: 30,
+    icon: "sigil",
+    effects: [{ kind: "stat", key: "enduranceStat", label: "인내", amount: 50 }],
+  },
+  {
+    id: "e1-expertise",
+    tier: "진화 1",
+    name: "숙련",
+    maxLevel: 30,
+    icon: "mark",
+    effects: [{ kind: "stat", key: "expertiseStat", label: "숙련", amount: 50 }],
+  },
+  {
+    id: "e2-endless-mana",
+    tier: "진화 2",
+    name: "끝없는 마나",
+    maxLevel: 2,
+    icon: "cycle",
+    effects: [
+      { kind: "percent", key: "manaCooldownReduction", label: "끝마/무마 쿨타임 감소", amount: 7 },
+      { kind: "note", text: "마나 소모량 -10%/20%" },
+    ],
+  },
+  {
+    id: "e2-forbidden-spell",
+    tier: "진화 2",
+    name: "금단의 주문",
+    maxLevel: 2,
+    icon: "flare",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 5 },
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해(마나 스킬 한정)", amount: 5, manaOnly: true },
+      { kind: "note", text: "마나 소모량 -6%/-12%" },
+    ],
+  },
+  {
+    id: "e2-sharp-sense",
+    tier: "진화 2",
+    name: "예리한 감각",
+    maxLevel: 2,
+    icon: "eye",
+    effects: [
+      { kind: "percent", key: "critRate", label: "치명타 적중률", amount: 4 },
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 5 },
+    ],
+  },
+  {
+    id: "e2-limit-break",
+    tier: "진화 2",
+    name: "한계 돌파",
+    maxLevel: 3,
+    icon: "blade",
+    effects: [{ kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 10 }],
+  },
+  {
+    id: "e2-optimized-training",
+    tier: "진화 2",
+    name: "최적화 훈련",
+    maxLevel: 2,
+    icon: "cycle",
+    effects: [
+      { kind: "percent", key: "skillCooldownReduction", label: "최훈/타지 쿨타임 감소", amount: 4 },
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 5 },
+    ],
+  },
+  {
+    id: "e2-goddess-blessing",
+    tier: "진화 2",
+    name: "축복의 여신",
+    maxLevel: 3,
+    icon: "crown",
+    effects: [{ kind: "percent", key: "attackSpeed", label: "공격/이동속도", amount: 3 }],
+  },
+  {
+    id: "e3-infinite-magic",
+    tier: "진화 3",
+    name: "무한한 마력",
+    maxLevel: 2,
+    icon: "flare",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 8 },
+      { kind: "percent", key: "manaCooldownReduction", label: "끝마/무마 쿨타임 감소", amount: 7 },
+      { kind: "note", text: "마나 소모량 -8%/16%" },
+    ],
+  },
+  {
+    id: "e3-all-out-strike",
+    tier: "진화 3",
+    name: "혼신의 강타",
+    maxLevel: 2,
+    icon: "focus",
+    effects: [
+      { kind: "percent", key: "critRate", label: "치명타 적중률", amount: 12 },
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 2 },
+    ],
+  },
+  {
+    id: "e3-single-strike",
+    tier: "진화 3",
+    name: "일격",
+    maxLevel: 2,
+    icon: "mark",
+    effects: [
+      { kind: "percent", key: "critRate", label: "치명타 적중률", amount: 10 },
+      { kind: "percent", key: "critDamage", label: "방향성 스킬 치명타 피해", amount: 16 },
+    ],
+  },
+  {
+    id: "e3-destruction-chariot",
+    tier: "진화 3",
+    name: "파괴 전차",
+    maxLevel: 2,
+    icon: "crown",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 12 },
+      { kind: "percent", key: "attackSpeedOnly", label: "공격 속도", amount: 4 },
+    ],
+  },
+  {
+    id: "e3-timing-dominion",
+    tier: "진화 3",
+    name: "타이밍 지배",
+    maxLevel: 2,
+    icon: "cycle",
+    effects: [
+      { kind: "percent", key: "skillCooldownReduction", label: "최훈/타지 쿨타임 감소", amount: 5 },
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 8 },
+    ],
+  },
+  {
+    id: "e3-passionate-dance",
+    tier: "진화 3",
+    name: "정열의 춤사위",
+    maxLevel: 2,
+    icon: "spark",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "정열의 춤 진화형 피해", amount: 6 },
+      { kind: "note", text: "아이덴티티 게이지 회복량 +10%/20%" },
+    ],
+  },
+  {
+    id: "e4-critical-elixir",
+    tier: "진화 4",
+    name: "회심",
+    maxLevel: 1,
+    icon: "focus",
+    effects: [{ kind: "critOnlyDamage", label: "치명타 적중 시 주는 피해", amount: 12 }],
+  },
+  {
+    id: "e4-master",
+    tier: "진화 4",
+    name: "달인",
+    maxLevel: 1,
+    icon: "eye",
+    effects: [
+      { kind: "percent", key: "critRate", label: "치명타 적중률", amount: 7 },
+      { kind: "damage", key: "추가 피해", label: "추가 피해(풀 스택)", amount: 8.5 },
+      { kind: "note", text: "달인 5중첩 기준" },
+    ],
+  },
+  {
+    id: "e4-crushing",
+    tier: "진화 4",
+    name: "분쇄",
+    maxLevel: 1,
+    icon: "blade",
+    effects: [{ kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 20 }],
+  },
+  {
+    id: "e4-advance",
+    tier: "진화 4",
+    name: "선각자",
+    maxLevel: 1,
+    icon: "sigil",
+    effects: [
+      { kind: "note", text: "최대 생명력 +6%" },
+      { kind: "note", text: "통찰 풀중첩: 아군 공격력 강화 +22%, 쿨타임 감소 +5%" },
+    ],
+  },
+  {
+    id: "e4-vanguard",
+    tier: "진화 4",
+    name: "진군",
+    maxLevel: 1,
+    icon: "crown",
+    effects: [
+      { kind: "note", text: "최대 생명력 +6%" },
+      { kind: "note", text: "진군 에테르: 아군 공격력 강화 +24%, 공이속 +4%" },
+    ],
+  },
+  {
+    id: "e4-prayer",
+    tier: "진화 4",
+    name: "기원",
+    maxLevel: 1,
+    icon: "spark",
+    effects: [
+      { kind: "note", text: "아군 공격력 강화 +22%, 낙인력 +4%" },
+      { kind: "note", text: "최대 생명력 +6%" },
+    ],
+  },
+  {
+    id: "e5-blunt-thorn",
+    tier: "진화 5",
+    name: "뭉툭한 가시",
+    maxLevel: 2,
+    icon: "mark",
+    effects: [
+      { kind: "special", key: "bluntThorn", label: "치적 80% 제한 + 초과 치적 진화형 피해 전환" },
+      { kind: "damage", key: "진화형 피해", label: "기본 진화형 피해", amount: 7.5 },
+    ],
+  },
+  {
+    id: "e5-sonic-breakthrough",
+    tier: "진화 5",
+    name: "음속 돌파",
+    maxLevel: 2,
+    icon: "wind",
+    effects: [{ kind: "special", key: "sonicBreakthrough", label: "공이속 증가량 기반 진화형 피해" }],
+  },
+  {
+    id: "e5-infighting",
+    tier: "진화 5",
+    name: "인파이팅",
+    maxLevel: 2,
+    icon: "blade",
+    effects: [{ kind: "damage", key: "진화형 피해", label: "진화형 피해", amount: 9 }],
+  },
+  {
+    id: "e5-standing-striker",
+    tier: "진화 5",
+    name: "입식 타격가",
+    maxLevel: 2,
+    icon: "target",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해(최대 스택)", amount: 10.5 },
+      { kind: "note", text: "기본 6%/12% + 6중첩 4.5%/9% 기준" },
+      { kind: "note", text: "낙인력 +10%/20%" },
+    ],
+  },
+  {
+    id: "e5-mana-forge",
+    tier: "진화 5",
+    name: "마나 용광로",
+    maxLevel: 2,
+    icon: "flare",
+    effects: [
+      { kind: "damage", key: "진화형 피해", label: "진화형 피해(마나 480+ 풀효율)", amount: 12, manaOnly: true },
+      { kind: "note", text: "기본 마나 소모량 10당 진화형 피해 +0.25%/+0.5%, 최대 12%/24%" },
+      { kind: "note", text: "낙인력 +10%/20%, 최대 마나 2% 추가 소모" },
+    ],
+  },
+  {
+    id: "e5-stable-manager",
+    tier: "진화 5",
+    name: "안정된 관리자",
+    maxLevel: 2,
+    icon: "sigil",
+    effects: [
+      { kind: "note", text: "낙인력 +10%/20%" },
+      { kind: "note", text: "아이덴티티 게이지 획득량 -3%/-6%" },
+    ],
+  },
+];
+
+const NODE_CONTEXT = {
+  "e1-crit": {
+    target: "공통",
+    status: "계산 반영",
+    tags: ["특성", "치적"],
+    summary: "치명 특성을 직접 올려 치명타 확률을 조정합니다.",
+  },
+  "e1-spec": {
+    target: "공통",
+    status: "계산 반영",
+    tags: ["특성", "클래스 효율"],
+    summary: "특화 특성을 직접 올립니다. 클래스별 특화 효율은 기본 스펙에서 따로 입력합니다.",
+  },
+  "e1-domination": {
+    target: "공통",
+    status: "특성 반영",
+    tags: ["특성"],
+    summary: "제압 특성을 직접 올립니다. 별도 피해 환산은 자동 계산하지 않습니다.",
+  },
+  "e1-swift": {
+    target: "공통",
+    status: "계산 반영",
+    tags: ["특성", "공이속", "쿨감"],
+    summary: "신속 특성을 직접 올려 공격/이동속도와 쿨타임 감소를 계산합니다.",
+  },
+  "e1-endurance": {
+    target: "공통",
+    status: "특성 반영",
+    tags: ["특성"],
+    summary: "인내 특성을 직접 올립니다. 딜 기대값 환산은 자동 계산하지 않습니다.",
+  },
+  "e1-expertise": {
+    target: "공통",
+    status: "특성 반영",
+    tags: ["특성"],
+    summary: "숙련 특성을 직접 올립니다. 딜 기대값 환산은 자동 계산하지 않습니다.",
+  },
+  "e2-endless-mana": {
+    target: "딜러",
+    status: "부분 반영",
+    tags: ["마나", "끝마/무마", "쿨감"],
+    summary: "마나 스킬 쿨타임 감소를 끝마/무마 그룹에 반영하고, 마나 소모 감소는 노트로 표시합니다.",
+  },
+  "e2-forbidden-spell": {
+    target: "딜러",
+    status: "풀효율",
+    tags: ["마나", "진화형 피해"],
+    summary: "마나 스킬 풀효율 기준으로 기본 진화형 피해와 마나 스킬 추가 진화형 피해를 모두 반영합니다.",
+  },
+  "e2-sharp-sense": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["치적", "진화형 피해"],
+    summary: "치명타 적중률과 진화형 피해를 함께 제공하는 범용 조정 노드입니다.",
+  },
+  "e2-limit-break": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["진화형 피해"],
+    summary: "조건 없는 진화형 피해 증가 노드입니다.",
+  },
+  "e2-optimized-training": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["최훈/타지", "쿨감", "진화형 피해"],
+    summary: "최훈/타지 그룹 쿨타임 감소와 진화형 피해를 함께 제공합니다.",
+  },
+  "e2-goddess-blessing": {
+    target: "서포터",
+    status: "부분 반영",
+    tags: ["파티 버프", "공이속"],
+    summary: "파티 공속/이속 버프 계열입니다. 현재 계산기에서는 공이속 수치만 표시/반영합니다.",
+  },
+  "e3-infinite-magic": {
+    target: "딜러",
+    status: "부분 반영",
+    tags: ["악몽", "마나", "끝마/무마", "쿨감"],
+    summary: "악몽 계열. 진화형 피해와 끝마/무마 그룹 쿨감을 반영하고 마나 소모 감소는 노트 처리합니다.",
+  },
+  "e3-all-out-strike": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["환각", "치적"],
+    summary: "환각 계열. 큰 치명타 적중률과 낮은 진화형 피해를 제공합니다.",
+  },
+  "e3-single-strike": {
+    target: "딜러",
+    status: "부분 반영",
+    tags: ["사멸", "치적", "치피"],
+    summary: "사멸 계열. 방향성 공격 치명타 피해는 방향성 적중률 모델 없이 전부 반영합니다.",
+  },
+  "e3-destruction-chariot": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["구원", "공속"],
+    summary: "구원 계열. 진화형 피해와 공격 속도를 제공합니다.",
+  },
+  "e3-timing-dominion": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["지배", "최훈/타지", "쿨감"],
+    summary: "지배 계열. 최훈/타지 그룹 쿨타임 감소와 진화형 피해를 제공합니다.",
+  },
+  "e3-passionate-dance": {
+    target: "서포터",
+    status: "부분 반영",
+    tags: ["갈망", "파티 버프"],
+    summary: "갈망 계열. 파티 진화형 피해 수치는 표시하되 서포터 모델은 별도 계산하지 않습니다.",
+  },
+  "e4-critical-elixir": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["엘릭서", "치명 조건"],
+    summary: "회심. 치명타 발생 구간에만 치명타 적중 시 주는 피해를 반영합니다.",
+  },
+  "e4-master": {
+    target: "딜러",
+    status: "풀효율",
+    tags: ["엘릭서", "치적", "추가 피해", "스택"],
+    summary: "달인. 비교 목적상 5중첩 기준 치명타 적중률 +7%와 추가 피해 +8.5%를 반영합니다.",
+  },
+  "e4-crushing": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["엘릭서", "진화형 피해"],
+    summary: "분쇄. 상시 진화형 피해 증가 노드입니다.",
+  },
+  "e4-advance": {
+    target: "서포터",
+    status: "노트만",
+    tags: ["엘릭서", "서포터"],
+    summary: "선각자. 아군 공격력 강화와 쿨타임 감소 중심의 서포터 노드입니다.",
+  },
+  "e4-vanguard": {
+    target: "서포터",
+    status: "노트만",
+    tags: ["엘릭서", "서포터"],
+    summary: "진군. 보호 효과 사용 후 에테르를 관리하는 서포터 노드입니다.",
+  },
+  "e4-prayer": {
+    target: "서포터",
+    status: "노트만",
+    tags: ["엘릭서", "낙인력"],
+    summary: "기원. 아군 공격력 강화와 낙인력 증가를 제공하는 상시형 서포터 노드입니다.",
+  },
+  "e5-blunt-thorn": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["조건부", "치적", "진화형 피해"],
+    summary: "치명타 확률을 80%로 제한하고 실제 초과 치적을 진화형 피해로 전환합니다.",
+  },
+  "e5-sonic-breakthrough": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["조건부", "공이속", "진화형 피해"],
+    summary: "실제 공격/이동속도 증가량과 140% 초과분을 진화형 피해로 전환합니다.",
+  },
+  "e5-infighting": {
+    target: "딜러",
+    status: "계산 반영",
+    tags: ["진화형 피해"],
+    summary: "조건 없는 진화형 피해 노드입니다.",
+  },
+  "e5-standing-striker": {
+    target: "딜러/서포터",
+    status: "풀효율",
+    tags: ["조건부", "스택"],
+    summary: "전투 시작 스택 기준으로 계산합니다. 피격 이상으로 인한 손실은 비교 계산에서 제외합니다.",
+  },
+  "e5-mana-forge": {
+    target: "딜러/서포터",
+    status: "풀효율",
+    tags: ["조건부", "마나", "진화형 피해"],
+    summary: "기본 마나 소모량에 비례해 진화형 피해가 증가합니다. 비교 계산은 기본 마나 480 이상 풀효율인 12%/24% 기준입니다.",
+  },
+  "e5-stable-manager": {
+    target: "서포터",
+    status: "노트만",
+    tags: ["낙인력", "아이덴티티"],
+    summary: "낙인력 증가 대신 아이덴티티 게이지 획득량이 감소하는 서포터 노드입니다.",
+  },
+};

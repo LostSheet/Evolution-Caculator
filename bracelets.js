@@ -1,0 +1,125 @@
+const BRACELET_GRADES = [
+  { value: "low", label: "하" },
+  { value: "mid", label: "중" },
+  { value: "high", label: "상" },
+];
+
+const BRACELET_STAT_FIELDS = [
+  { key: "critStat", label: "치명" },
+  { key: "specStat", label: "특화" },
+  { key: "swiftStat", label: "신속" },
+];
+
+const BRACELET_EFFECTS = [
+  braceletEffect("attack-move-speed", "공격/이동속도", [
+    "공격/이동속도 +4%",
+    "공격/이동속도 +5%",
+    "공격/이동속도 +6%",
+  ], [
+    { kind: "percent", key: "attackSpeed", amounts: [4, 5, 6] },
+  ]),
+  braceletEffect("crit-rate-on-crit-damage", "치적 + 치명타 적중 피해", [
+    "치적 +3.4% · 치명타 적중 시 주피 +1.5%",
+    "치적 +4.2% · 치명타 적중 시 주피 +1.5%",
+    "치적 +5% · 치명타 적중 시 주피 +1.5%",
+  ], [
+    { kind: "percent", key: "critRate", amounts: [3.4, 4.2, 5] },
+    { kind: "damage", key: "주는 피해", amounts: [1.5, 1.5, 1.5] },
+  ]),
+  braceletEffect("crit-damage-on-crit-damage", "치피 + 치명타 적중 피해", [
+    "치피 +6.8% · 치명타 적중 시 주피 +1.5%",
+    "치피 +8.4% · 치명타 적중 시 주피 +1.5%",
+    "치피 +10% · 치명타 적중 시 주피 +1.5%",
+  ], [
+    { kind: "percent", key: "critDamage", amounts: [6.8, 8.4, 10] },
+    { kind: "damage", key: "주는 피해", amounts: [1.5, 1.5, 1.5] },
+  ]),
+  braceletEffect("stagger-damage", "무력화 대상 피해", [
+    "주피 +2% · 무력화 대상 주피 +4%",
+    "주피 +2.5% · 무력화 대상 주피 +4.5%",
+    "주피 +3% · 무력화 대상 주피 +5%",
+  ], [
+    { kind: "damage", key: "주는 피해", amounts: [2, 2.5, 3] },
+    { kind: "damage", key: "주는 피해", amounts: [4, 4.5, 5] },
+  ]),
+  braceletEffect("additional-demon-damage", "추가 피해 + 악마 피해", [
+    "추가 피해 +2.5% · 악마/대악마 피해 +2.5%",
+    "추가 피해 +3% · 악마/대악마 피해 +2.5%",
+    "추가 피해 +3.5% · 악마/대악마 피해 +2.5%",
+  ], [
+    { kind: "damage", key: "추가 피해", amounts: [2.5, 3, 3.5] },
+    { kind: "damage", key: "악마/대악마 피해", amounts: [2.5, 2.5, 2.5] },
+  ]),
+  braceletEffect("cooldown-penalty-damage", "쿨타임 증가 + 주는 피해", [
+    "재사용 대기시간 +2% · 주피 +4.5%",
+    "재사용 대기시간 +2% · 주피 +5%",
+    "재사용 대기시간 +2% · 주피 +5.5%",
+  ], [
+    { kind: "percent", key: "cooldownIncrease", amounts: [2, 2, 2] },
+    { kind: "damage", key: "주는 피해", amounts: [4.5, 5, 5.5] },
+  ]),
+  braceletEffect("damage", "주는 피해", [
+    "주는 피해 +2%",
+    "주는 피해 +2.5%",
+    "주는 피해 +3%",
+  ], [
+    { kind: "damage", key: "주는 피해", amounts: [2, 2.5, 3] },
+  ]),
+  braceletEffect("additional-damage", "추가 피해", [
+    "추가 피해 +3%",
+    "추가 피해 +3.5%",
+    "추가 피해 +4%",
+  ], [
+    { kind: "damage", key: "추가 피해", amounts: [3, 3.5, 4] },
+  ]),
+  braceletEffect("back-attack-damage", "백어택 피해", [
+    "백어택 스킬 주피 +2.5%",
+    "백어택 스킬 주피 +3%",
+    "백어택 스킬 주피 +3.5%",
+  ], [
+    { kind: "damage", key: "주는 피해", amounts: [2.5, 3, 3.5] },
+  ], "backAttack"),
+  braceletEffect("head-attack-damage", "헤드어택 피해", [
+    "헤드어택 스킬 주피 +2.5%",
+    "헤드어택 스킬 주피 +3%",
+    "헤드어택 스킬 주피 +3.5%",
+  ], [
+    { kind: "damage", key: "주는 피해", amounts: [2.5, 3, 3.5] },
+  ], "headAttack"),
+  braceletEffect("non-directional-damage", "비방향성 피해", [
+    "비방향성 스킬 주피 +2.5%",
+    "비방향성 스킬 주피 +3%",
+    "비방향성 스킬 주피 +3.5%",
+  ], [
+    { kind: "damage", key: "주는 피해", amounts: [2.5, 3, 3.5] },
+  ], "nonDirectional"),
+  braceletEffect("crit-rate", "치명타 적중률", [
+    "치적 +3.4%",
+    "치적 +4.2%",
+    "치적 +5%",
+  ], [
+    { kind: "percent", key: "critRate", amounts: [3.4, 4.2, 5] },
+  ]),
+  braceletEffect("crit-damage", "치명타 피해", [
+    "치피 +6.8%",
+    "치피 +8.4%",
+    "치피 +10%",
+  ], [
+    { kind: "percent", key: "critDamage", amounts: [6.8, 8.4, 10] },
+  ]),
+];
+
+const BRACELET_UNSUPPORTED_EFFECTS = [
+  { name: "힘/민첩/지능", summary: "최대 +16,000" },
+  { name: "체력", summary: "최대 +6,000" },
+  { name: "전투자원 회복량", summary: "+8% / +10% / +12%" },
+  { name: "경직/피격이상 면역", summary: "재사용 80초 / 70초 / 60초" },
+  { name: "6중첩 무기공격력/공이속", summary: "무공 기준값 부재로 전체 미반영" },
+  { name: "생명력 50% 이상 무기공격력", summary: "평면 무공 기준값 부재" },
+  { name: "30중첩 무기공격력", summary: "평면 무공 기준값 부재" },
+  { name: "무기공격력", summary: "+7,200 / +8,100 / +9,000" },
+];
+
+function braceletEffect(id, name, summaries, effects, condition = "") {
+  return { id, name, summaries, effects, condition };
+}
