@@ -24,48 +24,45 @@
   }
 </script>
 
-<Dialog bind:open title="팔찌 설정" subtitle="{count}개 선택" width="900px">
-  <div class="engraving-dialog-body bracelet-dialog-body">
-    <section class="engraving-group">
-      <h3>계산 반영</h3>
-      <div class="bracelet-stat-grid" aria-label="팔찌 전투 특성">
-        {#each BRACELET_STAT_FIELDS as field}
-          <label>
-            <span>{field.label}</span>
-            <input type="number" min="0" max="120" step="1" bind:value={app.character.bracelet.stats[field.key]} onchange={() => clampStat(field.key)} />
-          </label>
-        {/each}
+<Dialog bind:open title="팔찌" subtitle="{count}개 선택" width="820px">
+  <div class="stat-trio">
+    {#each BRACELET_STAT_FIELDS as field}
+      <label>
+        <span style="display:block;margin-bottom:5px;font-size:11.5px;color:var(--txt-3)">{field.label}</span>
+        <input class="boxed" type="number" min="0" max="120" step="1"
+               bind:value={app.character.bracelet.stats[field.key]} onchange={() => clampStat(field.key)} />
+      </label>
+    {/each}
+  </div>
+
+  <div class="pick-list" style="margin-bottom:22px">
+    {#each BRACELET_EFFECTS as item (item.id)}
+      {@const gradeIndex = getBraceletGradeIndex(app.character.bracelet.effects[item.id])}
+      {@const on = isDirectionalConditionActive(item.condition, app.character.settings)}
+      <div class="pick" class:on={gradeIndex >= 0} class:inactive={gradeIndex >= 0 && !on}
+           style="grid-template-columns:150px minmax(0,1fr)">
+        <label for="br-{item.id}">{item.name}</label>
+        <select id="br-{item.id}" class="boxed"
+                value={app.character.bracelet.effects[item.id] ?? "none"}
+                onchange={e => setGrade(item, e.currentTarget.value)}>
+          <option value="none">미적용</option>
+          {#each BRACELET_GRADES as grade, gi}
+            <option value={grade.value}>
+              {grade.label} · {item.effects.map(e => `${formatInputValue(e.amounts[gi])}%`).join(" / ")}
+            </option>
+          {/each}
+        </select>
+        {#if gradeIndex >= 0}
+          <small>{item.summaries[gradeIndex]}{on ? "" : " · 현재 미적용"}</small>
+        {/if}
       </div>
-      <div class="engraving-list bracelet-option-list">
-        {#each BRACELET_EFFECTS as item (item.id)}
-          {@const gradeIndex = getBraceletGradeIndex(app.character.bracelet.effects[item.id])}
-          {@const conditionActive = isDirectionalConditionActive(item.condition, app.character.settings)}
-          <div class="engraving-row bracelet-option-row" class:active={gradeIndex >= 0} class:condition-inactive={gradeIndex >= 0 && !conditionActive}>
-            <label for="br-{item.id}"><strong>{item.name}</strong></label>
-            <select id="br-{item.id}" value={app.character.bracelet.effects[item.id] ?? "none"} onchange={e => setGrade(item, e.currentTarget.value)}>
-              <option value="none">미적용</option>
-              {#each BRACELET_GRADES as grade, gi}
-                <option value={grade.value}>
-                  {grade.label} · {item.effects.map(e => `${formatInputValue(e.amounts[gi])}%`).join(" / ")}
-                </option>
-              {/each}
-            </select>
-            {#if gradeIndex >= 0}
-              <small class="engraving-current-effect bracelet-current-effect">
-                {item.summaries[gradeIndex]}{conditionActive ? "" : " · 현재 미적용"}
-              </small>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    </section>
-    <section class="engraving-group utility-engraving-group">
-      <h3>현재 미반영</h3>
-      <div class="bracelet-unsupported-list">
-        {#each BRACELET_UNSUPPORTED_EFFECTS as item}
-          <div class="bracelet-unsupported-item"><strong>{item.name}</strong><span>{item.summary}</span></div>
-        {/each}
-      </div>
-    </section>
+    {/each}
+  </div>
+
+  <h3 style="margin-bottom:10px;font-size:11.5px;font-weight:600;color:var(--txt-3)">현재 미반영</h3>
+  <div class="unsupported">
+    {#each BRACELET_UNSUPPORTED_EFFECTS as item}
+      <div><strong>{item.name}</strong><span>{item.summary}</span></div>
+    {/each}
   </div>
 </Dialog>

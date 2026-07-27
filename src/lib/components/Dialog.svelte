@@ -1,5 +1,5 @@
 <script>
-  let { open = $bindable(false), title, subtitle = "", width = "820px", children } = $props();
+  let { open = $bindable(false), title, subtitle = "", width = "900px", children } = $props();
 
   let element = $state(null);
 
@@ -10,23 +10,22 @@
   });
 </script>
 
-<dialog
-  class="engraving-dialog"
-  style:--dialog-width={width}
-  bind:this={element}
-  onclose={() => (open = false)}
-  onclick={e => { if (e.target === element) open = false; }}
->
-  <div class="engraving-dialog-shell">
-    <header class="engraving-dialog-header">
+<dialog class="modal" style:--modal-width={width} bind:this={element}
+        onclose={() => (open = false)}
+        onclick={e => { if (e.target === element) open = false; }}>
+  <div class="modal-shell">
+    <header class="modal-hd">
       <div>
         <h2>{title}</h2>
-        {#if subtitle}<span>{subtitle}</span>{/if}
+        {#if subtitle}<p>{subtitle}</p>{/if}
       </div>
-      <button class="icon-button" type="button" aria-label="닫기" onclick={() => (open = false)}>
+      <span class="spacer"></span>
+      <button class="btn icon" type="button" aria-label="닫기" onclick={() => (open = false)}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </header>
-    {@render children?.()}
+    <div class="modal-body">
+      {@render children?.()}
+    </div>
   </div>
 </dialog>
