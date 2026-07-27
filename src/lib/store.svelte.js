@@ -51,6 +51,9 @@ export function resetSection(section) {
     app.character.accessories = cloneState(DEFAULT_STATE.accessories);
   } else if (section === "bracelet") {
     app.character.bracelet = cloneState(DEFAULT_STATE.bracelet);
+  } else if (section === "gear") {
+    app.character.weapon = cloneState(DEFAULT_STATE.weapon);
+    app.character.collection = cloneState(DEFAULT_STATE.collection);
   } else if (section === "engravings") {
     app.character.engravings = {};
   } else if (section === "baseEffects") {

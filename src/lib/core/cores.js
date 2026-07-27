@@ -114,7 +114,7 @@ function core(id, slot, name, tiers, note = "") {
 }
 
 // 젬의 추가 피해는 툴팁 표기(0.08%/Lv)와 실제 적용값이 다르다.
-const GEM_ADDITIONAL_DAMAGE_PER_LEVEL = 0.807;
+const GEM_ADDITIONAL_DAMAGE_PER_LEVEL = 0.0807;
 const GEM_MAX_LEVEL = 10;
 
 // 단일 출처 항목. 켜고 끄거나 수치만 넣으면 되는 것들.

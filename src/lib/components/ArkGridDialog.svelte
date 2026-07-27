@@ -1,8 +1,7 @@
 <script>
   import {
     CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS, CHAOS_CORE_STAGES, CHAOS_CORES,
-    GEM_ADDITIONAL_DAMAGE_PER_LEVEL, GEM_MAX_LEVEL, STANDALONE_SOURCES,
-    WEAPON_QUALITY_MAX, weaponQualityDamage,
+    GEM_ADDITIONAL_DAMAGE_PER_LEVEL, GEM_MAX_LEVEL,
   } from "../core/cores.js";
   import { formatNumber, clamp, readNumber } from "../core/util.js";
   import { app, persist } from "../store.svelte.js";
@@ -17,9 +16,6 @@
   );
   const gemDamage = $derived(
     clamp(Math.round(readNumber(grid.gemLevel)), 0, GEM_MAX_LEVEL) * GEM_ADDITIONAL_DAMAGE_PER_LEVEL,
-  );
-  const weaponDamage = $derived(
-    weaponQualityDamage(clamp(Math.round(readNumber(app.character.weapon.quality)), 0, WEAPON_QUALITY_MAX)),
   );
 
   function coresFor(slotKey) {
@@ -130,19 +126,11 @@
 
   <section class="grid-slot">
     <div class="grid-slot-hd">
-      <h3>무기 · 젬 · 도감</h3>
+      <h3>젬</h3>
     </div>
     <div class="fields">
       <div class="field">
-        <label for="weapon-q">무기 품질 <em>0~{WEAPON_QUALITY_MAX}</em></label>
-        <div class="with-sheet">
-          <input id="weapon-q" type="number" min="0" max={WEAPON_QUALITY_MAX} step="1"
-                 bind:value={app.character.weapon.quality} onchange={persist} />
-          <small>무기 추가 피해 +{formatNumber(weaponDamage)}%</small>
-        </div>
-      </div>
-      <div class="field">
-        <label for="gem-lv">젬 추가 피해 레벨 합계</label>
+        <label for="gem-lv">추가 피해 레벨 합계</label>
         <div class="with-sheet">
           <input id="gem-lv" type="number" min="0" max={GEM_MAX_LEVEL} step="1"
                  bind:value={grid.gemLevel} onchange={persist} />
@@ -151,24 +139,7 @@
       </div>
     </div>
     <p class="grid-note">
-      젬은 툴팁 표기가 Lv당 0.08%지만 실제 적용값은 <b>Lv당 {GEM_ADDITIONAL_DAMAGE_PER_LEVEL}%</b>이라 적용값으로 계산합니다.
-      무기 품질은 <b>y = 0.002x² + 10</b>이며, 이름이 다른 피해 그룹이라
-      일반 추가 피해와 합산되지 않고 곱연산됩니다.
+      툴팁 표기는 Lv당 0.08%지만 실제 적용값은 <b>Lv당 {GEM_ADDITIONAL_DAMAGE_PER_LEVEL}%</b>이라 적용값으로 계산합니다.
     </p>
-
-    <label class="check">
-      <input type="checkbox" bind:checked={app.character.collection.ranch} onchange={persist} />
-      <span>{STANDALONE_SOURCES.ranchCollection.label} · {STANDALONE_SOURCES.ranchCollection.summary}</span>
-    </label>
-
-    <div class="fields">
-      {#each [["critStat", "치명"], ["specStat", "특화"], ["swiftStat", "신속"]] as [key, label]}
-        <div class="field">
-          <label for="col-{key}">도감 · 물약 {label}</label>
-          <input id="col-{key}" type="number" min="0" step="1"
-                 bind:value={app.character.collection[key]} onchange={persist} />
-        </div>
-      {/each}
-    </div>
   </section>
 </Dialog>

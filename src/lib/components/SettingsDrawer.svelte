@@ -2,9 +2,12 @@
   import { EFFECT_CATEGORIES } from "../core/data.js";
   import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../core/engravings.js";
   import { BRACELET_GRADES, BRACELET_STAT_FIELDS, BRACELET_EFFECTS } from "../core/bracelets.js";
-  import { CHAOS_CORE_SLOTS, CHAOS_CORES } from "../core/cores.js";
+  import {
+    CHAOS_CORE_SLOTS, CHAOS_CORES, STANDALONE_SOURCES,
+    WEAPON_QUALITY_MAX, weaponQualityDamage,
+  } from "../core/cores.js";
   import { getEngravingTierIndex, getBraceletGradeIndex, isDirectionalConditionActive } from "../core/metrics.js";
-  import { makeId, formatInteger, clamp, readNumber } from "../core/util.js";
+  import { makeId, formatNumber, formatInteger, clamp, readNumber } from "../core/util.js";
   import { app, persist, resetSection } from "../store.svelte.js";
 
   let { open = $bindable(false), onOpenEngravings, onOpenBracelet, onOpenArkGrid } = $props();
@@ -37,6 +40,10 @@
     ENGRAVING_LIBRARY.filter(item => getEngravingTierIndex(app.character.engravings[item.id]) >= 0),
   );
 
+  const weaponDamage = $derived(
+    weaponQualityDamage(clamp(Math.round(readNumber(app.character.weapon.quality)), 0, WEAPON_QUALITY_MAX)),
+  );
+
   const gridChips = $derived.by(() => {
     const grid = app.character.arkGrid;
     const chips = CHAOS_CORE_SLOTS
@@ -45,11 +52,6 @@
       .map(entry => `${entry.slot.label} ${entry.core.name} ${grid.cores[entry.slot.key].points}P`);
     const gem = clamp(Math.round(readNumber(grid.gemLevel)), 0, 10);
     if (gem > 0) chips.push(`젬 Lv${gem}`);
-    if (app.character.collection.ranch) chips.push("목장 도감");
-    const stats = [["critStat", "치명"], ["specStat", "특화"], ["swiftStat", "신속"]]
-      .filter(([key]) => readNumber(app.character.collection[key]) > 0)
-      .map(([key, label]) => `${label} +${formatInteger(app.character.collection[key])}`);
-    if (stats.length > 0) chips.push(`도감·물약 ${stats.join(" ")}`);
     return chips;
   });
   const braceletChips = $derived([
@@ -179,6 +181,41 @@
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} /><span>쿨감 반영</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeAttackSpeed} onchange={persist} /><span>공속 반영</span></label>
         </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hd">
+          <h3>무기 · 도감</h3>
+          <span class="spacer"></span>
+          <button class="reset" type="button" aria-label="무기 · 도감 초기화" onclick={() => resetSection("gear")}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+          </button>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="d-quality">무기 품질 <em>0~{WEAPON_QUALITY_MAX}</em></label>
+            <div class="with-sheet">
+              <input id="d-quality" type="number" min="0" max={WEAPON_QUALITY_MAX} step="1"
+                     bind:value={app.character.weapon.quality} onchange={persist} />
+              <small>무기 추가 피해 +{formatNumber(weaponDamage)}%</small>
+            </div>
+          </div>
+          {#each [["critStat", "치명"], ["specStat", "특화"], ["swiftStat", "신속"]] as [key, label]}
+            <div class="field">
+              <label for="d-col-{key}">도감 · 물약 {label}</label>
+              <input id="d-col-{key}" type="number" min="0" step="1"
+                     bind:value={app.character.collection[key]} onchange={persist} />
+            </div>
+          {/each}
+        </div>
+        <label class="check">
+          <input type="checkbox" bind:checked={app.character.collection.ranch} onchange={persist} />
+          <span>{STANDALONE_SOURCES.ranchCollection.label} · {STANDALONE_SOURCES.ranchCollection.summary}</span>
+        </label>
+        <p class="hint">
+          무기 품질은 <b>y = 0.002x² + 10</b>이라 품질 0에서도 10%입니다.
+          이름이 다른 피해 그룹이라 일반 추가 피해와 합산되지 않고 곱연산됩니다.
+        </p>
       </section>
 
       <section class="section">
