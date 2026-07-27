@@ -1,12 +1,14 @@
 <script>
-  import { EFFECT_CATEGORIES } from "../core/data.js";
+  import { EFFECT_CATEGORIES, NODE_LIBRARY } from "../core/data.js";
   import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../core/engravings.js";
   import { BRACELET_GRADES, BRACELET_STAT_FIELDS, BRACELET_EFFECTS } from "../core/bracelets.js";
   import {
     CHAOS_CORE_SLOTS, CHAOS_CORES, STANDALONE_SOURCES,
     WEAPON_QUALITY_MAX, weaponQualityDamage,
   } from "../core/cores.js";
-  import { getEngravingTierIndex, getBraceletGradeIndex, isDirectionalConditionActive } from "../core/metrics.js";
+  import {
+    getEngravingTierIndex, getBraceletGradeIndex, isDirectionalConditionActive, getNodeCost,
+  } from "../core/metrics.js";
   import { makeId, formatNumber, formatInteger, clamp, readNumber } from "../core/util.js";
   import { app, persist, resetSection } from "../store.svelte.js";
 
@@ -21,6 +23,12 @@
   });
 
   const manaShare = $derived(clamp(Math.round(readNumber(app.character.convenience.manaShare)), 0, 100));
+  const nodePoints = $derived(
+    NODE_LIBRARY.reduce(
+      (sum, node) => sum + (app.character.nodeLevels[node.id] || 0) * getNodeCost(node),
+      0,
+    ),
+  );
   const weaponDamage = $derived(
     weaponQualityDamage(clamp(Math.round(readNumber(app.character.weapon.quality)), 0, WEAPON_QUALITY_MAX)),
   );
@@ -93,6 +101,51 @@
     </header>
 
     <div class="drawer-body">
+      <!-- 탐색이 바꾸는 것 -->
+      <section class="section">
+        <div class="section-hd">
+          <h3>탐색 대상 <em class="tag">노드 · 각인 · 펫</em></h3>
+        </div>
+        <p class="hint">이 셋만 탐색이 바꿉니다. 아래 장비와 조건은 전부 고정한 채로 조합을 찾습니다.</p>
+
+        <div class="fields">
+          <div class="field">
+            <span>진화 노드</span>
+            <div class="with-sheet">
+              <small>{formatInteger(nodePoints)} / {formatInteger(app.character.settings.pointBudget)}P</small>
+              <button class="btn sm" type="button" onclick={() => resetSection("nodes")}>비우기</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="d-pet">펫 효과</label>
+            <select id="d-pet" bind:value={app.character.convenience.petStat} onchange={persist}>
+              <option value="none">사용 안 함</option>
+              <option value="critStat">치명 +160</option>
+              <option value="specStat">특화 +160</option>
+              <option value="swiftStat">신속 +160</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-hd" style="margin-top:12px">
+          <h4 class="sub">각인</h4>
+          <span class="spacer"></span>
+          {@render resetButton("각인 초기화", "engravings")}
+          <button class="btn sm" type="button" onclick={onOpenEngravings}>편집</button>
+        </div>
+        <div class="summary-line">
+          {#if activeEngravings.length === 0}
+            <span class="empty">선택 없음</span>
+          {:else}
+            {#each activeEngravings as item (item.id)}
+              {@const tier = ENGRAVING_TIERS[getEngravingTierIndex(app.character.engravings[item.id])]}
+              {@const on = isDirectionalConditionActive(item.condition, app.character.settings)}
+              <span class="chip">{item.name} · {tier.label}{on ? "" : " · 미적용"}</span>
+            {/each}
+          {/if}
+        </div>
+      </section>
+
       <!-- 1 · 무기 · 도감 -->
       <section class="section">
         <div class="section-hd">
@@ -222,60 +275,39 @@
         </div>
       </section>
 
-      <!-- 배치 미확정 구간 -->
+      <!-- 전투 상황 -->
       <section class="section">
         <div class="section-hd">
-          <h3>각인 <em class="tag">탐색 대상</em></h3>
+          <h3>전투 상황</h3>
           <span class="spacer"></span>
-          {@render resetButton("각인 초기화", "engravings")}
-          <button class="btn sm" type="button" onclick={onOpenEngravings}>편집</button>
+          {@render resetButton("전투 상황 초기화", "convenience")}
         </div>
-        <div class="summary-line">
-          {#if activeEngravings.length === 0}
-            <span class="empty">선택 없음</span>
-          {:else}
-            {#each activeEngravings as item (item.id)}
-              {@const tier = ENGRAVING_TIERS[getEngravingTierIndex(app.character.engravings[item.id])]}
-              {@const on = isDirectionalConditionActive(item.condition, app.character.settings)}
-              <span class="chip">{item.name} · {tier.label}{on ? "" : " · 미적용"}</span>
-            {/each}
-          {/if}
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-hd">
-          <h3>전투 조건</h3>
-          <span class="spacer"></span>
-          {@render resetButton("전투 조건 초기화", "convenience")}
-        </div>
+        <p class="hint">전투 중 실제로 성립하는 조건입니다. 방향성 각인과 팔찌 옵션이 여기에 걸립니다.</p>
         <div class="checks">
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.backAttack} onchange={persist} /><span>백어택</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.headAttack} onchange={persist} /><span>헤드어택</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.convenience.goddessBlessing} onchange={persist} /><span>축복의 여신 9%</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.convenience.feast} onchange={persist} /><span>만찬 5%</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} /><span>쿨감 반영</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeAttackSpeed} onchange={persist} /><span>공속 반영</span></label>
+        </div>
+      </section>
+
+      <!-- 계산 기준 -->
+      <section class="section">
+        <div class="section-hd">
+          <h3>계산 기준</h3>
+        </div>
+        <p class="hint">스펙이 아니라 기대값을 어떻게 셀지 정하는 값입니다.</p>
+        <div class="checks single">
+          <label class="check">
+            <input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} />
+            <span>쿨감을 DPS에 반영</span>
+          </label>
         </div>
         <div class="fields">
-          <div class="field">
-            <label for="d-pet">펫 효과 <em>탐색 대상</em></label>
-            <select id="d-pet" bind:value={app.character.convenience.petStat} onchange={persist}>
-              <option value="none">사용 안 함</option>
-              <option value="critStat">치명 +160</option>
-              <option value="specStat">특화 +160</option>
-              <option value="swiftStat">신속 +160</option>
-            </select>
-          </div>
           <div class="field">
             <label for="d-spec">특화 효율 % / 100</label>
             <input id="d-spec" type="number" step="0.01"
                    bind:value={app.character.base.specDamagePer100} onchange={persist} />
-          </div>
-          <div class="field">
-            <label for="d-budget">진화 포인트</label>
-            <input id="d-budget" type="number" min="0" step="1"
-                   bind:value={app.character.settings.pointBudget} onchange={persist} />
           </div>
         </div>
         <label class="slider" for="d-mana">

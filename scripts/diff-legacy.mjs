@@ -105,7 +105,7 @@ function randomState() {
     },
     settings: {
       pointBudget: 140,
-      includeCooldown: maybe(), includeAttackSpeed: maybe(),
+      includeCooldown: maybe(),
       backAttack: maybe(), headAttack: maybe(),
     },
     convenience: {

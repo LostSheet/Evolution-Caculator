@@ -860,3 +860,16 @@ input.boxed[type="number"] { text-align: right; }
   .pool-row { grid-template-columns: minmax(0, 1fr) 80px; }
   .pool-row select:last-child { grid-column: 2; }
 }
+
+/* 서랍 안의 하위 제목 */
+.section-hd h4.sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--txt-3);
+}
+
+/* 값 대신 라벨만 있는 행 */
+.field > span:first-child {
+  font-size: 12.5px;
+  color: var(--txt-2);
+}

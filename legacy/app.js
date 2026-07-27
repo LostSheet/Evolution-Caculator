@@ -15,9 +15,9 @@ const DEFAULT_STATE = {
     specDamagePer100: 0,
   },
   settings: {
+    // 진화 포인트는 140 고정이다.
     pointBudget: 140,
     includeCooldown: true,
-    includeAttackSpeed: false,
     backAttack: false,
     headAttack: false,
   },
@@ -402,7 +402,7 @@ function resetSection(section) {
     label = "전투 특성";
   } else if (section === "convenience") {
     state.convenience = cloneState(DEFAULT_STATE.convenience);
-    ["includeCooldown", "includeAttackSpeed", "backAttack", "headAttack"].forEach(key => {
+    ["includeCooldown", "backAttack", "headAttack"].forEach(key => {
       state.settings[key] = DEFAULT_STATE.settings[key];
     });
     label = "편의 설정";
@@ -1434,7 +1434,9 @@ function finalizeMetrics(context) {
   const cooldownFactor = settings.includeCooldown
     ? 1 / ((1 - clamp(cooldownReduction, 0, 80) / 100) * (1 + cooldownIncrease / 100))
     : 1;
-  const attackSpeedFactor = settings.includeAttackSpeed ? attackMoveSpeed / 100 : 1;
+  // 공속을 DPS에 곱하지 않는다. 공속이 곧 딜 사이클 단축이라는 근거가 약하고,
+  // 공속의 실제 이득은 음속 돌파의 진화형 피해 전환으로만 반영한다.
+  const attackSpeedFactor = 1;
   const damageIndex = 100 * critFactor * damageMultiplier;
   const dpsIndex = damageIndex * cooldownFactor * attackSpeedFactor;
 

@@ -42,7 +42,7 @@ function randomState() {
       specDamagePer100: maybe() ? Math.random() * 5 : 0,
     },
     settings: {
-      pointBudget: 140, includeCooldown: maybe(), includeAttackSpeed: maybe(),
+      pointBudget: 140, includeCooldown: maybe(),
       backAttack: maybe(), headAttack: maybe(),
     },
     convenience: {

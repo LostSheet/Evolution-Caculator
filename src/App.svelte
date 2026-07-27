@@ -31,7 +31,6 @@
     const mana = clamp(Math.round(readNumber(app.character.convenience.manaShare)), 0, 100);
     return [
       { label: "특성", value: `${formatInteger(total.critStat)}·${formatInteger(total.specStat)}·${formatInteger(total.swiftStat)}` },
-      { label: "포인트", value: formatInteger(budget) },
       { label: "방향", value: direction },
       { label: "마나", value: `${mana}%` },
     ];

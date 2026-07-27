@@ -53,7 +53,7 @@ export function resetSection(section) {
     app.character.settings.pointBudget = DEFAULT_STATE.settings.pointBudget;
   } else if (section === "convenience") {
     app.character.convenience = cloneState(DEFAULT_STATE.convenience);
-    for (const key of ["includeCooldown", "includeAttackSpeed", "backAttack", "headAttack"]) {
+    for (const key of ["includeCooldown", "backAttack", "headAttack"]) {
       app.character.settings[key] = DEFAULT_STATE.settings[key];
     }
   } else if (section === "accessories") {
