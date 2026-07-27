@@ -21,16 +21,14 @@
   });
 
   const manaShare = $derived(clamp(Math.round(readNumber(app.character.convenience.manaShare)), 0, 100));
+  const weaponDamage = $derived(
+    weaponQualityDamage(clamp(Math.round(readNumber(app.character.weapon.quality)), 0, WEAPON_QUALITY_MAX)),
+  );
 
   const STATS = [
     { key: "critStat", label: "치명" },
     { key: "specStat", label: "특화" },
     { key: "swiftStat", label: "신속" },
-  ];
-  const TUNING = [
-    { key: "baseCritRate", label: "기본 치적 %" },
-    { key: "critDamageBonus", label: "추가 치피 %" },
-    { key: "specDamagePer100", label: "특화 효율 % / 100" },
   ];
   const GRADES = ["none", "high", "mid", "low"];
   const CRIT_RATE_LABELS = { none: "없음", high: "상 1.55%", mid: "중 0.95%", low: "하 0.40%" };
@@ -39,21 +37,6 @@
   const activeEngravings = $derived(
     ENGRAVING_LIBRARY.filter(item => getEngravingTierIndex(app.character.engravings[item.id]) >= 0),
   );
-
-  const weaponDamage = $derived(
-    weaponQualityDamage(clamp(Math.round(readNumber(app.character.weapon.quality)), 0, WEAPON_QUALITY_MAX)),
-  );
-
-  const gridChips = $derived.by(() => {
-    const grid = app.character.arkGrid;
-    const chips = CHAOS_CORE_SLOTS
-      .map(slot => ({ slot, core: CHAOS_CORES.find(c => c.id === grid.cores[slot.key]?.id) }))
-      .filter(entry => entry.core)
-      .map(entry => `${entry.slot.label} ${entry.core.name} ${grid.cores[entry.slot.key].points}P`);
-    const gem = clamp(Math.round(readNumber(grid.gemLevel)), 0, 10);
-    if (gem > 0) chips.push(`젬 Lv${gem}`);
-    return chips;
-  });
   const braceletChips = $derived([
     ...BRACELET_STAT_FIELDS
       .map(item => ({ label: item.label, amount: clamp(readNumber(app.character.bracelet.stats[item.key]), 0, 120) }))
@@ -67,6 +50,16 @@
         return `${entry.item.name} · ${BRACELET_GRADES[entry.gradeIndex].label}${on ? "" : " · 미적용"}`;
       }),
   ]);
+  const gridChips = $derived.by(() => {
+    const grid = app.character.arkGrid;
+    const chips = CHAOS_CORE_SLOTS
+      .map(slot => ({ slot, core: CHAOS_CORES.find(c => c.id === grid.cores[slot.key]?.id) }))
+      .filter(entry => entry.core)
+      .map(entry => `${entry.slot.label} ${entry.core.name} ${grid.cores[entry.slot.key].points}P`);
+    const gem = clamp(Math.round(readNumber(grid.gemLevel)), 0, 10);
+    if (gem > 0) chips.push(`젬 Lv${gem}`);
+    return chips;
+  });
 
   function addEffect() {
     app.character.baseEffects.push({
@@ -81,6 +74,12 @@
   }
 </script>
 
+{#snippet resetButton(label, section)}
+  <button class="reset" type="button" aria-label={label} onclick={() => resetSection(section)}>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+  </button>
+{/snippet}
+
 <dialog class="drawer" bind:this={element} onclose={() => (open = false)}
         onclick={e => { if (e.target === element) open = false; }}>
   <div class="drawer-shell">
@@ -94,102 +93,12 @@
     </header>
 
     <div class="drawer-body">
-      <section class="section">
-        <div class="section-hd">
-          <h3>전투 특성</h3>
-          <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="전투 특성 초기화" onclick={() => resetSection("combat")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
-        </div>
-        <div class="fields">
-          {#each STATS as stat}
-            <div class="field">
-              <label for="d-{stat.key}">{stat.label}</label>
-              <input id="d-{stat.key}" type="number" min="0" step="1"
-                     bind:value={app.character.base[stat.key]} onchange={persist} />
-            </div>
-          {/each}
-          {#each TUNING as tune}
-            <div class="field">
-              <label for="d-{tune.key}">{tune.label}</label>
-              <input id="d-{tune.key}" type="number" step="0.01"
-                     bind:value={app.character.base[tune.key]} onchange={persist} />
-            </div>
-          {/each}
-          <div class="field">
-            <label for="d-budget">진화 포인트</label>
-            <input id="d-budget" type="number" min="0" step="1"
-                   bind:value={app.character.settings.pointBudget} onchange={persist} />
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="section-hd">
-          <h3>편의 설정</h3>
-          <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="편의 설정 초기화" onclick={() => resetSection("convenience")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
-        </div>
-        <div class="fields">
-          <div class="field">
-            <label for="d-pet">펫 효과</label>
-            <select id="d-pet" bind:value={app.character.convenience.petStat} onchange={persist}>
-              <option value="none">사용 안 함</option>
-              <option value="critStat">치명 +160</option>
-              <option value="specStat">특화 +160</option>
-              <option value="swiftStat">신속 +160</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="d-karma">진화 카르마</label>
-            <select id="d-karma" bind:value={app.character.convenience.evolutionKarmaRank} onchange={persist}>
-              {#each [0, 1, 2, 3, 4, 5, 6] as rank}
-                <option value={rank}>{rank}랭크{rank > 0 ? ` · +${rank}%` : ""}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <label class="slider" for="d-mana">
-          <span class="slider-top">
-            마나 스킬 딜 비중
-            <strong class:off={manaShare >= 100}>{manaShare}%</strong>
-          </span>
-          <input id="d-mana" type="range" min="0" max="100" step="5"
-                 bind:value={app.character.convenience.manaShare} onchange={persist} />
-          <p>
-            전체 딜 중 마나를 소모하는 스킬이 차지하는 비율.
-            <strong>마나 효율 증가 각인, 마나 용광로, 금단의 주문 마나 추가분</strong>에만 적용됩니다.
-          </p>
-        </label>
-        <details class="aside">
-          <summary>끝없는 마나 · 무한한 마력 쿨감은 왜 안 깎이나요?</summary>
-          <ul>
-            <li>쿨감이 30% 당겨지면 스택·게이지 축적 속도도 같이 30% 빨라져 사이클 전체가 당겨집니다.</li>
-            <li>주력기가 마나를 쓰지 않아도 끝마/무마 쿨감은 그대로 이득이라 비중으로 깎지 않습니다.</li>
-          </ul>
-        </details>
-
-        <div class="checks">
-          <label class="check"><input type="checkbox" bind:checked={app.character.convenience.goddessBlessing} onchange={persist} /><span>축복의 여신 9%</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.convenience.feast} onchange={persist} /><span>만찬 5%</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.backAttack} onchange={persist} /><span>백어택</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.headAttack} onchange={persist} /><span>헤드어택</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} /><span>쿨감 반영</span></label>
-          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeAttackSpeed} onchange={persist} /><span>공속 반영</span></label>
-        </div>
-      </section>
-
+      <!-- 1 · 무기 · 도감 -->
       <section class="section">
         <div class="section-hd">
           <h3>무기 · 도감</h3>
           <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="무기 · 도감 초기화" onclick={() => resetSection("gear")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
+          {@render resetButton("무기 · 도감 초기화", "gear")}
         </div>
         <div class="fields">
           <div class="field">
@@ -200,11 +109,11 @@
               <small>무기 추가 피해 +{formatNumber(weaponDamage)}%</small>
             </div>
           </div>
-          {#each [["critStat", "치명"], ["specStat", "특화"], ["swiftStat", "신속"]] as [key, label]}
+          {#each STATS as stat}
             <div class="field">
-              <label for="d-col-{key}">도감 · 물약 {label}</label>
-              <input id="d-col-{key}" type="number" min="0" step="1"
-                     bind:value={app.character.collection[key]} onchange={persist} />
+              <label for="d-col-{stat.key}">도감 · 물약 {stat.label}</label>
+              <input id="d-col-{stat.key}" type="number" min="0" step="1"
+                     bind:value={app.character.collection[stat.key]} onchange={persist} />
             </div>
           {/each}
         </div>
@@ -214,32 +123,16 @@
         </label>
         <p class="hint">
           무기 품질은 <b>y = 0.002x² + 10</b>이라 품질 0에서도 10%입니다.
-          이름이 다른 피해 그룹이라 일반 추가 피해와 합산되지 않고 곱연산됩니다.
+          이름이 다른 피해 그룹이라 일반 추가 피해와 곱연산됩니다.
         </p>
       </section>
 
-      <section class="section">
-        <div class="section-hd">
-          <h3>아크 그리드</h3>
-          <span class="spacer"></span>
-          <button class="btn sm" type="button" onclick={onOpenArkGrid}>편집</button>
-        </div>
-        <div class="summary-line">
-          {#if gridChips.length === 0}
-            <span class="empty">선택 없음</span>
-          {:else}
-            {#each gridChips as chip}<span class="chip">{chip}</span>{/each}
-          {/if}
-        </div>
-      </section>
-
+      <!-- 2 · 악세서리 -->
       <section class="section">
         <div class="section-hd">
           <h3>악세서리</h3>
           <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="악세서리 초기화" onclick={() => resetSection("accessories")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
+          {@render resetButton("악세서리 초기화", "accessories")}
         </div>
         <div class="fields">
           <div class="slot">
@@ -279,13 +172,12 @@
         </div>
       </section>
 
+      <!-- 3 · 팔찌 -->
       <section class="section">
         <div class="section-hd">
           <h3>팔찌</h3>
           <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="팔찌 초기화" onclick={() => resetSection("bracelet")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
+          {@render resetButton("팔찌 초기화", "bracelet")}
           <button class="btn sm" type="button" onclick={onOpenBracelet}>편집</button>
         </div>
         <div class="summary-line">
@@ -297,13 +189,45 @@
         </div>
       </section>
 
+      <!-- 4 · 진화 카르마 -->
       <section class="section">
         <div class="section-hd">
-          <h3>각인</h3>
+          <h3>진화 카르마</h3>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="d-karma">랭크</label>
+            <select id="d-karma" bind:value={app.character.convenience.evolutionKarmaRank} onchange={persist}>
+              {#each [0, 1, 2, 3, 4, 5, 6] as rank}
+                <option value={rank}>{rank}랭크{rank > 0 ? ` · 진화형 피해 +${rank}%` : ""}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · 아크 그리드 -->
+      <section class="section">
+        <div class="section-hd">
+          <h3>아크 그리드</h3>
           <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="각인 초기화" onclick={() => resetSection("engravings")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
+          <button class="btn sm" type="button" onclick={onOpenArkGrid}>편집</button>
+        </div>
+        <div class="summary-line">
+          {#if gridChips.length === 0}
+            <span class="empty">선택 없음</span>
+          {:else}
+            {#each gridChips as chip}<span class="chip">{chip}</span>{/each}
+          {/if}
+        </div>
+      </section>
+
+      <!-- 배치 미확정 구간 -->
+      <section class="section">
+        <div class="section-hd">
+          <h3>각인 <em class="tag">탐색 대상</em></h3>
+          <span class="spacer"></span>
+          {@render resetButton("각인 초기화", "engravings")}
           <button class="btn sm" type="button" onclick={onOpenEngravings}>편집</button>
         </div>
         <div class="summary-line">
@@ -321,13 +245,68 @@
 
       <section class="section">
         <div class="section-hd">
+          <h3>전투 조건</h3>
+          <span class="spacer"></span>
+          {@render resetButton("전투 조건 초기화", "convenience")}
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" bind:checked={app.character.settings.backAttack} onchange={persist} /><span>백어택</span></label>
+          <label class="check"><input type="checkbox" bind:checked={app.character.settings.headAttack} onchange={persist} /><span>헤드어택</span></label>
+          <label class="check"><input type="checkbox" bind:checked={app.character.convenience.goddessBlessing} onchange={persist} /><span>축복의 여신 9%</span></label>
+          <label class="check"><input type="checkbox" bind:checked={app.character.convenience.feast} onchange={persist} /><span>만찬 5%</span></label>
+          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} /><span>쿨감 반영</span></label>
+          <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeAttackSpeed} onchange={persist} /><span>공속 반영</span></label>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="d-pet">펫 효과 <em>탐색 대상</em></label>
+            <select id="d-pet" bind:value={app.character.convenience.petStat} onchange={persist}>
+              <option value="none">사용 안 함</option>
+              <option value="critStat">치명 +160</option>
+              <option value="specStat">특화 +160</option>
+              <option value="swiftStat">신속 +160</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="d-spec">특화 효율 % / 100</label>
+            <input id="d-spec" type="number" step="0.01"
+                   bind:value={app.character.base.specDamagePer100} onchange={persist} />
+          </div>
+          <div class="field">
+            <label for="d-budget">진화 포인트</label>
+            <input id="d-budget" type="number" min="0" step="1"
+                   bind:value={app.character.settings.pointBudget} onchange={persist} />
+          </div>
+        </div>
+        <label class="slider" for="d-mana">
+          <span class="slider-top">
+            마나 스킬 딜 비중
+            <strong class:off={manaShare >= 100}>{manaShare}%</strong>
+          </span>
+          <input id="d-mana" type="range" min="0" max="100" step="5"
+                 bind:value={app.character.convenience.manaShare} onchange={persist} />
+          <p>
+            전체 딜 중 마나를 소모하는 스킬이 차지하는 비율.
+            <strong>마나 효율 증가 각인, 마나 용광로, 금단의 주문 마나 추가분</strong>에만 적용됩니다.
+          </p>
+        </label>
+        <details class="aside">
+          <summary>끝없는 마나 · 무한한 마력 쿨감은 왜 안 깎이나요?</summary>
+          <ul>
+            <li>쿨감이 30% 당겨지면 스택·게이지 축적 속도도 같이 30% 빨라져 사이클 전체가 당겨집니다.</li>
+            <li>주력기가 마나를 쓰지 않아도 끝마/무마 쿨감은 그대로 이득이라 비중으로 깎지 않습니다.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section class="section">
+        <div class="section-hd">
           <h3>직접 입력 효과</h3>
           <span class="spacer"></span>
-          <button class="reset" type="button" aria-label="직접 입력 효과 초기화" onclick={() => resetSection("baseEffects")}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-          </button>
+          {@render resetButton("직접 입력 효과 초기화", "baseEffects")}
           <button class="btn sm" type="button" onclick={addEffect}>추가</button>
         </div>
+        <p class="hint">모델에 없는 출처는 여기에 그룹을 만들어 넣습니다. 치적 · 치피도 이곳으로 받습니다.</p>
         <div class="effect-list">
           {#each app.character.baseEffects as effect (effect.id)}
             <div class="effect-row">

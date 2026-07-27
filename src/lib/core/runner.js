@@ -139,7 +139,7 @@ export function buildEvaluator(sourceState, searchedEngravingIds) {
   const manaShare = getManaShareRatio(convenience);
   const settings = sourceState.settings;
   const specDamagePer100 = readNumber(sourceState.base.specDamagePer100);
-  const critDamageBonus = readNumber(sourceState.base.critDamageBonus);
+  const critDamageBonus = 0;
   const accessories = normalizeAccessories(sourceState.accessories);
   const bracelet = normalizeBracelet(sourceState.bracelet);
 
@@ -152,7 +152,7 @@ export function buildEvaluator(sourceState, searchedEngravingIds) {
     expertiseStat: readNumber(sourceState.base.expertiseStat),
   };
   const basePercent = {
-    critRate: readNumber(sourceState.base.baseCritRate),
+    critRate: 0,
     critDamage: 0, attackSpeed: 0, attackSpeedOnly: 0, moveSpeedOnly: 0,
     cooldownReduction: 0, cooldownIncrease: 0, manaCooldownReduction: 0,
     skillCooldownReduction: 0, critOnlyDamage: 0,

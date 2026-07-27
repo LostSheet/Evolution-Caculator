@@ -99,8 +99,8 @@ function randomState() {
       specStat: Math.floor(Math.random() * 2000),
       swiftStat: Math.floor(Math.random() * 2000),
       dominationStat: 0, enduranceStat: 0, expertiseStat: 0,
-      baseCritRate: Math.random() * 40,
-      critDamageBonus: Math.random() * 120,
+
+
       specDamagePer100: Math.random() * 6,
     },
     settings: {

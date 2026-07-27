@@ -23,13 +23,14 @@
   // The topbar carries what the search is holding fixed, so it stays visible
   // without opening the drawer.
   const summary = $derived.by(() => {
-    const base = app.character.base;
+    // 특성은 출처가 여럿이라 합계를 계산해서 보여준다.
+    const total = currentMetrics().totalStats;
     const s = app.character.settings;
     const direction = s.backAttack && s.headAttack ? "백·헤드"
       : s.backAttack ? "백어택" : s.headAttack ? "헤드어택" : "비방향성";
     const mana = clamp(Math.round(readNumber(app.character.convenience.manaShare)), 0, 100);
     return [
-      { label: "특성", value: `${formatInteger(base.critStat)}·${formatInteger(base.specStat)}·${formatInteger(base.swiftStat)}` },
+      { label: "특성", value: `${formatInteger(total.critStat)}·${formatInteger(total.specStat)}·${formatInteger(total.swiftStat)}` },
       { label: "포인트", value: formatInteger(budget) },
       { label: "방향", value: direction },
       { label: "마나", value: `${mana}%` },

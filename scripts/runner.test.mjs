@@ -38,7 +38,7 @@ function randomState() {
     base: {
       critStat: Math.floor(Math.random() * 1500), specStat: Math.floor(Math.random() * 1500),
       swiftStat: Math.floor(Math.random() * 1500), dominationStat: 0, enduranceStat: 0, expertiseStat: 0,
-      baseCritRate: Math.random() * 30, critDamageBonus: Math.random() * 100,
+
       specDamagePer100: maybe() ? Math.random() * 5 : 0,
     },
     settings: {

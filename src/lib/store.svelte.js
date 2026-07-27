@@ -14,8 +14,17 @@ function load(key, fallback) {
   }
 }
 
+// 전투 특성 입력은 사라졌다. 특성은 1T 노드 · 팔찌 · 도감/물약 · 펫에서만 온다.
+// 예전 저장본에 남은 base.*Stat이 UI 없이 조용히 더해지지 않도록 비운다.
+function migrate(character) {
+  return {
+    ...character,
+    base: { ...character.base, critStat: 0, specStat: 0, swiftStat: 0 },
+  };
+}
+
 export const app = $state({
-  character: mergeState(DEFAULT_STATE, load(CHARACTER_KEY, {})),
+  character: migrate(mergeState(DEFAULT_STATE, load(CHARACTER_KEY, {}))),
   search: { ...SEARCH_DEFAULTS, ...load(SEARCH_KEY, {}) },
   results: null,
   running: false,

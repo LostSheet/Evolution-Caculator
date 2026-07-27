@@ -3,15 +3,15 @@ const WORKSPACE_KEY = "ark-passive-simulator-workspace-v4";
 const SAVED_KEY = "ark-passive-simulator-saved-v3";
 
 const DEFAULT_STATE = {
+  // 전투 특성은 출처별로 받는다 — 악세서리 / 팔찌 / 도감·물약.
+  // base.*Stat은 모델의 합산 시작점일 뿐이라 0에서 출발한다.
   base: {
-    critStat: 76,
-    specStat: 75,
-    swiftStat: 77,
+    critStat: 0,
+    specStat: 0,
+    swiftStat: 0,
     dominationStat: 0,
     enduranceStat: 0,
     expertiseStat: 0,
-    baseCritRate: 0,
-    critDamageBonus: 0,
     specDamagePer100: 0,
   },
   settings: {
@@ -1271,7 +1271,7 @@ function calculateMetrics(inputState) {
     totalStats[convenience.petStat] += ARC_PASSIVE_CONSTANTS.petStatBonus;
   }
   const percentBonuses = {
-    critRate: readNumber(inputState.base.baseCritRate),
+    critRate: 0,
     critDamage: 0,
     attackSpeed: 0,
     attackSpeedOnly: 0,
@@ -1346,7 +1346,7 @@ function calculateMetrics(inputState) {
   return finalizeMetrics({
     settings: inputState.settings,
     specDamagePer100: readNumber(inputState.base.specDamagePer100),
-    critDamageBonus: readNumber(inputState.base.critDamageBonus),
+    critDamageBonus: 0,
     totalStats,
     percentBonuses,
     damageGroups,
@@ -2038,11 +2038,11 @@ function loadSavedSetups() {
 }
 
 function mergeState(base, next) {
+  // 치적/치피는 출처별 입력으로 갈렸다. 예전 저장본에 남아 있어도 무시한다.
   const nextBase = { ...(next.base || {}) };
-  if (typeof nextBase.critDamageBonus !== "number" && typeof nextBase.baseCritDamage === "number") {
-    nextBase.critDamageBonus = readNumber(nextBase.baseCritDamage) - ARC_PASSIVE_CONSTANTS.baseCritDamage;
-  }
   delete nextBase.baseCritDamage;
+  delete nextBase.baseCritRate;
+  delete nextBase.critDamageBonus;
 
   const accessories = normalizeAccessories(next.accessories);
   const bracelet = normalizeBracelet(next.bracelet);
