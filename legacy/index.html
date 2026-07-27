@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>아크 패시브 계산기</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <path d="M24 3 42 24 24 45 6 24 24 3Z" />
+              <path d="M24 11 35 24 24 37 13 24 24 11Z" />
+              <path d="M24 17v14M17 24h14" />
+            </svg>
+          </div>
+          <h1>아크 패시브 계산기</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="exportState" type="button" title="내보내기" aria-label="내보내기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3" />
+            </svg>
+          </button>
+          <label class="icon-button file-button" title="불러오기" aria-label="불러오기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21V9m0 0 4 4m-4-4-4 4M4 7V4h16v3" />
+            </svg>
+            <input id="importState" type="file" accept="application/json" />
+          </label>
+          <button class="ghost-button" id="resetNodes" type="button">노드 초기화</button>
+          <button class="danger-button" id="resetAll" type="button">전체 초기화</button>
+        </div>
+      </header>
+
+      <div class="simulator-layout">
+        <aside class="panel settings-panel" aria-label="아크 그리드 적용 전 캐릭터 설정">
+          <div class="panel-heading">
+            <h2>캐릭터 사전 설정</h2>
+            <span id="autosaveStatus">저장됨</span>
+          </div>
+
+          <div class="workspace-selectors" aria-label="캐릭터와 노드 세팅">
+            <div class="workspace-selector-row">
+              <label class="workspace-select-field">
+                <span>캐릭터</span>
+                <select id="profileSelect" aria-label="캐릭터 프로필"></select>
+              </label>
+              <div class="workspace-selector-actions" aria-label="캐릭터 관리">
+                <button class="section-reset-button profile-action-button" data-profile-action="create" data-tooltip="새 캐릭터" type="button" aria-label="새 캐릭터">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button" data-profile-action="duplicate" data-tooltip="캐릭터 복제" type="button" aria-label="캐릭터 복제">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" /><path d="M16 8V5H5v11h3" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button" data-profile-action="rename" data-tooltip="캐릭터 이름 변경" type="button" aria-label="캐릭터 이름 변경">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button delete" data-profile-action="delete" data-tooltip="캐릭터 삭제" type="button" aria-label="캐릭터 삭제">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M9 7l1-3h4l1 3M7 7l1 14h8l1-14" /></svg>
+                </button>
+              </div>
+            </div>
+            <div class="workspace-selector-row">
+              <label class="workspace-select-field">
+                <span>노드 세팅</span>
+                <select id="nodePresetSelect" aria-label="노드 프리셋"></select>
+              </label>
+              <div class="workspace-selector-actions" aria-label="노드 프리셋 관리">
+                <button class="section-reset-button profile-action-button" data-node-preset-action="create" data-tooltip="새 노드 프리셋" type="button" aria-label="새 노드 프리셋">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button" data-node-preset-action="duplicate" data-tooltip="노드 프리셋 복제" type="button" aria-label="노드 프리셋 복제">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" /><path d="M16 8V5H5v11h3" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button" data-node-preset-action="rename" data-tooltip="노드 프리셋 이름 변경" type="button" aria-label="노드 프리셋 이름 변경">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></svg>
+                </button>
+                <button class="section-reset-button profile-action-button delete" data-node-preset-action="delete" data-tooltip="노드 프리셋 삭제" type="button" aria-label="노드 프리셋 삭제">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M9 7l1-3h4l1 3M7 7l1 14h8l1-14" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <section class="config-section">
+            <div class="config-section-heading">
+              <h3>전투 특성</h3>
+              <button class="section-reset-button" data-reset-section="combat" data-tooltip="전투 특성 초기화" type="button" aria-label="전투 특성 초기화">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
+            </div>
+            <div class="stat-field-grid">
+              <label>
+                <span>치명</span>
+                <input data-base="critStat" type="number" min="0" step="1" />
+              </label>
+              <label>
+                <span>특화</span>
+                <input data-base="specStat" type="number" min="0" step="1" />
+              </label>
+              <label>
+                <span>신속</span>
+                <input data-base="swiftStat" type="number" min="0" step="1" />
+              </label>
+            </div>
+            <div class="field-grid compact-fields">
+              <label>
+                <span>기본 치적 %</span>
+                <input data-base="baseCritRate" type="number" step="0.01" />
+              </label>
+              <label>
+                <span>추가 치피 %</span>
+                <input data-base="critDamageBonus" type="number" step="0.01" />
+              </label>
+              <label>
+                <span>특화 효율 % / 100</span>
+                <input data-base="specDamagePer100" type="number" step="0.01" />
+              </label>
+              <label>
+                <span>진화 포인트</span>
+                <input data-setting="pointBudget" type="number" min="0" step="1" />
+              </label>
+            </div>
+          </section>
+
+          <section class="config-section">
+            <div class="config-section-heading">
+              <h3>편의 설정</h3>
+              <button class="section-reset-button" data-reset-section="convenience" data-tooltip="편의 설정 초기화" type="button" aria-label="편의 설정 초기화">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
+            </div>
+            <div class="field-grid compact-fields">
+              <label>
+                <span>펫 효과</span>
+                <select data-convenience="petStat">
+                  <option value="none">사용 안 함</option>
+                  <option value="critStat">치명 +160</option>
+                  <option value="specStat">특화 +160</option>
+                  <option value="swiftStat">신속 +160</option>
+                </select>
+              </label>
+              <label>
+                <span>진화 카르마</span>
+                <select data-convenience="evolutionKarmaRank">
+                  <option value="0">0랭크</option>
+                  <option value="1">1랭크 · +1%</option>
+                  <option value="2">2랭크 · +2%</option>
+                  <option value="3">3랭크 · +3%</option>
+                  <option value="4">4랭크 · +4%</option>
+                  <option value="5">5랭크 · +5%</option>
+                  <option value="6">6랭크 · +6%</option>
+                </select>
+              </label>
+            </div>
+            <label class="slider-field" for="manaShareInput">
+              <span>마나 스킬 딜 비중 <strong data-mana-share-value="manaShare">100%</strong></span>
+              <input id="manaShareInput" data-convenience-number="manaShare" type="range" min="0" max="100" step="5" />
+              <small>전체 딜 중 마나를 소모하는 스킬이 차지하는 비율. <strong>마나 효율 증가 각인, 마나 용광로, 금단의 주문 마나 추가분</strong>에만 적용됩니다.</small>
+            </label>
+            <details class="mana-guide">
+              <summary>끝없는 마나 · 무한한 마력 쿨감은 왜 안 깎이나요?</summary>
+              <ul>
+                <li>쿨감이 30% 당겨지면 스택·게이지 축적 속도도 같이 30% 빨라져 사이클 전체가 당겨집니다.</li>
+                <li>따라서 주력기가 마나를 쓰지 않아도 끝마/무마 쿨감은 그대로 이득이며, 비중으로 깎지 않습니다.</li>
+                <li>이 슬라이더는 <strong>피해 계열 마나 전용 효과</strong>에만 작용합니다.</li>
+              </ul>
+            </details>
+            <div class="switch-row compact-switches" role="group" aria-label="캐릭터 버프">
+              <label class="switch">
+                <input data-convenience-toggle="goddessBlessing" type="checkbox" />
+                <span>축복의 여신 9%</span>
+              </label>
+              <label class="switch">
+                <input data-convenience-toggle="feast" type="checkbox" />
+                <span>만찬 5%</span>
+              </label>
+            </div>
+            <div class="switch-row compact-switches" role="group" aria-label="공격 방향">
+              <label class="switch">
+                <input data-toggle="backAttack" type="checkbox" />
+                <span>백어택</span>
+              </label>
+              <label class="switch">
+                <input data-toggle="headAttack" type="checkbox" />
+                <span>헤드어택</span>
+              </label>
+            </div>
+            <div class="switch-row compact-switches" role="group" aria-label="DPS 보정">
+              <label class="switch">
+                <input data-toggle="includeCooldown" type="checkbox" />
+                <span>쿨감 반영</span>
+              </label>
+              <label class="switch">
+                <input data-toggle="includeAttackSpeed" type="checkbox" />
+                <span>공속 반영</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="config-section accessory-section">
+            <div class="config-section-heading">
+              <h3>악세서리</h3>
+              <button class="section-reset-button" data-reset-section="accessories" data-tooltip="악세서리 초기화" type="button" aria-label="악세서리 초기화">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
+            </div>
+            <div class="accessory-list">
+              <div class="accessory-row necklace-row">
+                <strong>목걸이</strong>
+                <label>
+                  <span>추가 피해</span>
+                  <select data-accessory-slot="necklace" data-accessory-field="additionalDamage">
+                    <option value="none">없음</option>
+                    <option value="high">상 · 2.60%</option>
+                    <option value="mid">중 · 1.60%</option>
+                    <option value="low">하 · 0.60%</option>
+                  </select>
+                </label>
+              </div>
+              <div class="accessory-row muted-accessory">
+                <strong>귀걸이 1</strong>
+                <span>현재 계산 옵션 없음</span>
+              </div>
+              <div class="accessory-row muted-accessory">
+                <strong>귀걸이 2</strong>
+                <span>현재 계산 옵션 없음</span>
+              </div>
+              <div class="accessory-row ring-row">
+                <strong>반지 1</strong>
+                <label>
+                  <span>치적</span>
+                  <select data-accessory-slot="ring-0" data-accessory-field="critRate">
+                    <option value="none">없음</option>
+                    <option value="high">상 · 1.55%</option>
+                    <option value="mid">중 · 0.95%</option>
+                    <option value="low">하 · 0.40%</option>
+                  </select>
+                </label>
+                <label>
+                  <span>치피</span>
+                  <select data-accessory-slot="ring-0" data-accessory-field="critDamage">
+                    <option value="none">없음</option>
+                    <option value="high">상 · 4.00%</option>
+                    <option value="mid">중 · 2.40%</option>
+                    <option value="low">하 · 1.10%</option>
+                  </select>
+                </label>
+              </div>
+              <div class="accessory-row ring-row">
+                <strong>반지 2</strong>
+                <label>
+                  <span>치적</span>
+                  <select data-accessory-slot="ring-1" data-accessory-field="critRate">
+                    <option value="none">없음</option>
+                    <option value="high">상 · 1.55%</option>
+                    <option value="mid">중 · 0.95%</option>
+                    <option value="low">하 · 0.40%</option>
+                  </select>
+                </label>
+                <label>
+                  <span>치피</span>
+                  <select data-accessory-slot="ring-1" data-accessory-field="critDamage">
+                    <option value="none">없음</option>
+                    <option value="high">상 · 4.00%</option>
+                    <option value="mid">중 · 2.40%</option>
+                    <option value="low">하 · 1.10%</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-section bracelet-summary-section">
+            <div class="config-section-heading">
+              <h3>팔찌</h3>
+              <div class="section-heading-actions">
+                <button class="section-reset-button" data-reset-section="bracelet" data-tooltip="팔찌 초기화" type="button" aria-label="팔찌 초기화">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+                <button class="mini-button" id="openBracelet" type="button">설정</button>
+              </div>
+            </div>
+            <div class="selected-bracelet-list" id="selectedBracelet"></div>
+          </section>
+
+          <section class="config-section engraving-summary-section">
+            <div class="config-section-heading">
+              <h3>각인</h3>
+              <div class="section-heading-actions">
+                <button class="section-reset-button" data-reset-section="engravings" data-tooltip="각인 초기화" type="button" aria-label="각인 초기화">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+                <button class="mini-button" id="openEngravings" type="button">설정</button>
+              </div>
+            </div>
+            <div class="selected-engraving-list" id="selectedEngravings"></div>
+          </section>
+
+          <details class="config-disclosure">
+            <summary>직접 입력 효과</summary>
+            <div class="subheading">
+              <h3>기본 효과</h3>
+              <div class="section-heading-actions">
+                <button class="section-reset-button" data-reset-section="baseEffects" data-tooltip="직접 입력 효과 초기화" type="button" aria-label="직접 입력 효과 초기화">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+                <button class="mini-button" id="addBaseEffect" type="button">추가</button>
+              </div>
+            </div>
+            <div class="effect-list" id="baseEffectList"></div>
+          </details>
+        </aside>
+
+        <div class="simulator-main">
+          <section class="summary-strip" aria-label="계산 결과">
+            <article class="metric-tile featured">
+              <span>한 방 기대값</span>
+              <strong id="metricDamage">100.00</strong>
+              <small id="metricDamageDelta">노드 전 대비 +0.00%</small>
+            </article>
+            <article class="metric-tile featured-secondary">
+              <span>DPS 기대값</span>
+              <strong id="metricDps">100.00</strong>
+              <small id="metricDpsDelta">노드 전 대비 +0.00%</small>
+            </article>
+            <article class="metric-tile">
+              <span>치명타 확률</span>
+              <strong id="metricCritRate">0.00%</strong>
+              <small id="metricCritTotal">총 0.00%</small>
+            </article>
+            <article class="metric-tile">
+              <span>치명타 피해</span>
+              <strong id="metricCritDamage">200.00%</strong>
+            </article>
+            <article class="metric-tile">
+              <span>적용 공격/이동속도</span>
+              <strong id="metricAttackSpeed">공 100.00%</strong>
+              <small id="metricMoveSpeed">이 100.00%</small>
+              <small id="metricSpeedTotal">총 공 100.00% · 이 100.00%</small>
+              <small class="speed-excess" id="metricSpeedExcess" hidden>초과 공 0.00% · 이 0.00%</small>
+            </article>
+            <article class="metric-tile">
+              <span>진화 포인트</span>
+              <strong id="metricPoints">0 / 140</strong>
+              <small id="metricPointHint">사용 가능</small>
+            </article>
+          </section>
+
+          <section class="panel nodes-panel arc-board" aria-label="아크 패시브 노드">
+            <div class="arc-board-top">
+              <div class="arc-board-title">
+                <strong>진화</strong>
+                <small id="activeContextLabel"></small>
+              </div>
+              <div class="arc-board-points">
+                <span>진화 포인트</span>
+                <strong id="boardPoints">0 / 140</strong>
+              </div>
+            </div>
+            <div class="point-track" aria-label="포인트 사용량">
+              <div id="pointFill"></div>
+            </div>
+            <div class="node-grid" id="nodeGrid"></div>
+          </section>
+
+          <details class="panel compact-drawer optimizer-panel" id="optimizerPanel">
+            <summary>조합 탐색 <span id="optimizerSpaceHint"></span></summary>
+            <div class="optimizer-controls">
+              <label>
+                <span>1T 배분</span>
+                <select data-optimizer-option="tier1Mode">
+                  <option value="fixed">현재 배분 고정</option>
+                  <option value="step10">10레벨 단위</option>
+                  <option value="step5">5레벨 단위</option>
+                  <option value="step2">2레벨 단위</option>
+                </select>
+              </label>
+              <label>
+                <span>각인 개수</span>
+                <select data-optimizer-option="engravingSlots">
+                  <option value="fixed">탐색 안 함 (현재 각인 유지)</option>
+                  <option value="1">1개</option>
+                  <option value="2">2개</option>
+                  <option value="3">3개</option>
+                  <option value="4">4개</option>
+                  <option value="5">5개</option>
+                </select>
+              </label>
+              <label class="optimizer-pool-field">
+                <span>각인 후보</span>
+                <button class="mini-button" id="openEngravingPool" type="button">고정 · 제외 설정</button>
+              </label>
+              <label>
+                <span>탐색 방식</span>
+                <select data-optimizer-option="mode">
+                  <option value="auto">자동</option>
+                  <option value="exhaustive">전수 탐색</option>
+                  <option value="beam">빔 탐색</option>
+                </select>
+              </label>
+              <label>
+                <span>빔 너비</span>
+                <input data-optimizer-option="beamWidth" type="number" min="10" max="5000" step="10" />
+              </label>
+              <label>
+                <span>결과 개수</span>
+                <input data-optimizer-option="resultLimit" type="number" min="1" max="50" step="1" />
+              </label>
+              <div class="optimizer-switches">
+                <label class="switch">
+                  <input data-optimizer-option="petSearch" type="checkbox" />
+                  <span>펫 효과 탐색</span>
+                </label>
+                <label class="switch">
+                  <input data-optimizer-option="fullBudget" type="checkbox" />
+                  <span>티어 포인트 전량 사용</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="optimizer-actions">
+              <button class="mini-button" id="runOptimizer" type="button">탐색 시작</button>
+              <button class="ghost-button" id="cancelOptimizer" type="button" disabled>중지</button>
+              <span id="optimizerStatus">전투 특성 · 악세서리 · 팔찌 · 직접 입력 효과는 고정한 채로 탐색합니다.</span>
+            </div>
+            <div class="optimizer-progress" aria-hidden="true">
+              <div id="optimizerProgressFill"></div>
+            </div>
+            <ul class="optimizer-note" id="optimizerNote"></ul>
+
+            <div class="optimizer-tabs" id="optimizerTabs" role="tablist">
+              <button type="button" role="tab" data-optimizer-metric="damage">한 방 딜 순위</button>
+              <button type="button" role="tab" data-optimizer-metric="dps">DPS 순위</button>
+            </div>
+            <div class="optimizer-results" id="optimizerResults"></div>
+          </details>
+
+          <details class="panel compact-drawer compare-panel">
+            <summary>세팅 비교</summary>
+            <div class="compare-controls">
+              <label class="name-field">
+                <span>세팅 이름</span>
+                <input id="setupName" type="text" maxlength="40" placeholder="예: 치명 중심 2T" />
+              </label>
+              <button class="mini-button" id="saveSetup" type="button">현재 세팅 저장</button>
+            </div>
+            <div class="comparison-list" id="comparisonList"></div>
+          </details>
+
+          <details class="panel compact-drawer breakdown-panel">
+            <summary>상세 합산 <span id="breakdownClamp"></span></summary>
+            <div class="breakdown-grid">
+              <div>
+                <h3>전투 특성</h3>
+                <div id="statBreakdown" class="breakdown-list"></div>
+              </div>
+              <div>
+                <h3>피해 그룹</h3>
+                <div id="damageBreakdown" class="breakdown-list"></div>
+              </div>
+              <div>
+                <h3>기댓값 공식</h3>
+                <div id="formulaBreakdown" class="formula-stack"></div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </main>
+
+    <dialog class="engraving-dialog bracelet-dialog" id="braceletDialog" aria-labelledby="braceletDialogTitle">
+      <form method="dialog" class="engraving-dialog-shell">
+        <header class="engraving-dialog-header">
+          <div>
+            <h2 id="braceletDialogTitle">팔찌 설정</h2>
+            <span id="braceletCount">0개 선택</span>
+          </div>
+          <button class="icon-button" value="close" type="submit" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </header>
+        <div class="engraving-dialog-body bracelet-dialog-body">
+          <section class="engraving-group" aria-labelledby="supportedBraceletTitle">
+            <h3 id="supportedBraceletTitle">계산 반영</h3>
+            <div class="bracelet-stat-grid" aria-label="팔찌 전투 특성">
+              <label>
+                <span>치명</span>
+                <input data-bracelet-stat="critStat" type="number" min="0" max="120" step="1" />
+              </label>
+              <label>
+                <span>특화</span>
+                <input data-bracelet-stat="specStat" type="number" min="0" max="120" step="1" />
+              </label>
+              <label>
+                <span>신속</span>
+                <input data-bracelet-stat="swiftStat" type="number" min="0" max="120" step="1" />
+              </label>
+            </div>
+            <div class="engraving-list bracelet-option-list" id="supportedBraceletList"></div>
+          </section>
+          <section class="engraving-group utility-engraving-group" aria-labelledby="unsupportedBraceletTitle">
+            <h3 id="unsupportedBraceletTitle">현재 미반영</h3>
+            <div class="bracelet-unsupported-list" id="unsupportedBraceletList"></div>
+          </section>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="engraving-dialog" id="engravingDialog" aria-labelledby="engravingDialogTitle">
+      <form method="dialog" class="engraving-dialog-shell">
+        <header class="engraving-dialog-header">
+          <div>
+            <h2 id="engravingDialogTitle">각인 설정</h2>
+            <span id="engravingCount">0개 적용</span>
+          </div>
+          <button class="icon-button" value="close" type="submit" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </header>
+        <div class="engraving-dialog-body">
+          <section class="engraving-group" aria-labelledby="damageEngravingTitle">
+            <h3 id="damageEngravingTitle">피해 증가 각인</h3>
+            <div class="engraving-list" id="damageEngravingList"></div>
+          </section>
+          <section class="engraving-group utility-engraving-group" aria-labelledby="utilityEngravingTitle">
+            <h3 id="utilityEngravingTitle">기타 각인</h3>
+            <div class="engraving-list" id="utilityEngravingList"></div>
+          </section>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="engraving-dialog engraving-pool-dialog" id="engravingPoolDialog" aria-labelledby="engravingPoolTitle">
+      <form method="dialog" class="engraving-dialog-shell">
+        <header class="engraving-dialog-header">
+          <div>
+            <h2 id="engravingPoolTitle">각인 후보 설정</h2>
+            <span id="engravingPoolSummary"></span>
+          </div>
+          <button class="icon-button" value="close" type="submit" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </header>
+        <div class="engraving-dialog-body engraving-pool-body">
+          <p class="engraving-pool-help">
+            <strong>고정</strong>은 항상 슬롯을 차지하고, <strong>후보</strong> 중에서 남은 슬롯을 채웁니다.
+            <strong>제외</strong>는 탐색에서 아예 빠집니다. 단계는 해당 각인을 실제로 쓸 수 있는 단계로 맞춰 주세요.
+          </p>
+          <div class="engraving-pool-toolbar">
+            <button class="ghost-button" data-engraving-preset="raid" type="button">레이드 기본값</button>
+            <button class="ghost-button" data-engraving-preset="allCandidate" type="button">전체 후보</button>
+            <button class="ghost-button" data-engraving-preset="allExcluded" type="button">전체 제외</button>
+            <button class="ghost-button" data-engraving-preset="fromCurrent" type="button">현재 각인을 고정으로</button>
+          </div>
+          <div class="engraving-pool-list" id="engravingPoolList"></div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="engraving-dialog workspace-action-dialog" id="workspaceActionDialog" aria-labelledby="workspaceActionTitle">
+      <form class="workspace-action-shell" id="workspaceActionForm">
+        <header class="engraving-dialog-header">
+          <h2 id="workspaceActionTitle">설정 관리</h2>
+          <button class="icon-button" data-workspace-action-cancel type="button" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </header>
+        <div class="workspace-action-body">
+          <p id="workspaceActionMessage" hidden></p>
+          <label id="workspaceNameField">
+            <span>이름</span>
+            <input id="workspaceNameInput" type="text" maxlength="40" autocomplete="off" />
+          </label>
+        </div>
+        <footer class="workspace-action-footer">
+          <button class="ghost-button" data-workspace-action-cancel type="button">취소</button>
+          <button class="mini-button" id="workspaceActionConfirm" type="submit">확인</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <template id="baseEffectTemplate">
+      <div class="effect-row">
+        <input data-effect-field="label" type="text" aria-label="효과 이름" />
+        <select data-effect-field="category" aria-label="효과 종류"></select>
+        <input data-effect-field="customCategory" type="text" aria-label="직접 입력 피해 그룹" />
+        <input data-effect-field="amount" type="number" step="0.01" aria-label="수치" />
+        <button class="icon-button small remove-effect" type="button" title="삭제" aria-label="삭제">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 7h14M10 11v6M14 11v6M9 7l1-3h4l1 3M7 7l1 14h8l1-14" />
+          </svg>
+        </button>
+      </div>
+    </template>
+
+    <script src="./data.js"></script>
+    <script src="./bracelets.js"></script>
+    <script src="./engravings.js"></script>
+    <script src="./app.js"></script>
+    <script src="./optimizer.js"></script>
+  </body>
+</html>

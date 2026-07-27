@@ -5,8 +5,7 @@
       "name": "ark-passive-simulator",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
       "runtimeArgs": [
-        "web/node_modules/vite/bin/vite.js",
-        "web",
+        "node_modules/vite/bin/vite.js",
         "--port", "5173",
         "--strictPort"
       ],

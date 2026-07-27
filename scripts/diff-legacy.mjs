@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const LEGACY = resolve(HERE, "../..");
+const LEGACY = resolve(HERE, "../legacy");
 
 // --- load legacy globals ----------------------------------------------------
 const store = new Map();
