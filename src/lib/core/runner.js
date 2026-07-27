@@ -8,6 +8,7 @@ import {
   DEFAULT_STATE, finalizeMetrics, applyBaseEffect, applyBraceletEffects, applyEngravingTier,
   calculateAccessoryBonuses, normalizeAccessories, normalizeBracelet, addDamageGroup,
   getEngravingTierIndex, getManaShareRatio, getNodeCost, emptyNodeLevels,
+  applyArkGridEffects, applyCollectionEffects, applyWeaponEffects,
 } from "./metrics.js";
 import {
   OPTIMIZER_EXHAUSTIVE_LIMIT, OPTIMIZER_REFINE_ROUNDS, OPTIMIZER_REFINE_SEEDS,
@@ -173,6 +174,9 @@ export function buildEvaluator(sourceState, searchedEngravingIds) {
   }
   if (settings.headAttack) addDamageGroup(baseDamage, "헤드어택 피해", ARC_PASSIVE_CONSTANTS.headAttackDamage);
 
+  applyArkGridEffects(sourceState.arkGrid, basePercent, baseDamage);
+  applyCollectionEffects(sourceState.collection, baseStats, baseDamage);
+  applyWeaponEffects(sourceState.weapon, baseDamage);
   applyBraceletEffects(bracelet, settings, baseStats, basePercent, baseDamage);
 
   const baseEngravingSpecials = { critRateMinimum: 0, raidCaptainRate: 0 };

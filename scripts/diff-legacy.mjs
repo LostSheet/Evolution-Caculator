@@ -41,7 +41,7 @@ const sandbox = {
 sandbox.globalThis = sandbox;
 const context = vm.createContext(sandbox);
 
-for (const file of ["data.js", "bracelets.js", "engravings.js", "app.js"]) {
+for (const file of ["data.js", "bracelets.js", "cores.js", "engravings.js", "app.js"]) {
   const code = readFileSync(resolve(LEGACY, file), "utf8");
   try {
     new vm.Script(code, { filename: file }).runInContext(context);
@@ -53,7 +53,7 @@ for (const file of ["data.js", "bracelets.js", "engravings.js", "app.js"]) {
 }
 
 const legacy = vm.runInContext(
-  "({ calculateMetrics, DEFAULT_STATE, mergeState, emptyNodeLevels, NODE_LIBRARY, ENGRAVING_LIBRARY, ENGRAVING_TIERS, BRACELET_EFFECTS, BRACELET_GRADES })",
+  "({ calculateMetrics, DEFAULT_STATE, mergeState, emptyNodeLevels, NODE_LIBRARY, ENGRAVING_LIBRARY, ENGRAVING_TIERS, BRACELET_EFFECTS, BRACELET_GRADES, CHAOS_CORES, CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS })",
   context,
 );
 
@@ -79,6 +79,18 @@ function randomState() {
   const braceletEffects = {};
   for (const item of legacy.BRACELET_EFFECTS) {
     if (maybe(0.3)) braceletEffects[item.id] = pick(legacy.BRACELET_GRADES).value;
+  }
+
+  const cores = {};
+  for (const slot of legacy.CHAOS_CORE_SLOTS) {
+    const pool = legacy.CHAOS_CORES.filter(core => core.slot === slot.key);
+    cores[slot.key] = maybe(0.7)
+      ? {
+          id: pick(pool).id,
+          points: pick(legacy.CHAOS_CORE_POINTS),
+          stage: Math.floor(Math.random() * 2),
+        }
+      : { id: "none", points: 20, stage: 1 };
   }
 
   return {
@@ -116,6 +128,14 @@ function randomState() {
         swiftStat: Math.floor(Math.random() * 121),
       },
       effects: braceletEffects,
+    },
+    arkGrid: { cores, gemLevel: Math.floor(Math.random() * 11) },
+    weapon: { quality: Math.floor(Math.random() * 101) },
+    collection: {
+      ranch: maybe(),
+      critStat: Math.floor(Math.random() * 200),
+      specStat: Math.floor(Math.random() * 200),
+      swiftStat: Math.floor(Math.random() * 200),
     },
     engravings,
     nodeLevels,

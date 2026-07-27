@@ -5,6 +5,7 @@
 // calculateMetrics is itself proven equal to the legacy build by diff-legacy.mjs,
 // so (a) transitively anchors the whole chain to the original implementation.
 import { NODE_LIBRARY } from "../src/lib/core/data.js";
+import { CHAOS_CORES, CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS } from "../src/lib/core/cores.js";
 import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../src/lib/core/engravings.js";
 import { DEFAULT_STATE, mergeState, calculateMetrics, emptyNodeLevels } from "../src/lib/core/metrics.js";
 import { buildSearchPlan, buildEvaluator, runSearch } from "../src/lib/core/runner.js";
@@ -16,7 +17,24 @@ const grades = ["none", "high", "mid", "low"];
 function randomState() {
   const engravings = {};
   for (const item of ENGRAVING_LIBRARY) if (maybe(0.3)) engravings[item.id] = pick(ENGRAVING_TIERS).value;
+
+  const cores = {};
+  for (const slot of CHAOS_CORE_SLOTS) {
+    const pool = CHAOS_CORES.filter(core => core.slot === slot.key);
+    cores[slot.key] = maybe(0.7)
+      ? { id: pick(pool).id, points: pick(CHAOS_CORE_POINTS), stage: Math.floor(Math.random() * 2) }
+      : { id: "none", points: 20, stage: 1 };
+  }
+
   return mergeState(DEFAULT_STATE, {
+    arkGrid: { cores, gemLevel: Math.floor(Math.random() * 11) },
+    weapon: { quality: Math.floor(Math.random() * 101) },
+    collection: {
+      ranch: maybe(),
+      critStat: Math.floor(Math.random() * 200),
+      specStat: Math.floor(Math.random() * 200),
+      swiftStat: Math.floor(Math.random() * 200),
+    },
     base: {
       critStat: Math.floor(Math.random() * 1500), specStat: Math.floor(Math.random() * 1500),
       swiftStat: Math.floor(Math.random() * 1500), dominationStat: 0, enduranceStat: 0, expertiseStat: 0,

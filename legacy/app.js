@@ -39,6 +39,21 @@ const DEFAULT_STATE = {
     stats: { critStat: 0, specStat: 0, swiftStat: 0 },
     effects: {},
   },
+  arkGrid: {
+    cores: {
+      sun: { id: "none", points: 20, stage: 1 },
+      moon: { id: "none", points: 20, stage: 1 },
+      star: { id: "none", points: 20, stage: 1 },
+    },
+    gemLevel: 0,
+  },
+  collection: {
+    ranch: false,
+    critStat: 0,
+    specStat: 0,
+    swiftStat: 0,
+  },
+  weapon: { quality: 0 },
   engravings: {},
   nodeLevels: {},
   baseEffects: [
@@ -1315,6 +1330,9 @@ function calculateMetrics(inputState) {
     addDamageGroup(damageGroups, "헤드어택 피해", ARC_PASSIVE_CONSTANTS.headAttackDamage);
   }
 
+  applyArkGridEffects(inputState.arkGrid, percentBonuses, damageGroups);
+  applyCollectionEffects(inputState.collection, totalStats, damageGroups);
+  applyWeaponEffects(inputState.weapon, damageGroups);
   applyBraceletEffects(bracelet, inputState.settings, totalStats, percentBonuses, damageGroups);
 
   const engravingSpecials = applyEngravingEffects(
@@ -1558,6 +1576,83 @@ function normalizeBracelet(bracelet) {
   });
 
   return { stats, effects };
+}
+
+function normalizeArkGrid(arkGrid) {
+  const cores = {};
+  CHAOS_CORE_SLOTS.forEach(slot => {
+    const chosen = arkGrid?.cores?.[slot.key] || {};
+    const known = CHAOS_CORES.some(core => core.id === chosen.id);
+    cores[slot.key] = {
+      id: known ? chosen.id : "none",
+      points: CHAOS_CORE_POINTS.includes(Math.round(readNumber(chosen.points)))
+        ? Math.round(readNumber(chosen.points))
+        : 20,
+      stage: clamp(Math.round(readNumber(chosen.stage)), 0, CHAOS_CORE_STAGES.length - 1),
+    };
+  });
+  return { cores, gemLevel: clamp(Math.round(readNumber(arkGrid?.gemLevel)), 0, GEM_MAX_LEVEL) };
+}
+
+function applyCoreEffect(effect, stage, times, percentBonuses, damageGroups) {
+  const raw = Array.isArray(effect.amounts) ? effect.amounts[stage] : effect.amount;
+  const amount = readNumber(raw) * times;
+  if (amount === 0) return;
+
+  if (effect.kind === "damage") {
+    addDamageGroup(damageGroups, effect.key, amount);
+    return;
+  }
+  if (effect.kind === "critOnlyDamage") {
+    percentBonuses.critOnlyDamage = readNumber(percentBonuses.critOnlyDamage) + amount;
+    return;
+  }
+  percentBonuses[effect.key] = readNumber(percentBonuses[effect.key]) + amount;
+}
+
+function applyArkGridEffects(arkGrid, percentBonuses, damageGroups) {
+  const grid = normalizeArkGrid(arkGrid);
+
+  CHAOS_CORE_SLOTS.forEach(slot => {
+    const chosen = grid.cores[slot.key];
+    const core = CHAOS_CORES.find(item => item.id === chosen.id);
+    if (!core) return;
+
+    // 포인트 구간은 누적이다. 17P를 고르면 10P와 14P 효과도 함께 붙는다.
+    [10, 14, 17].forEach(threshold => {
+      if (chosen.points < threshold) return;
+      (core.thresholds[threshold] || []).forEach(effect => {
+        applyCoreEffect(effect, chosen.stage, 1, percentBonuses, damageGroups);
+      });
+    });
+
+    // 18~20P는 1포인트마다 같은 값이 한 번씩 더 붙는다.
+    const extra = clamp(chosen.points - 17, 0, 3);
+    if (extra > 0) {
+      core.perPoint.forEach(effect => {
+        applyCoreEffect(effect, chosen.stage, extra, percentBonuses, damageGroups);
+      });
+    }
+  });
+
+  addDamageGroup(damageGroups, "추가 피해", grid.gemLevel * GEM_ADDITIONAL_DAMAGE_PER_LEVEL);
+}
+
+function applyCollectionEffects(collection, totalStats, damageGroups) {
+  const source = { ...DEFAULT_STATE.collection, ...(collection || {}) };
+  totalStats.critStat = readNumber(totalStats.critStat) + readNumber(source.critStat);
+  totalStats.specStat = readNumber(totalStats.specStat) + readNumber(source.specStat);
+  totalStats.swiftStat = readNumber(totalStats.swiftStat) + readNumber(source.swiftStat);
+  if (source.ranch) {
+    addDamageGroup(damageGroups, "추가 피해", STANDALONE_SOURCES.ranchCollection.amount);
+  }
+}
+
+// 무기 품질은 '무기 추가 피해'라는 별도 그룹으로 둔다. 이름이 다른 피해 그룹은
+// 곱연산이라 일반 '추가 피해'와 합산되지 않는다.
+function applyWeaponEffects(weapon, damageGroups) {
+  const quality = clamp(Math.round(readNumber(weapon?.quality)), 0, WEAPON_QUALITY_MAX);
+  addDamageGroup(damageGroups, "무기 추가 피해", weaponQualityDamage(quality));
 }
 
 function applyBraceletEffects(bracelet, settings, totalStats, percentBonuses, damageGroups) {
@@ -1958,6 +2053,9 @@ function mergeState(base, next) {
     convenience: { ...base.convenience, ...(next.convenience || {}) },
     accessories,
     bracelet,
+    arkGrid: normalizeArkGrid(next.arkGrid),
+    collection: { ...base.collection, ...(next.collection || {}) },
+    weapon: { ...base.weapon, ...(next.weapon || {}) },
     engravings: { ...(next.engravings || {}) },
     nodeLevels: { ...(next.nodeLevels || {}) },
     baseEffects: normalizeBaseEffects(next.baseEffects, base.baseEffects),

@@ -2,11 +2,12 @@
   import { EFFECT_CATEGORIES } from "../core/data.js";
   import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../core/engravings.js";
   import { BRACELET_GRADES, BRACELET_STAT_FIELDS, BRACELET_EFFECTS } from "../core/bracelets.js";
+  import { CHAOS_CORE_SLOTS, CHAOS_CORES } from "../core/cores.js";
   import { getEngravingTierIndex, getBraceletGradeIndex, isDirectionalConditionActive } from "../core/metrics.js";
   import { makeId, formatInteger, clamp, readNumber } from "../core/util.js";
   import { app, persist, resetSection } from "../store.svelte.js";
 
-  let { open = $bindable(false), onOpenEngravings, onOpenBracelet } = $props();
+  let { open = $bindable(false), onOpenEngravings, onOpenBracelet, onOpenArkGrid } = $props();
 
   let element = $state(null);
 
@@ -35,6 +36,22 @@
   const activeEngravings = $derived(
     ENGRAVING_LIBRARY.filter(item => getEngravingTierIndex(app.character.engravings[item.id]) >= 0),
   );
+
+  const gridChips = $derived.by(() => {
+    const grid = app.character.arkGrid;
+    const chips = CHAOS_CORE_SLOTS
+      .map(slot => ({ slot, core: CHAOS_CORES.find(c => c.id === grid.cores[slot.key]?.id) }))
+      .filter(entry => entry.core)
+      .map(entry => `${entry.slot.label} ${entry.core.name} ${grid.cores[entry.slot.key].points}P`);
+    const gem = clamp(Math.round(readNumber(grid.gemLevel)), 0, 10);
+    if (gem > 0) chips.push(`젬 Lv${gem}`);
+    if (app.character.collection.ranch) chips.push("목장 도감");
+    const stats = [["critStat", "치명"], ["specStat", "특화"], ["swiftStat", "신속"]]
+      .filter(([key]) => readNumber(app.character.collection[key]) > 0)
+      .map(([key, label]) => `${label} +${formatInteger(app.character.collection[key])}`);
+    if (stats.length > 0) chips.push(`도감·물약 ${stats.join(" ")}`);
+    return chips;
+  });
   const braceletChips = $derived([
     ...BRACELET_STAT_FIELDS
       .map(item => ({ label: item.label, amount: clamp(readNumber(app.character.bracelet.stats[item.key]), 0, 120) }))
@@ -161,6 +178,21 @@
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.headAttack} onchange={persist} /><span>헤드어택</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeCooldown} onchange={persist} /><span>쿨감 반영</span></label>
           <label class="check"><input type="checkbox" bind:checked={app.character.settings.includeAttackSpeed} onchange={persist} /><span>공속 반영</span></label>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hd">
+          <h3>아크 그리드</h3>
+          <span class="spacer"></span>
+          <button class="btn sm" type="button" onclick={onOpenArkGrid}>편집</button>
+        </div>
+        <div class="summary-line">
+          {#if gridChips.length === 0}
+            <span class="empty">선택 없음</span>
+          {:else}
+            {#each gridChips as chip}<span class="chip">{chip}</span>{/each}
+          {/if}
         </div>
       </section>
 

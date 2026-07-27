@@ -9,10 +9,12 @@
   import NodeBoard from "./lib/components/NodeBoard.svelte";
   import EngravingDialog from "./lib/components/EngravingDialog.svelte";
   import BraceletDialog from "./lib/components/BraceletDialog.svelte";
+  import ArkGridDialog from "./lib/components/ArkGridDialog.svelte";
 
   let settingsOpen = $state(false);
   let engravingsOpen = $state(false);
   let braceletOpen = $state(false);
+  let arkGridOpen = $state(false);
   let fileInput = $state(null);
 
   const metrics = $derived(currentMetrics());
@@ -94,6 +96,8 @@
   bind:open={settingsOpen}
   onOpenEngravings={() => (engravingsOpen = true)}
   onOpenBracelet={() => (braceletOpen = true)}
+  onOpenArkGrid={() => (arkGridOpen = true)}
 />
 <EngravingDialog bind:open={engravingsOpen} />
 <BraceletDialog bind:open={braceletOpen} />
+<ArkGridDialog bind:open={arkGridOpen} />
