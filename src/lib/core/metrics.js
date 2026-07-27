@@ -45,11 +45,9 @@ const DEFAULT_STATE = {
   },
   engravings: {},
   nodeLevels: {},
-  baseEffects: [
-    { id: makeId(), label: "카드 추가 피해", category: "damage:추가 피해", customCategory: "", amount: 0 },
-    { id: makeId(), label: "각인/시너지 치적", category: "critRate", customCategory: "", amount: 0 },
-    { id: makeId(), label: "추가 치명타 피해", category: "critDamage", customCategory: "", amount: 0 },
-  ],
+  // 스냅샷 슬롯은 UI 쪽 store가 채운다. 치적/치피는 base에 전용 칸이 있어서
+  // 여기에 두면 같은 값을 두 곳에서 받게 된다.
+  baseEffects: [],
   selectedTier: "전체",
   setupName: "",
 };

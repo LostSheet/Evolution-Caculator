@@ -14,16 +14,66 @@ function load(key, fallback) {
   }
 }
 
+// 진화 노드 0일 때의 내 스펙 = 스냅샷. 출처(젬·코어·카드·악세·팔찌·카르마)를
+// 쪼개지 않고 도착지 한 칸씩만 둔다. 게임이 출처를 늘려도 칸은 안 늘어난다.
+//
+// sheet: 전투 정보 창에 뜨므로 읽어서 넣는 값. 나머지는 합산해서 넣는 값.
+export const SNAPSHOT_ROWS = [
+  { category: "attackSpeedOnly", label: "공격속도", sheet: true },
+  { category: "moveSpeedOnly", label: "이동속도", sheet: true },
+  { category: "cooldownReduction", label: "쿨타임 감소", sheet: true },
+  { category: "damage:추가 피해", label: "추가 피해" },
+  { category: "damage:주는 피해", label: "주는 피해" },
+  { category: "damage:공격력", label: "공격력" },
+  { category: "damage:진화형 피해", label: "진화형 피해" },
+];
+
+// 악세서리·팔찌·카르마 UI를 걷어냈으므로, 남아 있던 값이 조용히 계산에
+// 섞이지 않도록 한 번 비운다. 같은 수치는 이제 스냅샷 한 곳으로 들어간다.
+function migrate(character) {
+  const next = { ...character };
+  next.accessories = cloneState(DEFAULT_STATE.accessories);
+  next.bracelet = cloneState(DEFAULT_STATE.bracelet);
+  next.convenience = { ...next.convenience, evolutionKarmaRank: 0 };
+
+  const effects = Array.isArray(next.baseEffects) ? next.baseEffects.slice() : [];
+  for (const row of SNAPSHOT_ROWS) {
+    if (!effects.some(effect => effect.category === row.category)) {
+      effects.push({ id: makeId(), label: row.label, category: row.category, customCategory: "", amount: 0 });
+    }
+  }
+  next.baseEffects = effects;
+  return next;
+}
+
 export const app = $state({
-  character: mergeState(DEFAULT_STATE, load(CHARACTER_KEY, {})),
+  character: migrate(mergeState(DEFAULT_STATE, load(CHARACTER_KEY, {}))),
   search: { ...SEARCH_DEFAULTS, ...load(SEARCH_KEY, {}) },
   results: null,
   running: false,
   progress: { phase: "", progress: 0, evaluated: 0 },
-  status: "전투 특성 · 악세서리 · 팔찌 · 직접 입력 효과는 고정한 채로 탐색합니다.",
+  status: "스냅샷과 그룹 합계는 고정한 채로 노드 · 펫 · 각인만 탐색합니다.",
   selectedId: null,
   view: "pareto",
 });
+
+/** 스냅샷 슬롯 하나를 가져온다. 없으면 만들어서 붙인다. */
+export function fixedRow(category) {
+  let effect = app.character.baseEffects.find(item => item.category === category);
+  if (!effect) {
+    const known = SNAPSHOT_ROWS.find(row => row.category === category);
+    effect = { id: makeId(), label: known?.label ?? category, category, customCategory: "", amount: 0 };
+    app.character.baseEffects.push(effect);
+  }
+  return effect;
+}
+
+/** 이름 붙은 슬롯에 없는 그룹만. 사용자가 따로 추가한 행이다. */
+export function customRows() {
+  return app.character.baseEffects.filter(
+    effect => !SNAPSHOT_ROWS.some(row => row.category === effect.category),
+  );
+}
 
 export function persist() {
   localStorage.setItem(CHARACTER_KEY, JSON.stringify(app.character));
@@ -47,14 +97,13 @@ export function resetSection(section) {
     for (const key of ["includeCooldown", "includeAttackSpeed", "backAttack", "headAttack"]) {
       app.character.settings[key] = DEFAULT_STATE.settings[key];
     }
-  } else if (section === "accessories") {
-    app.character.accessories = cloneState(DEFAULT_STATE.accessories);
-  } else if (section === "bracelet") {
-    app.character.bracelet = cloneState(DEFAULT_STATE.bracelet);
+  } else if (section === "snapshot") {
+    app.character.base = cloneState(DEFAULT_STATE.base);
+    app.character.baseEffects = SNAPSHOT_ROWS.map(row => ({
+      id: makeId(), label: row.label, category: row.category, customCategory: "", amount: 0,
+    }));
   } else if (section === "engravings") {
     app.character.engravings = {};
-  } else if (section === "baseEffects") {
-    app.character.baseEffects = DEFAULT_STATE.baseEffects.map(effect => ({ ...cloneState(effect), id: makeId() }));
   } else if (section === "nodes") {
     app.character.nodeLevels = emptyNodeLevels();
   }
