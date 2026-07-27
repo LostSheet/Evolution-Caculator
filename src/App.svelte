@@ -8,9 +8,11 @@
   import ResultsTable from "./lib/components/ResultsTable.svelte";
   import NodeBoard from "./lib/components/NodeBoard.svelte";
   import EngravingDialog from "./lib/components/EngravingDialog.svelte";
+  import BraceletDialog from "./lib/components/BraceletDialog.svelte";
 
   let settingsOpen = $state(false);
   let engravingsOpen = $state(false);
+  let braceletOpen = $state(false);
   let fileInput = $state(null);
 
   const metrics = $derived(currentMetrics());
@@ -88,5 +90,10 @@
   <NodeBoard {metrics} {budget} />
 </main>
 
-<SettingsDrawer bind:open={settingsOpen} onOpenEngravings={() => (engravingsOpen = true)} />
+<SettingsDrawer
+  bind:open={settingsOpen}
+  onOpenEngravings={() => (engravingsOpen = true)}
+  onOpenBracelet={() => (braceletOpen = true)}
+/>
 <EngravingDialog bind:open={engravingsOpen} />
+<BraceletDialog bind:open={braceletOpen} />
