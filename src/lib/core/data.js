@@ -12,11 +12,25 @@ const ARC_PASSIVE_CONSTANTS = {
   backAttackDamage: 5,
   backAttackCritRate: 10,
   headAttackDamage: 20,
+  // 제압 1당 무력화 대상 피해. 도감·물약 기준 79에서 5.64%다.
+  staggerDamagePerDomination: 0.0713924,
+  // 깨달음의 카르마 1레벨당 무기 공격력. 26레벨에서 게임이 +2.60%라고 적는다.
+  awakeningKarmaWeaponPerLevel: 0.1,
 };
 
+// 연마 효과. 부위마다 칸이 셋이지만 딜과 무관한 것(낙인력, 아이덴티티, 게이지)이
+// 섞여 있어, 계산에 걸리는 것만 옮겨 둔다.
 const ACCESSORY_OPTION_VALUES = {
   necklace: {
     additionalDamage: { none: 0, high: 2.6, mid: 1.6, low: 0.6 },
+    // 원한과 같은 그룹이라 서로 곱해진다.
+    dealtDamage: { none: 0, high: 2, mid: 1.2, low: 0.55 },
+  },
+  earring: {
+    attackPower: { none: 0, high: 1.55, mid: 0.95, low: 0.4 },
+    // 무기 공격력은 제곱근으로 접힌다. 3%가 곧 1.49% — SQRT_DAMAGE_GROUPS 참고.
+    // 귀걸이 상옵끼리 공격력이 무공보다 근소하게 나은 이유가 여기 있다.
+    weaponAttack: { none: 0, high: 3, mid: 1.8, low: 0.8 },
   },
   ring: {
     critRate: { none: 0, high: 1.55, mid: 0.95, low: 0.4 },
@@ -66,7 +80,7 @@ const REFERENCE_HIGHLIGHTS = [
 ];
 
 const REFERENCE_WARNINGS = [
-  "일격의 방향성 스킬 치명타 피해는 방향성 적중률 모델 없이 전부 반영합니다.",
+  "일격의 치명타 피해는 백어택/헤드어택을 켰을 때만 반영합니다. 켠 경우에는 방향성 적중률 모델 없이 전부 반영합니다.",
   "서포터 노드의 낙인력/아군 공격력 강화/아이덴티티 효과는 별도 모델이 생기기 전까지 노트로 표시합니다.",
 ];
 
@@ -83,14 +97,26 @@ const EFFECT_CATEGORIES = [
   { value: "damage:추가 피해", label: "추가 피해", kind: "damage" },
   { value: "damage:주는 피해", label: "주는 피해", kind: "damage" },
   { value: "damage:공격력", label: "공격력", kind: "damage" },
+  // 이 둘은 제곱근으로 접힌다. 무공 +3%는 공격력 +1.49%다.
   { value: "damage:무기 공격력", label: "무기 공격력", kind: "damage" },
+  { value: "damage:힘민지", label: "힘 · 민첩 · 지능", kind: "damage" },
   { value: "damage:스킬 피해", label: "스킬 피해", kind: "damage" },
   { value: "damage:보스 피해", label: "보스 피해", kind: "damage" },
+  // 대난투에서만 걸린다. 별도 그룹이라 다른 피해와 곱해지고, 대난투 딜
+  // 비중만큼만 실린다.
+  { value: "damage:무력화 대상 피해", label: "무력화 대상 피해", kind: "damage" },
   { value: "critRate", label: "치명타 적중률", kind: "percent" },
   { value: "critDamage", label: "추가 치명타 피해", kind: "percent" },
+  // 이건 다른 퍼센트들과 달리 출처끼리 곱한다. addCritOnlyDamage 참고.
+  { value: "critOnlyDamage", label: "치명타 시 주는 피해", kind: "percent" },
   { value: "attackSpeedOnly", label: "공격속도", kind: "percent" },
   { value: "moveSpeedOnly", label: "이동속도", kind: "percent" },
   { value: "cooldownReduction", label: "쿨타임 감소", kind: "percent" },
+  // 퍼센트가 아니라 숫자로 붙는 것들. '사전 세팅 · 공격력'에 무공과 힘민지를
+  // 적어 둬야 퍼센트로 환산된다. 안 적으면 계기판이 못 셌다고 알린다.
+  { value: "flat:weaponAttack", label: "무기 공격력 (숫자)", kind: "flat" },
+  { value: "flat:mainStat", label: "힘 · 민첩 · 지능 (숫자)", kind: "flat" },
+  { value: "flat:attackPower", label: "공격력 (숫자)", kind: "flat" },
   { value: "customDamage", label: "피해 그룹 직접 입력", kind: "customDamage" },
 ];
 
@@ -234,8 +260,9 @@ const NODE_LIBRARY = [
     maxLevel: 2,
     icon: "mark",
     effects: [
+      // 치적은 전체 적용, 치피는 방향성 스킬 한정이다. 한 노드 안에서 갈린다.
       { kind: "percent", key: "critRate", label: "치명타 적중률", amount: 10 },
-      { kind: "percent", key: "critDamage", label: "방향성 스킬 치명타 피해", amount: 16 },
+      { kind: "percent", key: "critDamage", label: "방향성 스킬 치명타 피해", amount: 16, condition: "directional" },
     ],
   },
   {
@@ -485,7 +512,7 @@ const NODE_CONTEXT = {
     target: "딜러",
     status: "부분 반영",
     tags: ["사멸", "치적", "치피"],
-    summary: "사멸 계열. 방향성 공격 치명타 피해는 방향성 적중률 모델 없이 전부 반영합니다.",
+    summary: "사멸 계열. 치적은 전체 적용, 치피는 백어택/헤드어택을 켠 경우에만 반영합니다.",
   },
   "e3-destruction-chariot": {
     target: "딜러",

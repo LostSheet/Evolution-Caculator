@@ -1,7 +1,7 @@
 // Property test for the Pareto front collector against a brute-force reference.
 // Ties in damageIndex are the case that broke the first implementation, so the
 // generators deliberately use small integer ranges.
-import { createParetoFront, annotateParetoKnees } from "../src/lib/core/search.js";
+import { createParetoFront } from "../src/lib/core/search.js";
 
 const bruteForce = points => {
   const kept = [];
@@ -55,17 +55,7 @@ for (let trial = 0; trial < 3000; trial += 1) {
 
 console.log(`pareto front: ${failures} failures / 3000 trials (${totalPoints} points, ${rejectedEarly} rejected by accepts)`);
 
-// Knee detection: one obviously cheap step on an otherwise flat front.
-const knees = annotateParetoKnees([
-  { damageIndex: 1000, dpsIndex: 100 },
-  { damageIndex: 900, dpsIndex: 200 },
-  { damageIndex: 800, dpsIndex: 300 },
-  { damageIndex: 790, dpsIndex: 500 },
-  { damageIndex: 690, dpsIndex: 600 },
-]).filter(e => e.isKnee).map(e => e.damageIndex);
+// 무릎 판정(이웃 두 점의 기울기)은 여기 있었다. 그 값이 빌드가 아니라 점 사이
+// 간격을 재고 있어서 뺐다 — 같은 질문은 ceiling.test.mjs가 한계 구간으로 검사한다.
 
-const kneeOk = knees.length === 1 && knees[0] === 790;
-console.log(`knee detection: ${JSON.stringify(knees)} ${kneeOk ? "OK" : "FAIL"}`);
-console.log(`edge cases: empty=${JSON.stringify(annotateParetoKnees([]))} single=${annotateParetoKnees([{ damageIndex: 1, dpsIndex: 1 }]).every(e => !e.isKnee) ? "OK" : "FAIL"}`);
-
-process.exit(failures === 0 && kneeOk ? 0 : 1);
+process.exit(failures === 0 ? 0 : 1);

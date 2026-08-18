@@ -1,43 +1,184 @@
 /* ═══════════════════════════════════════════════════════════════════
    아크 패시브 계산기
 
-   이 도구의 작업은 세 단계다 — 한 번 설정하고, 탐색하고, 곡선에서 고른다.
-   그래서 곡선이 화면이고, 설정은 서랍이고, 결과는 표다.
+   작업이 세 단계라면 화면도 세 단계여야 한다 — 설정하고, 각인을 정하고,
+   곡선에서 고른다. 단계 막대가 위에서 어디쯤인지 알려주고, 아래 막대가
+   고정된 값과 다음 행동을 들고 다닌다.
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ─── 지면 ─────────────────────────────────────────────────────────
+   어두운 대시보드를 그만둔다. 이 화면이 하는 일은 빽빽한 숫자를 읽히게
+   하는 것 하나뿐인데, 흰 바탕에서 획이 가늘어지지 않아 같은 글자 크기로
+   대비가 더 나온다.
+
+   구획은 면이 아니라 괘선으로 짓는다. 카드 그림자도, 떠 있는 층도 없다.
+   색은 셋뿐이다 — 잉크(검정), 대표값(잉크 블루), 잘림(벽돌).
+   그 밖의 모든 것은 회색이다. 색이 적어야 색이 뜻을 갖는다.            */
+
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  --bg: #0c0e12;
-  --surface: #141821;
-  --surface-2: #1b202b;
-  --sunken: #090b0f;
+  --bg: #efede6;        /* 책상 */
+  --surface: #fcfbf8;   /* 종이 */
+  --surface-2: #e6f1fb; /* 짚은 줄 — 강조색의 아주 옅은 물 */
+  --sunken: #e4e2d9;    /* 홈: 입력칸 · 진행 막대 */
 
-  --line: #232936;
-  --line-soft: #191e28;
-  --line-lift: #38414f;
+  --line: #d3d1c7;
+  --line-soft: #e3e1d8;
+  --line-lift: #b4b2a9;
 
-  --txt: #f0f3f7;
-  --txt-2: #a7b0be;
-  --txt-3: #6c7686;
+  --txt: #1e1e1c;
+  --txt-2: #4c4b47;
+  --txt-3: #6e6d67;
 
   /* 냉 → 온. 쿨감 램프의 양 끝이자 UI 강조색. */
-  --cool: #7fb2ff;
-  --cool-dim: #4a7bc4;
-  --cool-ink: #1e3559;
+  --cool: #185fa5;
+  --cool-dim: #378add;
+  --cool-ink: #b5d4f4;
+  --cool-strong: #0c447c;
 
-  --warm: #ff7b5e;
-  --warm-dim: #c25a43;
-  --warm-ink: #4a2419;
+  --warm: #993c1d;
+  --warm-dim: #d85a30;
+  --warm-ink: #f5c4b3;
 
-  --good: #6fd39b;
-  --bad: #ff7b5e;
+  --good: #0f6e56;
+  --bad: #a32d2d;
+
+  /* 강조색 위에 얹는 글자, 그리고 떠 있는 것들. */
+  --on-accent: #ffffff;
+  --pop: #ffffff;
+  --pop-shadow: 0 14px 34px rgba(44, 44, 42, 0.16);
+  --pop-shadow-lg: 0 20px 48px rgba(44, 44, 42, 0.2);
+  --scrim: rgba(44, 44, 42, 0.36);
+  --field-bg: #ffffff;
 
   --sans: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR",
     "Malgun Gothic", system-ui, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Mono", "D2Coding", ui-monospace, Consolas, monospace;
 
   --r: 3px;
+}
+
+/* ─── 밤 ───────────────────────────────────────────────────────────
+   같은 설계를 어두운 조로 옮긴 것이지, 예전 테마로 되돌리는 게 아니다.
+   구획은 여전히 괘선이 짓고, 색은 여전히 셋뿐이다.
+
+   두 곳만 뒤집으면 안 된다 — 파랑과 벽돌은 흰 종이에서 어두워야 보이고
+   검은 종이에서는 밝아야 보인다. 나머지 회색들은 밝기만 뒤집는다.
+
+   토큰만 다시 정의하고 컴포넌트 규칙은 건드리지 않는다. 규칙 안에서
+   색을 직접 쓰기 시작하면 테마가 둘로 갈라진다.                      */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #1a1a18;
+    --surface: #232321;
+    --surface-2: #0d3054;
+    --sunken: #131312;
+
+    --line: #35352f;
+    --line-soft: #292925;
+    --line-lift: #4e4e47;
+
+    --txt: #f1efe8;
+    --txt-2: #c2c0b7;
+    --txt-3: #918f88;
+
+    --cool: #85b7eb;
+    --cool-dim: #378add;
+    --cool-ink: #0c447c;
+    --cool-strong: #b5d4f4;
+
+    --warm: #f0997b;
+    --warm-dim: #d85a30;
+    --warm-ink: #712b13;
+
+    --good: #5dcaa5;
+    --bad: #f09595;
+
+    --on-accent: #042c53;
+    --pop: #2a2a27;
+    --pop-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+    --pop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.62);
+    --scrim: rgba(10, 10, 9, 0.68);
+    --field-bg: #171716;
+  }
+}
+
+/* 손으로 고른 테마는 OS 설정을 이긴다. 양쪽 다 적어야 밝은 OS에서 어두운
+   테마를, 어두운 OS에서 밝은 테마를 고를 수 있다. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #1a1a18;
+  --surface: #232321;
+  --surface-2: #0d3054;
+  --sunken: #131312;
+
+  --line: #35352f;
+  --line-soft: #292925;
+  --line-lift: #4e4e47;
+
+  --txt: #f1efe8;
+  --txt-2: #c2c0b7;
+  --txt-3: #918f88;
+
+  --cool: #85b7eb;
+  --cool-dim: #378add;
+  --cool-ink: #0c447c;
+  --cool-strong: #b5d4f4;
+
+  --warm: #f0997b;
+  --warm-dim: #d85a30;
+  --warm-ink: #712b13;
+
+  --good: #5dcaa5;
+  --bad: #f09595;
+
+  --on-accent: #042c53;
+  --pop: #2a2a27;
+  --pop-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+  --pop-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.62);
+  --scrim: rgba(10, 10, 9, 0.68);
+  --field-bg: #171716;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #efede6;
+  --surface: #fcfbf8;
+  --surface-2: #e6f1fb;
+  --sunken: #e4e2d9;
+
+  --line: #d3d1c7;
+  --line-soft: #e3e1d8;
+  --line-lift: #b4b2a9;
+
+  --txt: #1e1e1c;
+  --txt-2: #4c4b47;
+  --txt-3: #6e6d67;
+
+  --cool: #185fa5;
+  --cool-dim: #378add;
+  --cool-ink: #b5d4f4;
+  --cool-strong: #0c447c;
+
+  --warm: #993c1d;
+  --warm-dim: #d85a30;
+  --warm-ink: #f5c4b3;
+
+  --good: #0f6e56;
+  --bad: #a32d2d;
+
+  --on-accent: #ffffff;
+  --pop: #ffffff;
+  --pop-shadow: 0 14px 34px rgba(44, 44, 42, 0.16);
+  --pop-shadow-lg: 0 20px 48px rgba(44, 44, 42, 0.2);
+  --scrim: rgba(44, 44, 42, 0.36);
+  --field-bg: #ffffff;
 }
 
 * { box-sizing: border-box; }
@@ -59,7 +200,9 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 h1, h2, h3, h4, p, ul { margin: 0; }
 ul { padding: 0; list-style: none; }
 
-svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor;
+/* 아이콘은 flex 안에서 절대 눌리지 않는다. 여백 계산이 어긋나도 찌그러진
+   아이콘이 남는 것보다 단추가 넘치는 편이 눈에 띄어 고치기 쉽다. */
+svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor;
       stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
 :focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
@@ -68,9 +211,14 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
+/* 테마를 갈아끼우는 한 프레임 동안만 붙는다. App.svelte 참고. */
+.theme-swap, .theme-swap *, .theme-swap *::before, .theme-swap *::after {
+  transition: none !important;
+}
+
 .eyebrow {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -103,6 +251,65 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
 }
 .wordmark b { color: var(--cool); font-weight: 650; }
 
+/* ─── 페이지 막대 ──────────────────────────────────────────────────
+   사전 세팅 · 빌드 · 조합 탐색. 마법사가 아니라 세 방이라, 어느 쪽으로도
+   언제든 건너갈 수 있다.                                            */
+
+/* 좁아지면 여기가 접힌다. 탭을 감추지는 않고 옆으로 밀 수 있게 둔다 —
+   갈 수 있는 곳이 화면에서 사라지는 것보다는 낫다. */
+.pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pages::-webkit-scrollbar { display: none; }
+.pages > * { flex: 0 0 auto; }
+
+.page-tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 11px 0 9px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  color: var(--txt-3);
+  text-align: left;
+  white-space: nowrap;
+  transition: color 130ms ease, background 130ms ease, border-color 130ms ease;
+}
+.page-tab:hover { color: var(--txt-2); background: var(--surface-2); }
+
+.page-tab em {
+  display: inline-grid;
+  place-items: center;
+  width: 19px; height: 19px;
+  flex: none;
+  border: 1px solid var(--line-lift);
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-style: normal;
+  line-height: 1;
+}
+/* 이름만 있다. 부제는 뺐다 — 다섯 걸음이 전부 두 줄이면 상단바가 문단이 되고,
+   정작 어디 있는지는 번호와 이름이 이미 말하고 있었다. */
+.page-text { display: grid; }
+.page-text b { font-size: 13px; font-weight: 550; white-space: nowrap; }
+
+.page-tab.done em { border-color: var(--cool-ink); color: var(--cool-dim); }
+.page-tab.active {
+  border-color: var(--cool-ink);
+  background: color-mix(in srgb, var(--cool) 10%, transparent);
+  color: var(--txt);
+}
+.page-tab.active em { border-color: var(--cool); color: var(--cool); }
+
+.page-sep { width: 16px; height: 1px; flex: none; background: var(--line); }
+
 .config-summary {
   display: flex;
   align-items: center;
@@ -121,7 +328,7 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   border: 1px solid var(--line);
   border-radius: var(--r);
   white-space: nowrap;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--txt-3);
 }
 .summary-chip b {
@@ -131,7 +338,19 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   color: var(--txt-2);
 }
 
-.topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+/* 단추는 안 줄어든다. 좁아지면 '캐릭 터'처럼 낱말이 쪼개져서, 자리가 없다는
+   뜻이 아니라 무언가 망가진 것처럼 읽힌다. 양보는 탭 줄이 한다. */
+.topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: 0 0 auto; }
+.topbar-actions > * { flex: 0 0 auto; white-space: nowrap; }
+
+/* 밝기 단추. 아이콘이 지금 상태를 말하고 글자가 그걸 확인해 준다 —
+   해/달만 있으면 '지금이 밝은 건가, 누르면 밝아지는 건가'가 늘 헷갈린다. */
+.theme-btn { gap: 6px; }
+.theme-btn svg { width: 0.95rem; height: 0.95rem; }
+@media (max-width: 1180px) {
+  .theme-btn span { display: none; }
+  .theme-btn { padding: 0 8px; }
+}
 
 /* ─── 버튼 ─────────────────────────────────────────────────────── */
 
@@ -153,13 +372,17 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
 .btn.primary {
   border-color: transparent;
   background: var(--cool);
-  color: #08101d;
+  color: var(--on-accent);
   font-weight: 600;
 }
-.btn.primary:hover { background: #98c1ff; color: #08101d; }
+.btn.primary:hover { background: var(--cool-strong); color: var(--on-accent); }
 
 .btn.icon { width: 32px; padding: 0; }
-.btn.sm { min-height: 27px; padding: 0 10px; font-size: 11.5px; }
+.btn.sm { min-height: 27px; padding: 0 10px; font-size: 13px; }
+/* 둘의 특정도가 같아서 뒤에 온 .btn.sm의 좌우 여백이 .btn.icon의 padding:0을
+   덮는다. 24px 단추에 여백 20px가 들어가면 남는 폭이 2px라 아이콘이 점이
+   된다 — 실제로 저장 목록의 연필·휴지통이 그 꼴이었다. */
+.btn.icon.sm { padding: 0; }
 
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .btn:disabled:hover { border-color: var(--line); color: var(--txt-2); background: none; }
@@ -170,10 +393,399 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
 .page {
   width: min(1720px, 100%);
   margin-inline: auto;
-  padding: 22px;
+  /* 아래 여백은 고정 막대가 마지막 줄을 덮지 않을 만큼. */
+  padding: 22px 22px 108px;
   display: grid;
   gap: 18px;
+  align-content: start;
 }
+
+/* ─── 하단 고정 막대 ───────────────────────────────────────────────
+   이 도구가 내놓는 답은 두 숫자뿐이다. 노드를 만지든 곡선을 보든 결국
+   그 둘을 움직이려는 일이므로, 어느 화면에 있든 눈에서 안 사라지게 한다.
+   옆 상세 패널에서 같은 숫자를 뺀 것도 그래서다 — 두 군데 있으면 어느
+   쪽이 기준인지 흐려진다.                                            */
+
+.statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 서랍(30)보다 위다. 서랍을 열어도 숫자가 안 가려야 하고, 이 막대가
+     서랍 손잡이라 열린 상태에서도 눌러 닫을 수 있어야 한다. */
+  z-index: 32;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 5vw, 52px);
+  padding: 10px clamp(14px, 3vw, 26px);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+
+/* 이 막대가 누구 숫자를 들고 있는지. 화면마다 재는 대상이 달라서 —
+   빌드에서는 내 빌드, 탐색에서는 고른 후보 — 이름표가 없으면 안 된다. */
+.sb-tag {
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+
+/* 확정은 여기서만 한다. 표에서 줄을 고른 손이 그대로 누를 수 있게. */
+.sb-go { margin-left: auto; flex: none; }
+
+.sb-fig {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+}
+.sb-fig dt {
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+.sb-fig dd {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 640;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cool);
+}
+.sb-fig dd em {
+  font-style: normal;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.sb-fig dd em.up { color: var(--good); }
+.sb-fig dd em.down { color: var(--bad); }
+.sb-fig small {
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 좁아지면 기준 설명부터 접는다 — 숫자가 먼저다. */
+@media (max-width: 860px) {
+  .sb-fig small { display: none; }
+  .sb-fig dd { font-size: 19px; }
+}
+
+/* 단계마다 한 줄. 무엇을 하는 화면인지 말하고 비켜선다. */
+.page-hd { display: grid; gap: 3px; }
+.page-hd h1 { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.page-hd p { font-size: 12px; color: var(--txt-3); }
+
+/* ─── 작업대 · 계기판 ──────────────────────────────────────────────
+   왼쪽에서 만지고 오른쪽에서 읽는다. 폭이 좁아지면 계기판은 사라지지 않고
+   상단 버튼으로 불러내는 드로어가 된다.                              */
+
+/* 글자를 키웠으면 칸도 같이 넓혀야 한다. 300px 레일에 12.5px를 넣으면
+   '기민함 · 이동속도 × 30%' 같은 줄이 말줄임으로 잘려 버린다.
+   정보를 줄일 수 없을 때 줄일 것은 글자가 아니라 여백이다.            */
+.split {
+  display: grid;
+  /* 오른쪽 칸도 minmax로 묶는다. 348px로 못 박으면 왼쪽이 안 줄어드는 순간
+     오른쪽이 화면 밖으로 밀려나고, 계기판은 overflow:hidden이라 숫자만
+     조용히 사라진다 — 잘린 줄도 모른다. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 348px);
+  gap: 18px;
+  align-items: start;
+}
+.split-main { display: grid; gap: 18px; min-width: 0; }
+/* 표가 넓어도 카드가 안에서 스크롤하게 둔다. 격자 칸의 기본 min-width는
+   auto라, 이걸 안 풀면 카드가 제 내용 폭을 그대로 밀어붙인다. */
+.split-main > * { min-width: 0; }
+.preview-rail { display: grid; gap: 18px; position: sticky; top: 70px; min-width: 0; }
+
+/* 계기판은 화면 안에서 끝난다.
+   블록이 열 몇 개라 그냥 두면 화면 세 배 높이가 되고, 출처를 읽으려고
+   내려가면 위쪽의 한 방 딜·DPS가 사라진다. 머리와 대표값은 붙박이로 두고
+   목록만 안에서 구르게 한다 — 아래 고정 막대 자리(88px)를 빼고 잡는다. */
+.gauge {
+  position: sticky;
+  top: 70px;
+  max-height: calc(100vh - 70px - 88px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: hidden;
+}
+.gauge > * { min-width: 0; flex: none; }
+.g-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.preview-rail .gauge { position: static; }
+
+.g-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.g-hd h3 { font-size: 13px; font-weight: 620; color: var(--txt-2); }
+.g-hd .spacer { margin-left: auto; }
+.g-meta { font-family: var(--mono); font-size: 12px; color: var(--txt-3); }
+
+.g-lead { padding: 13px 14px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 13px; }
+.g-fig { display: grid; gap: 2px; }
+.g-fig dt { font-size: 12.5px; color: var(--txt-3); }
+.g-fig dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 25px;
+  font-weight: 640;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.g-fig.lead dd { color: var(--cool); }
+.g-fig dd em { font-style: normal; font-size: 12.5px; font-weight: 500; letter-spacing: 0; }
+.g-fig dd em.up { color: var(--good); }
+.g-fig dd em.down { color: var(--bad); }
+.g-formula {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+.g-formula b { color: var(--cool-dim); font-weight: 500; }
+
+/* 기준 지정 단추. 이름이 길어서 상자를 두르면 머리글을 단추 하나가 잡아먹는다.
+   테두리 없이 글자만 두고, 밑줄은 눌러 보이라고 hover에서만 켠다. */
+.g-pin {
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+.g-pin:hover, .g-pin:focus-visible { color: var(--cool); text-decoration-color: currentColor; }
+
+.g-note {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cool-dim);
+}
+
+.g-blk { padding: 10px 14px 11px; border-bottom: 1px solid var(--line-soft); }
+.g-blk:last-child { border-bottom: 0; }
+.g-blk-hd { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.g-blk-hd h4 { font-size: 12.5px; font-weight: 620; color: var(--txt-2); }
+.g-blk-hd .spacer { margin-left: auto; }
+.g-tot {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cool);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 줄: 이름 | 퍼센트 | 배수 */
+.g-ln {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px 52px;
+  gap: 6px;
+  align-items: baseline;
+  padding: 1.5px 0;
+  font-size: 12.5px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+.g-ln > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-ln > b, .g-ln > u {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: right;
+  text-decoration: none;
+}
+.g-ln > b { color: var(--txt-2); }
+.g-ln > u { color: var(--cool-dim); }
+
+.g-ln.sum { color: var(--txt); font-weight: 500; margin-top: 7px; }
+.g-blk > .g-ln.sum:first-of-type,
+.g-branch:first-of-type .g-ln.sum { margin-top: 0; }
+.g-ln.sum > b { color: var(--txt); }
+.g-ln.sum > u { color: var(--cool); }
+
+.g-src { padding-left: 11px; border-left: 1px solid var(--line); margin: 2px 0 0 2px; }
+.g-src .g-ln { font-size: 12px; }
+.g-src .g-ln > b, .g-src .g-ln > u { color: var(--txt-3); font-weight: 400; }
+
+/* 출처 이름은 잘리지 않고 접힌다. 여기 있는 것 중에 식이 섞여 있고
+   — '성검 개방 · min({{치명타적중률}} * 0.55, 55)' —
+   식은 끝까지 읽어야 뜻이 있다. 말줄임으로 자르면 안 읽느니만 못하다.
+   값은 오른쪽 칸에 그대로 있으므로 두 줄이 되어도 짝이 흐트러지지 않는다. */
+.g-src .g-ln > span { overflow: visible; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }
+
+/* 한 노드가 여러 갈래로 주는 것 — 뭉툭한 가시, 음속 돌파. 한 단 더 들여쓴다. */
+.g-part { padding-left: 10px; border-left: 1px dashed var(--line); margin: 1px 0 3px 3px; }
+.g-part .g-ln { font-size: 12px; }
+.g-part .g-ln > span { color: var(--txt-3); }
+.g-part .g-ln > b { color: var(--txt-2); font-weight: 400; }
+.g-part .g-ln > u { color: var(--txt-3); font-size: 11px; }
+
+/* 상한에 잘린 값 — `깎이기 전 → 적용값`을 값 칸 안에서 한 줄로.
+   문장으로 적었더니 300px 레일에서 세 줄로 접혔다. */
+.g-cut { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.g-cut > i {
+  font-style: normal;
+  font-size: 0.88em;
+  color: var(--txt-3);
+}
+.g-cut > i::after { content: " →"; color: var(--line-lift); }
+
+/* 노드 자체 상한에 걸린 줄의 꼬리표 */
+.g-ln.hit-cap > u { color: var(--txt-3); font-size: 11px; }
+
+.g-branch { margin-top: 6px; }
+.g-branch:first-of-type { margin-top: 0; }
+.g-branch.dim { opacity: 0.5; }
+
+.g-warn {
+  margin-top: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--warm-ink);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--warm) 8%, transparent);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--warm);
+}
+.g-warn b { font-weight: 620; }
+
+/* 마지막에 다시 하나로 합치는 줄 */
+/* 진화 배분을 바꿔도 안 움직이는 그룹은 접어 둔다. 지워 버리면 배수의 곱이
+   안 맞아 보이므로 감추지 않고 접기만 한다 — 아래 g-roll은 늘 전부 곱한다. */
+.g-more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: var(--txt-3);
+  text-align: left;
+}
+.g-more:hover { color: var(--txt-2); }
+.g-more svg {
+  width: 12px; height: 12px;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 120ms ease;
+}
+.g-more svg.open { transform: rotate(90deg); }
+.g-more-keys {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--txt-4, var(--txt-3));
+  opacity: .75;
+}
+
+.g-roll {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+.g-roll b { color: var(--cool); font-weight: 620; }
+.g-roll small { font-size: 11px; color: var(--txt-3); }
+
+.card-foot { padding: 0 12px 14px; }
+.btn.wide { width: 100%; }
+.page-foot { font-size: 13px; color: var(--txt-3); }
+.linkish { color: var(--cool-dim); text-decoration: underline; font-size: 13px; }
+.linkish:hover { color: var(--cool); }
+
+/* 노드 툴팁의 한계 기여 */
+.tip-gain {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.tip-gain > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tip-gain dt { font-size: 12.5px; color: var(--txt-3); }
+.tip-gain dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--txt-2);
+  font-variant-numeric: tabular-nums;
+}
+.tip-gain dd.up { color: var(--good); }
+.tip-gain .warn dt { color: var(--warm); }
+
+/* 좁을 때 부르는 계기판 서랍 */
+.gauge-call { display: none; }
+.gauge-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 60;
+  width: min(340px, 100%);
+  max-width: none;
+  max-height: 100vh;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--txt);
+  overflow-y: auto;
+}
+.gauge-drawer:not([open]) { display: none; }
+.gauge-drawer-hd {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.gauge-drawer-hd strong { font-size: 12.5px; }
+.gauge-drawer-hd .spacer { margin-left: auto; }
+.gauge-drawer .gauge { border: 0; border-radius: 0; position: static; }
 
 .card {
   border: 1px solid var(--line);
@@ -188,22 +800,116 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   padding: 13px 18px;
   border-bottom: 1px solid var(--line-soft);
 }
-.card-hd h2 { font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; }
+/* 제목은 안 접힌다. 좁은 열에서 '대난 / 투'로 쪼개지면 이름이 아니게 된다.
+   접혀야 하는 건 옆의 서브텍스트고, 그건 줄바꿈이 아니라 다음 줄로 내려간다. */
+.card-hd { flex-wrap: wrap; }
+.card-hd h2 { font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
 .card-hd .spacer { margin-left: auto; }
 
-/* ─── 탐색 바 ──────────────────────────────────────────────────── */
+.card-body { padding: 8px 12px 14px; }
+.card-body > .note:first-child { margin-top: 2px; }
+/* 행은 6px 안쪽 여백으로 hover 면을 만든다. 행이 아닌 것들도 같은 선에 세운다. */
+.card-body > .note,
+.card-body > .summary-line,
+.card-body > .effect-list,
+.card-body > .warn { margin-inline: 6px; }
 
-.searchbar { display: grid; gap: 0; }
+/* 다단(columns)으로 채우면 빈 칸은 줄지만, 카드 하나가 커질 때마다 뒤의
+   카드가 전부 다른 열로 밀린다. 툴팁 한 번 펴는 데 화면이 재배치되는 건
+   빈 칸보다 훨씬 나쁘다. 격자로 고정한다 — 커지는 건 그 칸뿐이다. */
+/* 벤또 격자를 그만둔다. 구멍을 메우려고 뒤 카드를 앞으로 끌어오면 무엇 다음에
+   무엇이 오는지가 화면 폭에 따라 달라진다. 게임에서 읽는 순서가 있는데 그것을
+   폭이 다시 정하게 둘 이유가 없다.
 
-.searchbar-main {
+   대신 열을 직접 세운다 — 왼쪽은 캐릭터 자신(무기·아바타·상황·공격력·기준),
+   오른쪽은 몸에 걸친 것(악세·팔찌·아크 그리드). 파티 시너지는 탐색 설정으로,
+   깨달음 외 효과는 깨달음 페이지로 갔다. */
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.setup-col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+@media (max-width: 760px) { .setup-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.blank { padding: 54px 24px; display: grid; justify-items: center; gap: 16px; text-align: center; }
+.blank p { font-size: 13px; color: var(--txt-3); }
+.blank-actions { display: flex; gap: 8px; }
+
+/* ─── 2단계 · 각인 ─────────────────────────────────────────────── */
+
+.engraving-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+.scope-rail { display: grid; gap: 18px; position: sticky; top: 70px; }
+
+.pool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2px;
+  padding: 10px 12px 14px;
+}
+
+/* 세 갈래 선택은 목록을 두 번 여는 것보다 한 번 누르는 게 맞다. */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--sunken);
+}
+.seg button {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 13px;
+  color: var(--txt-3);
+  border-right: 1px solid var(--line);
+  transition: color 120ms ease, background 120ms ease;
+}
+.seg button:last-child { border-right: 0; }
+.seg button:hover { color: var(--txt-2); background: var(--surface-2); }
+.seg button.on { color: var(--txt); background: var(--surface-2); }
+.seg button.on:first-child { color: var(--warm); background: color-mix(in srgb, var(--warm) 14%, transparent); }
+.seg button.on:nth-child(2) { color: var(--cool); background: color-mix(in srgb, var(--cool) 14%, transparent); }
+
+.tally { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 2px 0 10px; }
+.tally > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tally > div.wide { grid-column: 1 / -1; }
+.tally dt { font-size: 13px; color: var(--txt-3); }
+.tally dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 3단계 · 실행 막대 ────────────────────────────────────────── */
+
+.runbar { display: grid; gap: 0; }
+
+.runbar-main {
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 16px 18px;
+  padding: 14px 18px;
 }
+.runbar-main .eyebrow { margin-left: auto; }
 
-.searchbar-status {
+.runbar-status {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -213,27 +919,54 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   color: var(--txt-3);
   font-variant-numeric: tabular-nums;
 }
-.searchbar-status b { color: var(--txt-2); font-weight: 500; }
-
-.searchbar-scope {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
+.runbar-status b { color: var(--txt-2); font-weight: 500; }
 
 .progress { height: 2px; background: var(--line-soft); }
 .progress div { height: 100%; background: var(--cool); transition: width 120ms linear; }
 
-.scope-note {
+/* 탐색 범위 — 문장이 아니라 값의 목록. 예전에는 여덟 줄이 전부 "~합니다"로
+   끝나서 읽으려면 문장을 해석해야 했다. 여기 있는 건 전부 값이다. */
+.scope {
   display: grid;
-  gap: 4px;
-  padding: 12px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 22px;
+  padding: 10px 18px 12px;
   border-top: 1px solid var(--line-soft);
 }
-.scope-note li { font-size: 11.5px; line-height: 1.5; color: var(--txt-3); }
-.scope-note li::before { content: "— "; color: var(--line-lift); }
+.scope > div {
+  display: grid;
+  grid-template-columns: 5.4rem minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+.scope dt {
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+.scope dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--txt-2);
+  font-variant-numeric: tabular-nums;
+}
+/* 이름은 이름으로 보이게. 수치와 섞이면 어디까지가 한 덩어리인지 안 읽힌다. */
+.scope dd b {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--txt-2);
+  white-space: nowrap;
+}
+.scope > div.warn dt, .scope > div.warn dd { color: var(--warm); }
+.scope > div.warn dd b { border-color: var(--warm-ink); color: var(--warm); }
 
 /* ─── 작업 영역 ────────────────────────────────────────────────── */
 
@@ -251,24 +984,24 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
 
 .chart-grid { stroke: var(--line-soft); }
 .chart-axis { stroke: var(--line); }
-.chart-tick { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 10px; }
-.chart-axis-title { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; }
+.chart-tick { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 12px; }
+.chart-axis-title { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; }
 
 .chart-cloud { fill: var(--line-lift); stroke: none; }
 .chart-line { fill: none; stroke: var(--line-lift); stroke-width: 1.2; }
 
 .chart-point { cursor: pointer; }
-.chart-dot { stroke: var(--surface); stroke-width: 1.5; transition: r 120ms ease; }
+.chart-dot { fill: var(--ramp); stroke: var(--surface); stroke-width: 1.5; transition: r 120ms ease; }
 .chart-hit { fill: transparent; stroke: none; }
 .chart-knee-ring { fill: none; stroke: var(--warm); stroke-width: 1.4; opacity: 0.8; }
 .chart-point.current .chart-dot { stroke: var(--txt); stroke-width: 2; }
-.chart-point.selected .chart-dot { stroke: #fff; stroke-width: 2.5; }
+.chart-point.selected .chart-dot { stroke: var(--surface); stroke-width: 2.5; }
 .chart-point:focus-visible { outline: none; }
-.chart-point:focus-visible .chart-dot { stroke: #fff; stroke-width: 3; }
+.chart-point:focus-visible .chart-dot { stroke: var(--surface); stroke-width: 3; }
 .chart-cross { stroke: var(--line-lift); stroke-width: 1; stroke-dasharray: 2 4; }
 
-.chart-callout { fill: var(--warm); stroke: none; font-family: var(--mono); font-size: 11px; }
-.chart-callout-sub { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 10px; }
+.chart-callout { fill: var(--warm); stroke: none; font-family: var(--mono); font-size: 12.5px; }
+.chart-callout-sub { fill: var(--txt-3); stroke: none; font-family: var(--mono); font-size: 12px; }
 .chart-callout-line { stroke: var(--warm); stroke-width: 1; opacity: 0.5; }
 
 .chart-foot {
@@ -279,13 +1012,134 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   padding: 13px 20px;
   border-top: 1px solid var(--line-soft);
 }
-.chart-foot small { font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+.chart-foot small { font-family: var(--mono); font-size: 12.5px; color: var(--txt-3); }
 .ramp { width: 76px; height: 8px; border-radius: 4px;
         background: linear-gradient(90deg, var(--cool), var(--warm)); }
 .ramp-knee { width: 11px; height: 11px; border: 1.4px solid var(--warm); border-radius: 50%; }
 .ramp-cloud { width: 7px; height: 7px; border-radius: 50%; background: var(--line-lift); }
 
 .chart-empty { padding: 90px 20px; text-align: center; color: var(--txt-3); font-size: 13px; }
+
+/* ─── λ 지배 막대 ─────────────────────────────────────────────────
+   "쿨감이 실전에서 얼마나 굴러가는가"를 0~1로 훑어, 각 가정 구간에서
+   1등인 빌드를 늘어놓는다. 넓은 칸이 곧 가정에 덜 민감한 빌드다.   */
+
+/* 추천 세 갈래. 손실만 보면 되도록 — 절대 수치는 눈금이 달라 비교가 안 된다. */
+.rec { padding: 15px 20px 17px; display: grid; gap: 11px; }
+.rec-hd { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.rec-hd h3 { font-size: 12.5px; font-weight: 620; }
+.rec-hd .spacer { margin-left: auto; }
+.rec-spread { font-size: 12.5px; color: var(--txt-3); }
+.rec-spread b { font-family: var(--mono); color: var(--txt-2); font-weight: 600; }
+
+.rec-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; }
+/* grid로 두면 카드 높이가 서로 맞춰질 때 행이 눌려 겹친다. flex는 안 눌린다. */
+.rec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  text-align: left;
+}
+.rec-card:hover { border-color: var(--line-lift); }
+.rec-card.rec-best { border-color: var(--cool-dim); background: color-mix(in srgb, var(--cool) 7%, var(--surface-2)); }
+.rec-card.selected { box-shadow: inset 0 0 0 1px var(--cool); border-color: var(--cool); }
+
+.rec-name { font-size: 12.5px; font-weight: 620; color: var(--txt); }
+.rec-card.rec-best .rec-name { color: var(--cool); }
+/* 설명 길이가 카드마다 다르면 아래 수치들의 높이가 어긋나 비교가 안 된다.
+   두 줄 자리를 늘 잡아 둔다. */
+.rec-note {
+  font-size: 12.5px;
+  line-height: 1.4;
+  min-height: 2.8em;
+  color: var(--txt-3);
+  margin-bottom: 5px;
+}
+
+.rec-metric { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--txt-3); }
+.rec-metric > span { flex: none; width: 46px; }
+.rec-metric b {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--txt-2);
+  font-variant-numeric: tabular-nums;
+}
+.rec-metric u {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--warm);
+  font-variant-numeric: tabular-nums;
+}
+.rec-metric u.best { color: var(--cool); }
+
+.rec-foot {
+  margin-top: auto;
+  padding-top: 7px;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt-3);
+}
+.rec-foot i { font-style: normal; opacity: 0.75; }
+
+/* 표의 손실 열 — 카드와 같은 눈금으로 읽히도록 색을 맞춘다. */
+.results .loss-col { font-size: 13px; color: var(--warm); }
+.results .loss-col .best { color: var(--cool); }
+
+.gamma { padding: 14px 20px 16px; border-top: 1px solid var(--line-soft); display: grid; gap: 8px; }
+.gamma-hd { display: flex; align-items: baseline; gap: 10px; }
+.gamma-hd h3 { font-size: 13px; font-weight: 620; color: var(--txt-2); }
+.gamma-hd .spacer { margin-left: auto; }
+.gamma-pick { font-family: var(--mono); font-size: 12.5px; color: var(--txt-3); }
+.gamma-pick b { color: var(--cool); font-weight: 620; }
+
+.gamma-track {
+  display: flex;
+  gap: 2px;
+  height: 26px;
+  border-radius: var(--r);
+  overflow: hidden;
+}
+/* 램프 색은 --ramp에 담겨 온다. background에 바로 꽂으면 그 자리에서 rgb()로
+   굳어 테마를 따라가지 못한다 — src/lib/ramp.js 참고. */
+.gamma-seg {
+  background: var(--ramp);
+  flex-basis: 0;
+  min-width: 3px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-accent);
+  transition: box-shadow 120ms ease;
+}
+/* 예전에는 opacity 0.62로 흐리게 했다. 어두운 테마에서는 칸이 더 어두워져서
+   흰 글자가 그대로 읽혔는데, 밝은 테마에서는 칸이 종이 쪽으로 밝아지면서
+   그 위의 흰 글자가 사라졌다 — 대비 2.28.
+   칸 색은 쿨감을 나타내는 정보라 흐릴 이유가 없다. 색은 그대로 두고
+   강조는 테두리로만 한다. */
+.gamma-seg:hover { box-shadow: inset 0 0 0 2px var(--line-lift); }
+.gamma-seg.champion { box-shadow: inset 0 0 0 2px var(--txt-2); }
+.gamma-seg.selected { box-shadow: inset 0 0 0 2px var(--txt); }
+
+.gamma-axis {
+  display: flex;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--txt-3);
+}
+.gamma-axis .spacer { margin-left: auto; }
 
 /* ─── 선택 상세 ────────────────────────────────────────────────── */
 
@@ -301,7 +1155,7 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   border-bottom: 1px solid var(--line-soft);
 }
 .detail-figure { padding: 14px 18px; background: var(--surface); }
-.detail-figure dt { font-size: 11px; color: var(--txt-3); }
+.detail-figure dt { font-size: 12.5px; color: var(--txt-3); }
 .detail-figure dd {
   margin: 5px 0 0;
   font-family: var(--mono);
@@ -316,7 +1170,7 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   display: block;
   margin-top: 5px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-style: normal;
   font-weight: 400;
   letter-spacing: 0;
@@ -332,7 +1186,7 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   border-bottom: 1px solid var(--line-soft);
 }
 .detail-secondary div { display: flex; align-items: baseline; gap: 7px; }
-.detail-secondary dt { font-size: 11px; color: var(--txt-3); }
+.detail-secondary dt { font-size: 12.5px; color: var(--txt-3); }
 .detail-secondary dd {
   margin: 0;
   font-family: var(--mono);
@@ -340,32 +1194,32 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
   font-variant-numeric: tabular-nums;
 }
 
-.detail-knee {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--line-soft);
-  background: color-mix(in srgb, var(--warm) 7%, transparent);
-}
-.detail-knee strong { font-family: var(--mono); font-size: 13px; color: var(--warm); }
-.detail-knee span { font-size: 11.5px; color: var(--txt-3); }
-
 .detail-build { padding: 14px 18px; display: grid; gap: 11px; }
 .build-group { display: grid; gap: 6px; }
-.build-group h3 { font-size: 11px; font-weight: 500; color: var(--txt-3); }
+.build-group h3 { font-size: 12.5px; font-weight: 500; color: var(--txt-3); }
 .build-chips { display: flex; flex-wrap: wrap; gap: 5px; }
 
 .chip {
   padding: 3px 8px;
   border: 1px solid var(--line);
   border-radius: var(--r);
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--txt-2);
 }
 .chip .lv { font-family: var(--mono); color: var(--cool); margin-left: 5px; }
 .chip.locked { border-color: var(--warm-ink); color: var(--warm); }
 .chip.muted { color: var(--txt-3); }
+
+/* 뺀 노드. 누르면 되돌아오므로 단추처럼 보여야 한다. */
+button.chip.drop {
+  background: none;
+  cursor: pointer;
+  color: var(--txt-3);
+  border-style: dashed;
+  font: inherit;
+  font-size: 13px;
+}
+button.chip.drop:hover, button.chip.drop:focus-visible { border-color: var(--cool); color: var(--cool); }
 
 .detail-actions { padding: 0 18px 16px; }
 .detail-actions .btn { width: 100%; }
@@ -373,6 +1227,10 @@ svg { display: block; width: 1.1rem; height: 1.1rem; fill: none; stroke: current
 /* ─── 결과 표 ──────────────────────────────────────────────────── */
 
 .table-scroll { overflow-x: auto; }
+
+/* 1T는 줄마다 같은 값이 반복되기 쉬우니 한 톤 낮춘다. 제압이 들어오면
+   여기가 갈리는데, 안 보이면 탐색이 안 고른 것처럼 읽힌다. */
+table.results td.tier1 { color: var(--txt-3); white-space: nowrap; }
 
 table.results {
   width: 100%;
@@ -384,7 +1242,7 @@ table.results th {
   padding: 9px 14px;
   border-bottom: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -407,12 +1265,46 @@ table.results tbody tr { cursor: pointer; }
 table.results tbody tr:hover { background: var(--surface-2); }
 table.results tbody tr.selected { background: var(--surface-2); }
 table.results tbody tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--cool); }
-table.results tbody tr.knee td:first-child { box-shadow: inset 2px 0 0 var(--warm); }
-table.results tbody tr.selected.knee td:first-child { box-shadow: inset 2px 0 0 var(--cool); }
 table.results .lead { color: var(--txt); font-weight: 600; }
 table.results .rank { color: var(--txt-3); }
-table.results .knee-rate { color: var(--warm); }
+
+/* 상한이 왜 걸렸는지 표에서 바로 읽히게.
+   `80.00% (120.19%)` — 앞이 적용값, 괄호가 상한 전 합산. 괄호만 색을 달리해서
+   같은 칸의 두 숫자가 다른 것을 재고 있다는 걸 읽는 순간 알게 한다. */
+table.results .mark {
+  margin-left: 3px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--warm);
+  cursor: help;
+}
+table.results .over {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--warm);
+  cursor: help;
+}
+table.results th .mark-key {
+  margin-left: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--txt-3);
+  cursor: help;
+}
+table.results th .mark-key.over { color: var(--warm); }
+
+/* 열 이름과 물음표를 한 덩어리로. 머리글은 가운데 정렬이라 그냥 두면
+   물음표가 다음 줄로 떨어진다. */
+.th-hint { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.results .champ-span { color: var(--warm); font-weight: 600; }
+table.results tbody tr.champ td:first-child { box-shadow: inset 2px 0 0 var(--warm); }
+table.results tbody tr.selected.champ td:first-child { box-shadow: inset 2px 0 0 var(--cool); }
 table.results .swatch {
+  background: var(--ramp);
   display: inline-block;
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -445,34 +1337,128 @@ table.results .swatch {
 }
 .board-tier-label { display: grid; gap: 2px; }
 .board-tier-label b { font-family: var(--mono); font-size: 12px; color: var(--txt-2); }
-.board-tier-label span { font-family: var(--mono); font-size: 10px; color: var(--txt-3); }
+.board-tier-label span { font-family: var(--mono); font-size: 12px; color: var(--txt-3); }
 
-.board-nodes { display: flex; flex-wrap: wrap; gap: 5px; }
+/* 게임 화면처럼 오와 열을 맞춘다. 폭이 제각각이면 어느 칸을 누르는지
+   매번 다시 읽어야 한다. 한 줄 6칸 고정. */
+.board-nodes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+}
 
-.node {
+/* 노드는 이제 껍데기다. 안에 본체 버튼과 자물쇠 버튼이 형제로 들어간다 —
+   버튼 안에 버튼은 못 넣기 때문이다. */
+.node { position: relative; display: flex; min-width: 0; }
+.node-main {
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: 1;
   min-height: 30px;
+  min-width: 0;
   padding: 0 10px 0 8px;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--sunken);
   color: var(--txt-3);
-  font-size: 11.5px;
+  font-size: 13px;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
-.node:hover { border-color: var(--line-lift); color: var(--txt-2); }
-.node svg { width: 14px; height: 14px; opacity: 0.75; }
-.node .lv { font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
-.node.on {
+.node:hover .node-main { border-color: var(--line-lift); color: var(--txt-2); }
+
+/* 자물쇠 — 왼쪽 아이콘 자리를 덮는다.
+   빌드 서랍에서는 span이라 못 누른다. 그 판은 레벨만 정하고, 고정은 탐색
+   화면의 고정 노드 판이 정한다 — 여기 자물쇠는 "탐색이 이 칸을 안 굴린다"는
+   표시일 뿐이다. 고정됐을 때만 나타난다. */
+.node-lock {
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r) 0 0 var(--r);
+  background: var(--sunken);
+  color: var(--txt-3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease, color 100ms ease;
+}
+.node.locked .node-lock { opacity: 1; }
+/* 표시용 자물쇠는 커서도 안 받는다. 눌러도 아무 일이 없으면 고장으로 읽힌다. */
+span.node-lock { pointer-events: none; }
+.node-lock svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.node.on .node-lock { background: color-mix(in srgb, var(--cool) 9%, var(--sunken)); }
+.node.locked .node-lock { color: var(--cool); }
+.node.locked.excluded .node-lock { color: var(--warm); }
+.node.excluded .node-lock { background: color-mix(in srgb, var(--warm) 8%, var(--sunken)); }
+
+/* 고정된 노드는 판을 훑을 때 바로 걸려야 한다. 자물쇠 아이콘 하나로는 약하다 —
+   30개 중 두세 개를 찾는 일이라 테두리·왼쪽 띠·배경을 같이 준다. */
+.node.locked .node-main {
+  border-color: var(--cool);
+  box-shadow: inset 2px 0 0 var(--cool);
+  background: color-mix(in srgb, var(--cool) 14%, var(--sunken));
+}
+.node.locked .node-main .lv { color: var(--cool); font-weight: 500; }
+.node.locked .node-lock {
+  background: color-mix(in srgb, var(--cool) 14%, var(--sunken));
+  box-shadow: inset 2px 0 0 var(--cool);
+}
+/* 제외(0 고정)는 같은 강조를 벽돌색으로. 이유가 다르니 색으로 가른다. */
+.node.locked.excluded .node-main {
+  box-shadow: inset 2px 0 0 var(--warm);
+  background: color-mix(in srgb, var(--warm) 12%, var(--sunken));
+}
+.node.locked.excluded .node-lock {
+  background: color-mix(in srgb, var(--warm) 12%, var(--sunken));
+  box-shadow: inset 2px 0 0 var(--warm);
+}
+.node-main svg { width: 14px; height: 14px; opacity: 0.75; }
+.node-main .lv { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.node.on .node-main {
   border-color: var(--cool-ink);
   background: color-mix(in srgb, var(--cool) 9%, var(--sunken));
   color: var(--txt);
 }
-.node.on svg { opacity: 1; color: var(--cool); }
-.node.on .lv { color: var(--cool); }
-.node.max { border-color: var(--cool-dim); }
+.node.on .node-main svg { opacity: 1; color: var(--cool); }
+.node.on .node-main .lv { color: var(--cool); }
+.node.max .node-main { border-color: var(--cool-dim); }
+
+/* 이름은 남는 폭만큼만. 레벨은 항상 오른쪽 끝에 붙어 열이 맞는다. */
+.node-main > span:not(.lv) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-main .lv { margin-left: auto; flex: none; }
+
+/* 딜에 기여하지 않는 노드 — 낙인력·공격력 강화 등. 누를 수는 있지만
+   탐색이 후보에서 빼는 것들이라 화면에서도 물러나 있어야 한다. */
+.node.inert { opacity: 0.38; }
+.node.inert:hover { opacity: 0.6; }
+
+/* 직접 뺀 노드. 회색(계산기가 못 다룸)과 이유가 다르므로 색을 나눈다. */
+.node.excluded .node-main {
+  opacity: 1;
+  border-color: var(--warm-dim, var(--warm));
+  border-style: dashed;
+  color: var(--warm);
+  background: color-mix(in srgb, var(--warm) 8%, transparent);
+}
+.node.excluded .node-main svg,
+.node.excluded .node-main .lv { color: var(--warm); opacity: 0.8; }
+.node.excluded .node-main > span:not(.lv) { text-decoration: line-through; text-decoration-thickness: 1px; }
+.node.excluded:hover .node-main { border-color: var(--warm); }
+
+/* 티어 포인트를 넘겼을 때. 예전 저장본에서만 나올 수 있다 — 지금은 못 넘긴다. */
+.board-tier-label.over span { color: var(--warm); }
 
 .board-track { height: 2px; background: var(--line-soft); }
 .board-track div { height: 100%; background: var(--cool); transition: width 140ms ease; }
@@ -488,60 +1474,22 @@ table.results .swatch {
   padding: 13px 15px;
   border: 1px solid var(--line-lift);
   border-radius: var(--r);
-  background: #0a0d13;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  background: var(--pop);
+  box-shadow: var(--pop-shadow-lg);
   pointer-events: none;
 }
 .tip > strong { font-size: 13.5px; }
-.tip > small { font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+.tip > small { font-family: var(--mono); font-size: 12.5px; color: var(--txt-3); }
 .tip ul { display: grid; gap: 4px; }
 .tip li { font-size: 12px; line-height: 1.45; color: var(--txt-2); }
 .tip li:first-child { color: var(--cool); }
+.tip-note { font-size: 13px; line-height: 1.5; color: var(--warm); }
+/* 깨달음 툴팁은 게임 문장을 그대로 싣는다. 길어서 줄 간격이 넉넉해야 읽힌다. */
+.tip-desc { font-size: 12.5px; line-height: 1.55; color: var(--txt-2); }
+.tip-desc.muted { color: var(--txt-3); }
+.tip li.out { color: var(--txt-3); }
 
-/* ─── 설정 서랍 ────────────────────────────────────────────────── */
-
-.drawer {
-  position: fixed;
-  inset: 0 0 0 auto;
-  z-index: 60;
-  width: min(430px, 100%);
-  max-width: none;
-  max-height: 100vh;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-left: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--txt);
-  overflow: hidden;
-}
-.drawer::backdrop { background: rgba(5, 7, 10, 0.6); backdrop-filter: blur(2px); }
-
-.drawer-shell { display: flex; flex-direction: column; height: 100%; }
-
-.drawer-hd {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.drawer-hd h2 { font-size: 13px; font-weight: 600; }
-.drawer-hd .spacer { margin-left: auto; }
-
-.drawer-body { flex: 1; overflow-y: auto; padding: 4px 20px 24px; }
-
-.section { padding: 16px 0; border-bottom: 1px solid var(--line-soft); }
-.section:last-child { border-bottom: 0; }
-.section-hd {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.section-hd h3 { font-size: 11.5px; font-weight: 600; color: var(--txt-2); }
-.section-hd .spacer { margin-left: auto; }
+/* ─── 입력 ─────────────────────────────────────────────────────── */
 
 .reset {
   display: inline-grid;
@@ -571,7 +1519,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   border-bottom: 1px solid var(--line-soft);
 }
 .field:last-child { border-bottom: 0; }
-.field > label { font-size: 12.5px; color: var(--txt-2); cursor: default; }
+.field > label, .field > span { font-size: 12.5px; color: var(--txt-2); cursor: default; }
 .field:hover { background: var(--surface-2); }
 .field:focus-within { background: var(--surface-2); }
 
@@ -591,7 +1539,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 }
 .field input { width: 96px; }
 .field input:hover, .field select:hover { border-color: var(--line-lift); }
-.field input:focus, .field select:focus { border-color: var(--cool); background: #0d1219; }
+.field input:focus, .field select:focus { border-color: var(--cool); background: var(--field-bg); }
 
 .field select {
   width: auto;
@@ -613,7 +1561,7 @@ option { background: var(--surface); color: var(--txt); }
 /* 계산 결과는 입력이 아니다. 테두리 없이, 눈에 덜 띄게. */
 .derived {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--cool-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -634,49 +1582,90 @@ option { background: var(--surface); color: var(--txt); }
 .check:hover { background: var(--surface-2); }
 .check:has(input:checked) span { color: var(--txt); }
 
-/* 슬라이더 */
-.slider { display: block; padding: 12px 6px 4px; }
-.slider-top {
+/* 주력기 딜 비중 — 네 갈래를 넣으면 두 계수(마나 전용 피해 · 끝마/무마)가 나온다 */
+.mix { padding: 11px 6px 4px; }
+.mix-hd {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-size: 12.5px;
   color: var(--txt-2);
 }
-.slider-top strong { font-family: var(--mono); font-size: 14px; color: var(--cool); font-variant-numeric: tabular-nums; }
-.slider-top strong.off { color: var(--txt-3); }
-.slider p { margin-top: 10px; font-size: 11.5px; line-height: 1.6; color: var(--txt-3); }
-.slider p strong { color: var(--txt-2); font-weight: 500; }
+.mix-sum {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--warm);
+}
+.mix-sum.off { color: var(--txt-3); }
 
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 16px;
+.mix-rows { display: grid; }
+.mix-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line-soft);
 }
-input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--line); }
-input[type="range"]::-moz-range-track { height: 2px; background: var(--line); }
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px; height: 12px; border-radius: 50%;
-  margin-top: -5px;
-  background: var(--cool);
-  border: 0;
+.mix-row > span { font-size: 12px; color: var(--txt-2); }
+.mix-row:hover { background: var(--surface-2); }
+.mix-row input { width: 100%; text-align: right; }
+
+.mix-out {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
 }
-input[type="range"]::-moz-range-thumb {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--cool); border: 0;
+.mix-out > div { display: flex; align-items: baseline; gap: 10px; }
+.mix-out dt { flex: 1; font-size: 13px; color: var(--txt-3); }
+.mix-out dd {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cool);
 }
+
+/* 특화 묶음 — 아이덴티티류. 딜 비중 카드 안에 산다. */
+.spec-bundle {
+  display: grid;
+  gap: 7px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.spec-bundle-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 이름이 줄어들어야 지우기 ×가 같은 줄에 남는다 — 못 줄이면 ×가 혼자 내려간다. */
+.spec-bundle-hd > input[type="text"] { flex: 1 1 90px; min-width: 70px; width: auto; }
+.spec-bundle-hd .spacer { margin-left: auto; }
+.spec-bundle-field { display: flex; align-items: center; gap: 5px; }
+.spec-bundle-field > span { font-size: 11.5px; color: var(--txt-3); white-space: nowrap; }
+.spec-bundle-field input { width: 66px; text-align: right; }
+.spec-bundle-field em { font-style: normal; font-size: 11.5px; color: var(--txt-3); }
+.spec-bundle-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 10px; }
+.spec-bundle-row select.boxed { min-height: 28px; width: max-content; }
+.spec-bundle-formula { flex: 1 1 150px; min-width: 130px; }
+.spec-bundle-peek { font-size: 11.5px; color: var(--txt-3); white-space: nowrap; }
+.spec-bundle-peek.bad { color: var(--warm); }
+.spec-bundle-row .spacer { margin-left: auto; }
+.spec-bundle-out {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cool);
+  white-space: nowrap;
+}
+.spec-bundle-add { justify-self: start; }
 
 details.aside { margin-top: 10px; }
-details.aside > summary { font-size: 11.5px; color: var(--cool-dim); cursor: pointer; list-style: none; }
+details.aside > summary { font-size: 13px; color: var(--cool-dim); cursor: pointer; list-style: none; }
 details.aside > summary::-webkit-details-marker { display: none; }
 details.aside > summary::before { content: "▸ "; }
 details.aside[open] > summary::before { content: "▾ "; }
 details.aside ul { display: grid; gap: 5px; margin-top: 9px; padding-left: 14px; }
-details.aside li { font-size: 11.5px; line-height: 1.55; color: var(--txt-3); list-style: disc; }
+details.aside li { font-size: 13px; line-height: 1.55; color: var(--txt-3); list-style: disc; }
 
 /* 슬롯 행 */
 .slot {
@@ -693,23 +1682,18 @@ details.aside li { font-size: 11.5px; line-height: 1.55; color: var(--txt-3); li
 .slot:hover { background: var(--surface-2); }
 .slot > strong { font-size: 12.5px; font-weight: 400; color: var(--txt-2); }
 .slot .pair { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-.slot .pair label { display: flex; align-items: center; gap: 7px; }
-.slot .pair label > span { font-size: 11px; color: var(--txt-3); }
-.slot .pair select {
-  width: auto;
-  padding-right: 15px;
-  font-family: var(--sans);
-  font-size: 12.5px;
-  text-align: right;
-  text-align-last: right;
-  appearance: none;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%236c7686' stroke-width='1.3'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right center;
-  background-size: 8px 5px;
+.slot .pair .pair-item { display: flex; align-items: center; gap: 7px; }
+.slot .pair .pair-item > span { font-size: 12.5px; color: var(--txt-3); flex: none; }
+/* 여기 목록 상자는 값만 짧게 보이면 되므로 테두리를 지우고 글자만 남긴다. */
+.slot .pair .sel-btn {
+  min-height: 24px;
+  padding: 0 2px 0 4px;
+  border-color: transparent;
+  background: transparent;
 }
-.slot.empty > span { font-size: 11px; color: var(--txt-3); text-align: right; }
+.slot .pair .sel-btn:hover { border-color: var(--line); }
+.slot .pair .sel { min-width: 74px; }
+.slot.empty > span { font-size: 12.5px; color: var(--txt-3); text-align: right; }
 
 .summary-line { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .summary-line .empty { font-size: 12px; color: var(--txt-3); }
@@ -729,18 +1713,194 @@ details.aside li { font-size: 11.5px; line-height: 1.55; color: var(--txt-3); li
 select.boxed { font-family: var(--sans); cursor: pointer; }
 .boxed:hover { border-color: var(--line-lift); }
 .boxed:focus { border-color: var(--cool); }
+
+/* ─── 세팅 서랍 ──────────────────────────────────────────────────── */
+.saves { position: relative; }
+.saves > .btn em {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 7px;
+  background: var(--cool-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-style: normal;
+  color: var(--on-accent);
+}
+
+.saves-pop {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 9px;
+  width: min(380px, 88vw);
+  padding: 11px;
+  border: 1px solid var(--line-lift);
+  border-radius: var(--r);
+  background: var(--pop);
+  box-shadow: var(--pop-shadow-lg);
+}
+
+.saves-new { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.saves-new input,
+.saves-rename input {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-size: 12.5px;
+}
+.saves-new input:focus, .saves-rename input:focus { border-color: var(--cool); }
+
+.saves-empty { font-size: 13px; line-height: 1.6; color: var(--txt-3); }
+
+.saves-list { display: grid; gap: 2px; max-height: 300px; overflow-y: auto; }
+.saves-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px; align-items: center; }
+.saves-row:hover { background: var(--surface-2); border-radius: var(--r); }
+
+.saves-apply {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  padding: 7px 9px;
+  border-radius: var(--r);
+  text-align: left;
+  cursor: pointer;
+}
+.saves-apply b { font-size: 12.5px; font-weight: 560; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saves-apply small { grid-column: 1; font-family: var(--mono); font-size: 12.5px; color: var(--txt-3); }
+.saves-apply u {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt-3);
+  text-decoration: none;
+}
+.saves-apply:hover b { color: var(--cool); }
+
+.saves-rename { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px; padding: 4px 0; }
+.saves-confirm { display: flex; align-items: center; gap: 6px; padding: 5px 9px; font-size: 13px; color: var(--txt-2); }
+/* min-height가 27px이라 24px를 지정해도 세로만 늘어나 직사각형이 됐다. */
+.saves-row .btn.icon.sm { width: 26px; height: 26px; min-height: 26px; }
+.saves-row .btn.icon.sm svg { width: 15px; height: 15px; }
+
+.saves-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  color: var(--txt-3);
+}
+
+/* ─── 목록 상자 ────────────────────────────────────────────────────
+   네이티브 select의 팝업은 OS가 그려서 이 화면과 따로 논다. 직접 그린다. */
+.sel { position: relative; display: inline-grid; min-width: 0; }
+
+.sel-btn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 7px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-size: 12.5px;
+  color: var(--txt);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.sel-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-btn svg {
+  width: 14px; height: 14px;
+  fill: none; stroke: currentColor; stroke-width: 1.6;
+  color: var(--txt-3);
+  transition: transform 140ms ease;
+}
+.sel-btn:hover { border-color: var(--line-lift); }
+.sel-btn:focus-visible { border-color: var(--cool); background: var(--field-bg); }
+.sel-btn[disabled] { opacity: 0.4; cursor: default; }
+.sel-btn.placeholder > span { color: var(--txt-3); }
+.sel.open .sel-btn { border-color: var(--cool); background: var(--field-bg); }
+.sel.open .sel-btn svg { transform: rotate(180deg); color: var(--cool); }
+
+.sel-pop {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 4px);
+  right: 0;
+  /* 버튼 폭에만 묶으면 좁은 칸에서 목록이 그 폭으로 눌린다. 그러면 이름
+     열이 0으로 짜부라져 힌트만 세 줄로 남고, 무엇을 고르는지 알 수 없다.
+     목록은 내용에 맞춰 펴진다 — 어차피 떠 있는 것이므로 칸을 안 밀어낸다. */
+  width: max-content;
+  min-width: 100%;
+  max-width: min(340px, 78vw);
+  padding: 4px;
+  border: 1px solid var(--line-lift);
+  border-radius: var(--r);
+  background: var(--pop);
+  box-shadow: var(--pop-shadow);
+}
+.sel-pop.left { right: auto; left: 0; }
+
+/* 아래가 모자라면 위로 뒤집는다. Select.svelte가 열 때마다 다시 잰다. */
+.sel-pop.up { top: auto; bottom: calc(100% + 4px); }
+/* 어느 쪽으로 열든 남은 자리 안에서만. 넘치면 목록이 스크롤된다. */
+.sel-pop { max-height: var(--pop-room, 60vh); display: flex; flex-direction: column; }
+.sel-pop .sel-list { overflow-y: auto; min-height: 0; }
+
+.sel-search {
+  width: 100%;
+  min-height: 26px;
+  margin-bottom: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-size: 12px;
+}
+.sel-search:focus { border-color: var(--cool); }
+
+.sel-list { display: grid; gap: 1px; max-height: 264px; overflow-y: auto; }
+.sel-opt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--txt-2);
+  text-align: left;
+  cursor: pointer;
+}
+.sel-opt-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 힌트는 이름을 밀어내지 않는다. 접히기 시작하면 auto 열이 부풀어
+   이름 쪽 1fr을 0까지 먹는다. */
+.sel-opt-hint {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+.sel-opt[data-active="true"] { background: var(--surface-2); color: var(--txt); }
+.sel-opt.on { color: var(--cool); }
+.sel-opt.on .sel-opt-hint { color: var(--cool-dim); }
+.sel-opt.muted { color: var(--txt-3); }
+.sel-empty { padding: 8px; font-size: 12px; color: var(--txt-3); }
 input.boxed[type="number"] { text-align: right; }
 
-.effect-list { display: grid; gap: 8px; }
-.effect-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px 30px;
-  gap: 6px;
-  align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid var(--line-soft);
-}
-.effect-row > input[type="text"]:first-child, .effect-row > select { grid-column: 1 / -1; }
+.effect-list { display: grid; gap: 6px; }
 
 /* ─── 모달 ─────────────────────────────────────────────────────── */
 
@@ -755,7 +1915,7 @@ input.boxed[type="number"] { text-align: right; }
   color: var(--txt);
   overflow: hidden;
 }
-.modal::backdrop { background: rgba(5, 7, 10, 0.68); backdrop-filter: blur(2px); }
+.modal::backdrop { background: var(--scrim); backdrop-filter: blur(2px); }
 .modal-shell { display: flex; flex-direction: column; max-height: calc(100vh - 42px); }
 .modal-hd {
   display: flex;
@@ -765,13 +1925,10 @@ input.boxed[type="number"] { text-align: right; }
   border-bottom: 1px solid var(--line);
 }
 .modal-hd h2 { font-size: 13px; font-weight: 600; }
-.modal-hd p { margin-top: 3px; font-family: var(--mono); font-size: 11.5px; color: var(--cool-dim); }
+.modal-hd p { margin-top: 3px; font-family: var(--mono); font-size: 13px; color: var(--cool-dim); }
 .modal-hd .spacer { margin-left: auto; }
 .modal-body { flex: 1; overflow-y: auto; padding: 18px 20px 24px; }
 
-.pick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; }
-.pick-group h3 { margin-bottom: 10px; font-size: 11.5px; font-weight: 600; color: var(--txt-3); }
-.pick-group.dim { opacity: 0.7; }
 .pick-list { display: grid; gap: 3px; }
 
 .pick {
@@ -784,15 +1941,15 @@ input.boxed[type="number"] { text-align: right; }
   border-left: 2px solid transparent;
 }
 .pick:hover { background: var(--surface-2); }
-.pick > label { font-size: 12px; color: var(--txt-2); }
+.pick > label, .pick > .pick-name { font-size: 12px; color: var(--txt-2); }
 .pick.on { border-left-color: var(--cool-dim); }
-.pick.on > label { color: var(--txt); }
-.pick small { grid-column: 1 / -1; font-size: 11px; color: var(--cool-dim); }
+.pick.on > label, .pick.on > .pick-name { color: var(--txt); }
+.pick small { grid-column: 1 / -1; font-size: 12.5px; color: var(--cool-dim); }
 .pick.inactive small { color: var(--warm); }
 
 .pool-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 86px 112px;
+  grid-template-columns: minmax(0, 1fr) auto 104px;
   gap: 10px;
   align-items: center;
   padding: 7px 10px;
@@ -803,9 +1960,217 @@ input.boxed[type="number"] { text-align: right; }
 .pool-row[data-role="locked"] { border-left-color: var(--warm); }
 .pool-row[data-role="candidate"] { border-left-color: var(--cool-ink); }
 .pool-row[data-role="excluded"] { opacity: 0.42; }
-.pool-name strong { display: block; font-size: 12px; font-weight: 500; color: var(--txt-2); }
-.pool-name small { display: block; font-size: 11px; line-height: 1.4; color: var(--txt-3); }
-.pool-row.inactive .pool-name small { color: var(--warm); }
+.pool-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pool-name strong {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--txt-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pool-name small { font-size: 12.5px; color: var(--txt-3); }
+/* 조건이 안 맞는 각인. 까닭은 툴팁이 답한다 — 스물두 줄에 문장을 다 깔면
+   정작 고정·후보·제외가 안 읽힌다. */
+.pool-name .warnmark {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--warm);
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--warm);
+  cursor: help;
+}
+/* 낀 각인의 단계는 곧 보유 사실이다. 안 낀 것은 보유 여부를 모르니 가정으로
+   두는데, 두 경우가 눈으로 갈려야 없는 빌드를 믿지 않는다. */
+/* 불러오기가 무엇을 지우는지 목록 위에 못 박는다. */
+/* 두 축을 고르는 칸. 제목 옆에 붙어 "무엇 대 무엇"이 한눈에 읽혀야 한다. */
+.axis-pick { display: flex; align-items: center; gap: 6px; }
+.axis-pick i { font-style: normal; font-size: 11.5px; color: var(--txt-3); }
+
+.import-note {
+  padding: 0 18px 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--txt-3);
+}
+
+/* 어빌리티 스톤이 얹은 각인. 왜 고정으로 서 있는지를 한 글자로 말한다. */
+.pool-name .owned {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--cool-ink);
+  border-radius: 3px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--cool-dim);
+}
+
+/* ─── 펫 · 음식 ────────────────────────────────────────────────────
+   갈래가 하나뿐인 차원이라 '고정 · 후보 · 제외' 세 갈래가 필요 없다.
+   켠 것이 후보고, 하나만 켜면 그게 곧 고정이다. 줄마다 단추 셋을 두었더니
+   여덟 줄에 스물넷이 늘어서서, 정작 "무엇을 켰나"가 안 읽혔다.        */
+
+.picks { display: grid; gap: 6px; padding: 2px 0 6px; }
+/* 줄마다 선을 긋는다. 파티 버프와 정열의 춤사위는 켜고 끄는 모양이 같아서
+   붙여 두면 한 덩어리로 읽힌다 — 실제로는 다른 것을 정하는 두 줄이다. */
+.picks > .pick-row + .pick-row { border-top: 1px solid var(--line-soft); padding-top: 6px; }
+
+/* 같은 카드 안의 다음 덩어리. 카드를 쪼개는 대신 선을 긋는다. */
+.card-body.ruled { border-top: 1px solid var(--line); }
+.pick-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 48px; gap: 12px; align-items: center; }
+.pick-row > b { font-size: 12.5px; font-weight: 550; color: var(--txt-2); white-space: nowrap; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.pick-count { font-size: 11.5px; color: var(--txt-3); text-align: right; font-variant-numeric: tabular-nums; }
+
+.pick-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  color: var(--txt-3);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 110ms ease, color 110ms ease, background 110ms ease;
+}
+.pick-chip:hover { border-color: var(--line-lift); color: var(--txt-2); }
+.pick-chip.on {
+  border-color: var(--cool);
+  color: var(--cool);
+  background: color-mix(in srgb, var(--cool) 12%, transparent);
+}
+.pick-chip em { font-style: normal; font-size: 11px; opacity: 0.75; }
+
+/* 2페이지 — 왼쪽 트리, 오른쪽 자버프. 트리에서 찍은 것이 오른쪽에 줄로 서므로
+   둘은 같은 화면에 나란히 있어야 한다. */
+.awaken-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+  gap: 18px;
+  align-items: start;
+}
+.awaken-split > * { min-width: 0; }
+/* 공격 방향 · 딜 비중 · 자버프는 늘 오른쪽 열이다. 좁아져도 안 무너뜨린다 —
+   트리에서 찍은 것이 오른쪽에 줄로 서는 관계라 위아래로 떨어지면 못 읽는다. */
+.awaken-side { display: grid; gap: 18px; min-width: 0; }
+.awaken-side > * { min-width: 0; }
+
+/* ─── 유효율 ───────────────────────────────────────────────────────
+   "그 효과가 내 딜의 몇 퍼센트에 실리느냐"는 정책 하나로 못 정한다. 줄마다
+   손으로 적게 하고, 안 적은 줄은 100%로 읽는다.                       */
+
+/* 한 줄이 한 효과다. 세 칸으로 못 박는다 — 이름 · 값 · 유효율.
+   격자로 여러 벌 늘어놓았더니 값이 잘려서 정작 무엇에 유효율을 매기는지
+   읽을 수가 없었다. 세로로 쌓고 값에 자리를 준다. */
+.uptime-list { display: grid; gap: 1px; padding: 4px 12px 12px; }
+.pool-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px 2px;
+}
+.pool-head b { font-size: 12.5px; font-weight: 600; color: var(--txt-2); }
+/* 읽기만 하는 가동율 — 내 줄은 깨달음의 자버프 카드가 정한다. */
+.syn-up.read { color: var(--txt-3); font-variant-numeric: tabular-nums; }
+/* 이 칸은 폭이 정해져 있다. 글자가 넘치면 이름이 두 줄로 접힌다. */
+.syn-who { white-space: nowrap; }
+.pool-head span { font-size: 11.5px; color: var(--txt-3); }
+.uptime-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 66px;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.uptime-row:last-child { border-bottom: 0; }
+.uptime-row:hover { background: var(--surface-2); }
+/* 0%는 "안 실림"이다. 지운 것과 다르므로 남겨 두되 물러나 있게 한다. */
+.uptime-row.dimmed { opacity: 0.45; }
+.uptime-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--txt-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uptime-what { font-size: 12.5px; color: var(--txt-3); min-width: 0; }
+.uptime-what i { font-style: normal; color: var(--txt-2); }
+.uptime-rate { display: flex; align-items: baseline; gap: 4px; justify-self: end; }
+.uptime-rate input { width: 52px; text-align: right; }
+.uptime-rate em { font-style: normal; font-size: 11.5px; color: var(--txt-3); }
+
+/* 손으로 적은 줄도 같은 세 칸에 선다. */
+
+
+/* ─── 직업 고르기 ─────────────────────────────────────────────────
+   계열 → 성별 → 직업. 게임의 선택 화면이 그 순서라 이름을 훑는 것보다
+   자리로 찾는 편이 빠르다.                                            */
+
+.job-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.job-name svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: var(--txt-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.job-name:hover svg { stroke: var(--cool); }
+.job-name:hover h2 { color: var(--cool); }
+
+.job-picker { display: grid; gap: 14px; }
+.job-family { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: start; }
+.job-family > b { font-size: 13px; font-weight: 600; color: var(--txt-2); padding-top: 7px; }
+.job-rows { display: grid; gap: 6px; min-width: 0; }
+.job-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.job-row > i {
+  flex: none;
+  width: 14px;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--txt-3);
+}
+.job-list { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.job-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--txt-2);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.job-chip:hover { border-color: var(--line-lift); color: var(--txt); }
+.job-chip.on { border-color: var(--cool); color: var(--cool); background: color-mix(in srgb, var(--cool) 12%, transparent); }
+.job-chip:disabled { opacity: 0.35; cursor: not-allowed; }
+/* 트리는 있는데 수치가 아직 안 들어간 직업. 고를 수는 있어야 하지만
+   그 사실을 감추면 안 된다. */
+.job-chip em { font-style: normal; font-size: 11px; color: var(--warm); }
 
 /* 아크 그리드 — 코어 한 칸씩 */
 .grid-slot { padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
@@ -823,19 +2188,19 @@ input.boxed[type="number"] { text-align: right; }
 .grid-lines li {
   display: flex;
   gap: 10px;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--txt-2);
   font-variant-numeric: tabular-nums;
 }
 .grid-lines b {
   min-width: 34px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--cool-dim);
 }
 
-.grid-note { margin-top: 8px; padding-left: 66px; font-size: 11px; line-height: 1.5; color: var(--txt-3); }
+.grid-note { margin-top: 8px; padding-left: 66px; font-size: 12.5px; line-height: 1.5; color: var(--txt-3); }
 .grid-note b { color: var(--txt-2); font-weight: 500; }
 .grid-slot .fields { margin-top: 10px; }
 .grid-slot .check { margin-top: 6px; }
@@ -851,35 +2216,47 @@ input.boxed[type="number"] { text-align: right; }
   font-size: 12px;
 }
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.card > .toolbar { padding: 12px 22px 0; margin-bottom: 0; }
 .stat-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
 .unsupported { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; }
 .unsupported div { padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--r); }
 .unsupported strong { display: block; font-size: 12px; color: var(--txt-2); }
-.unsupported span { font-size: 11px; color: var(--txt-3); }
+.unsupported span { font-size: 12.5px; color: var(--txt-3); }
 
 /* ─── 반응형 ───────────────────────────────────────────────────── */
 
 @media (max-width: 1240px) {
   .workspace { grid-template-columns: 1fr; }
-  .detail { position: static; }
+  .engraving-layout { grid-template-columns: 1fr; }
+  .scope-rail { position: static; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  /* 자리가 없으면 계기판을 없애는 게 아니라 부를 수 있게 둔다. */
+  .split { grid-template-columns: 1fr; }
+  .split > .gauge { display: none; }
+  .preview-rail { position: static; }
+  .gauge-call { display: inline-flex; }
+  /* 서랍에는 계기판을 부를 상단바가 없다(서랍이 그 위를 덮는다). 감추는 대신
+     맨 아래 카드로 내려놓는다 — 서랍은 어차피 안에서 구른다. */
+  .build-drawer .split > .gauge { display: flex; position: static; max-height: none; }
+  .build-drawer .g-scroll { overflow-y: visible; }
+}
+
+@media (max-width: 1080px) {
+  .page-sep { width: 10px; }
+  /* 페이지가 넷이 되면서 상단바가 꽉 찼다. 워드마크가 제일 먼저 양보한다 —
+     읽을 것이 없는 자리다. */
+  .wordmark { display: none; }
 }
 
 @media (max-width: 780px) {
-  .page { padding: 14px; }
+  .page { padding: 14px 14px 104px; }
   .topbar { padding: 0 14px; gap: 12px; }
+  .wordmark { display: none; }
+  .stepbar { padding: 10px 14px; gap: 10px; }
   .config-summary { display: none; }
-  .searchbar-scope { margin-left: 0; width: 100%; }
   .board-tier { grid-template-columns: 1fr; gap: 8px; }
   .checks { grid-template-columns: 1fr; }
-  .pool-row { grid-template-columns: minmax(0, 1fr) 80px; }
+  .pool-row { grid-template-columns: minmax(0, 1fr) auto; }
   .pool-row select:last-child { grid-column: 2; }
-}
-
-/* 서랍 안의 하위 제목 */
-.section-hd h4.sub {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--txt-3);
 }
 
 /* 값 대신 라벨만 있는 행 */
@@ -894,7 +2271,7 @@ input.boxed[type="number"] { text-align: right; }
 
 .hint {
   margin: -2px 0 10px;
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1.55;
   color: var(--txt-3);
 }
@@ -905,7 +2282,7 @@ input.boxed[type="number"] { text-align: right; }
 .with-sheet { display: grid; justify-items: end; gap: 2px; }
 .with-sheet small {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12.5px;
   color: var(--txt-3);
   font-variant-numeric: tabular-nums;
 }
@@ -914,34 +2291,433 @@ input.boxed[type="number"] { text-align: right; }
 .field > label em {
   margin-left: 6px;
   font-style: normal;
-  font-size: 10.5px;
+  font-size: 12.5px;
   color: var(--txt-3);
 }
 
-.section-hd h3 em.tag {
-  margin-left: 8px;
-  padding: 2px 7px;
-  border: 1px solid var(--cool-ink);
-  border-radius: var(--r);
-  font-style: normal;
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--cool-dim);
-  white-space: nowrap;
-}
-
-/* 직접 입력 행을 3줄에서 2줄로. 이름 한 줄, 그 아래 종류·수치·삭제 */
+/* 직접 입력 — 한 항목이 한 줄. 세 줄씩 쓰면 이 카드 하나가 격자 전체의
+   행 높이를 규정해버려서 옆 카드 밑이 통째로 빈다. */
 .effect-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px 28px;
-  gap: 6px;
+  /* 이름 · 대상 · 계산 방식 · 값 · 유효율 · 삭제 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 92px 84px 74px 26px;
+  gap: 5px;
   align-items: center;
   padding-top: 8px;
   border-top: 1px solid var(--line-soft);
 }
-.effect-row > input[type="text"]:first-child { grid-column: 1 / -1; }
-.effect-row .btn.icon { width: 28px; min-height: 28px; }
+.effect-row:first-child { padding-top: 0; border-top: 0; }
+.effect-row .btn.icon { width: 26px; min-height: 26px; }
+.effect-row .boxed { min-height: 26px; font-size: 13px; }
+/* 피해 그룹 이름을 직접 쓰는 항목만 이름 칸을 한 줄 더 쓴다. */
+.effect-row.custom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 92px 84px 74px 26px; }
+
+/* 값 칸. 고정 수치면 입력, 식이면 계산 결과만 보여 준다. 칸 수가 달라져도
+   바깥 그리드는 그대로여야 한다. */
+.effect-value { display: grid; min-width: 0; }
+.effect-value .boxed { width: 100%; }
+.formula-out {
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cool);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.formula-out.bad { color: var(--warm); font-family: var(--sans); font-size: 12.5px; }
+
+/* 식 줄 — 행 전체를 쓴다. 변수는 손으로 못 치고 드롭다운으로만 고른다.
+   이름을 오타 내면 조용히 0이 되어 왜 안 맞는지 알 수 없기 때문이다. */
+/* 예전에는 항마다 종류 전환(xy/123)과 연산자 드롭다운이 붙어서 두 낱말짜리
+   식 하나에 칸이 여섯이었다. 지금 한 항은 [재료][비율] 둘뿐이고, 줄 전체가
+   "공격속도 38.91% 의 120 %"라는 한 문장으로 읽힌다. */
+.formula {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding: 7px 10px 8px;
+  border-left: 2px solid var(--cool-ink);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--sunken);
+}
+/* 항이 한 행씩 쌓이는 격자. 가로로 늘어놓으면 두 번째 항부터 부호가 끼면서
+   열이 어긋나 무엇이 무엇인지 눈으로 못 짚는다. 첫 항도 부호 칸을 비워 두고
+   차지해서 모든 행의 열이 맞는다. */
+.ratio {
+  display: grid;
+  grid-template-columns: 58px minmax(6.5rem, 12rem) 4.5rem auto 72px auto 24px;
+  gap: 5px 6px;
+  align-items: center;
+}
+.ratio .sel { min-width: 0; }
+.ratio .sel-btn { min-height: 26px; padding: 0 5px 0 8px; font-size: 13px; }
+
+/* 한 항의 칸들이 바깥 격자에 그대로 놓이도록. 감싸면 열이 안 맞는다. */
+.ratio-term { display: contents; }
+.ratio-of { font-size: 12.5px; color: var(--txt-3); }
+.ratio-pct { width: 100%; min-height: 26px; text-align: right; }
+.ratio-now {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cool-dim);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ratio-add { grid-column: 1 / -1; margin-top: 2px; }
+
+/* 상한은 항이 아니다. 선을 긋고 자기 행으로 내려야 마지막 항이 아니라
+   결과 전체에 걸린다는 게 읽힌다. */
+.ratio-cap {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.ratio-cap > span { font-size: 12.5px; color: var(--txt-2); }
+.ratio-cap input { width: 84px; min-height: 26px; text-align: right; }
+.ratio-cap em { font-style: normal; font-size: 12px; color: var(--txt-3); }
+
+/* 미리보기. 위는 수식 그대로, 아래는 값 대입 — 눈으로 검산이 된다. */
+.ratio-peek {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 9px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.peek-symbols {
+  font-size: 13px;
+  color: var(--txt);
+  overflow-wrap: anywhere;
+}
+.peek-numbers {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.peek-numbers b { color: var(--cool); font-weight: 600; }
+.peek-numbers b.bad { color: var(--warm); }
+.peek-numbers i { font-style: normal; color: var(--warm); margin-left: 5px; }
+
+.term-del {
+  min-height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.term-del:hover { border-color: var(--line-lift); color: var(--txt-2); }
+.term-del:hover { color: var(--warm); border-color: var(--warm-dim); }
+
+
+/* 행을 더하는 단추이므로 행처럼 생겨야 한다. 왼쪽에 작게 붙여 두면 위의
+   격자와 아무 관계 없어 보이고, 어디를 눌러야 늘어나는지도 안 읽힌다. */
+.term-add {
+  width: 100%;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px dashed var(--line-lift);
+  border-radius: var(--r);
+  font-size: 12.5px;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.term-add:hover, .term-add:focus-visible {
+  color: var(--cool);
+  border-color: var(--cool-dim);
+  background: color-mix(in srgb, var(--cool) 6%, transparent);
+}
+
+.term-cap { display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; }
+.term-cap > span { font-size: 12.5px; color: var(--txt-3); }
+.term-cap input { width: 62px; min-height: 24px; text-align: right; font-size: 13px; }
+
+.formula-raw { font-size: 12.5px; color: var(--txt-3); }
+.formula-raw code { font-family: var(--mono); color: var(--txt-2); }
+
+/* 좁아지면 다시 두 줄로. 한 줄에 우겨넣으면 아무것도 못 읽는다. */
+@media (max-width: 1140px) {
+  .effect-row { grid-template-columns: minmax(0, 1fr) 92px 84px 26px; }
+  .effect-row > input[type="text"]:first-child { grid-column: 1 / -1; }
+  .effect-row.custom { grid-template-columns: minmax(0, 1fr) 92px 84px 26px; }
+}
+
+/* 폭이 남는다고 입력이 끝없이 늘어날 이유는 없다. */
+.field input { max-width: 120px; }
+.field select { max-width: 200px; }
+.field > .sel { max-width: 200px; justify-self: end; }
+
+/* ─── 필드 옆 설명 ────────────────────────────────────────────────
+   물음표는 설명 대상과 같은 줄에 있고, 팝오버는 그 오른쪽에 뜬다.
+   레이아웃을 차지하지 않아 펼쳐도 카드 높이가 변하지 않는다.        */
+
+.hint-anchor { position: relative; display: inline-flex; flex: none; }
+
+/* 라벨과 물음표를 한 덩어리로 묶어 같은 줄에 세운다. */
+.field-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.field-label > label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 하한 조건 옆의 현재값. 기준이 없으면 80이 빠듯한 값인지 불가능한 값인지
+   알 수가 없다. 지금 모자란 축은 색으로 드러낸다. */
+.field-label .now {
+  font-style: normal;
+  font-size: 12.5px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}
+.field-label .now.short { color: var(--bad); }
+.card-hd .hint-anchor { margin-left: -6px; }
+
+/* 아크 그리드 — 코어 이름이 길어 두 칸을 쓴다. 전체 폭을 주면 select 하나가
+   화면을 가로지르고 격자가 세 덩어리로 쪼개진다. */
+/* 벤또 격자라 키가 큰 카드는 문제가 안 된다. 한 칸으로 두고 세로로 흐른다. */
+.wide-card { grid-column: span 1; }
+
+/* ─── 깨달음 · 도약 트리 ───────────────────────────────────────────
+   진화 노드판과 다른 점은 구조가 곧 정보라는 것이다. 1티어 택1이 딜 구조를
+   가르고, 그 아래로 갈래가 갈린다. 그래서 목록이 아니라 격자에 선을 긋는다.
+   격자는 4열(깨달음)과 6열(도약)이라 한 칸 카드로는 좁다 — 두 칸을 쓴다. */
+.awakening-body { display: grid; gap: 10px; }
+
+/* 깨달음과 도약은 규칙도 예산도 따로다. 나란히 두면 어느 포인트가 어느 쪽
+   것인지 헷갈려서, 한 번에 하나만 보여 준다. */
+.tree-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.tree-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--txt-3);
+}
+.tree-tab b { font-size: 13px; font-weight: 500; }
+.tree-tab span {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.tree-tab span.over { color: var(--warm); }
+.tree-tab:hover { color: var(--txt-2); }
+.tree-tab.active { border-bottom-color: var(--cool); color: var(--txt); }
+
+/* 연결선은 칸 한가운데에서 한가운데로 긋는데, 노드 상자가 칸을 거의 다 채우므로
+   실제로 보이는 것은 **간격뿐이다**. 그래서 간격이 곧 선의 길이다 — 6px일 때는
+   있는지도 몰랐다. 세로가 더 길어야 하는 이유는 선행이 세로로만 이어져서다. */
+.tree {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--tree-cols), minmax(0, 1fr));
+  grid-auto-rows: minmax(38px, auto);
+  row-gap: 15px;
+  column-gap: 11px;
+}
+
+/* 선은 노드 뒤에 깔린다. viewBox 100×100을 격자에 늘여 붙이므로 칸 수가
+   달라져도 좌표 계산이 그대로다. */
+.tree-links {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+/* 선은 선행만 긋는다. 배타에도 점선을 그었더니 '이어짐'과 '못 함께 찍음'이
+   같은 모양이 됐다 — 정반대 뜻인데. 배타는 노드 테두리가 말한다. */
+.tree-links line { stroke: var(--line-lift); stroke-width: 2; }
+.tree-links line.on { stroke: var(--cool); }
+
+.tnode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  color: var(--txt-3);
+  text-align: left;
+}
+.tnode:hover { border-color: var(--line-lift); color: var(--txt-2); }
+.tnode-name {
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tnode-lv {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 비용을 굵기로 쓴다 — 24P 뿌리, 8P 줄기, 2P 잎. 인벤 아이콘은 421종인데
+   그림이 없어서, 아무 글리프나 갖다 붙이면 정보인 척하는 잡음이 된다. */
+.tnode.trunk .tnode-name { font-size: 12.5px; }
+.tnode.root .tnode-name { font-size: 13px; font-weight: 500; }
+
+.tnode.on { border-color: var(--cool-dim); background: var(--cool-ink); color: var(--txt); }
+.tnode.on .tnode-lv { color: var(--cool-strong); }
+.tnode.full { border-color: var(--cool); }
+
+/* 아직 순서가 안 온 노드 — 선행이나 관문이 모자란다. 시간이 풀어 준다. */
+.tnode.locked { opacity: .45; }
+.tnode.locked:hover { opacity: .7; }
+
+/* 배타로 닫힌 노드. 위와 달리 **방금 내가 반대쪽을 찍어서** 닫힌 것이라,
+   되돌릴 수 있다는 뜻이다. 같은 회색으로 두면 그 차이가 사라진다. */
+.tnode.blocked {
+  border-color: var(--warm);
+  color: var(--txt-3);
+}
+.tnode.blocked .tnode-name { color: var(--warm-dim); }
+.tnode.blocked:hover { border-color: var(--warm); color: var(--txt-2); }
+
+/* 딜 계산에 실제로 들어간 노드. 찍은 것과 세는 것은 다른 이야기다.
+   속이 빈 것은 제 수치가 아니라 다른 노드를 갈아치우는 쪽이다. */
+.tnode-dot {
+  position: absolute;
+  top: 5px; right: 5px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--good);
+}
+.tnode-dot.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px var(--good); }
+
+.tree-foot { padding: 2px 2px 0; font-size: 12px; line-height: 1.5; color: var(--txt-3); }
+.tree-foot b { color: var(--txt-2); font-weight: 500; }
+.empty-note { font-size: 12.5px; line-height: 1.6; color: var(--txt-3); }
+/* 배타로 닫혔다는 말은 툴팁에서도 테두리와 같은 색으로 나와야 한다. */
+.tip-block { font-size: 12.5px; line-height: 1.5; color: var(--warm); }
+
+.grid-panel { display: grid; gap: 2px; }
+.grid-panel .grid-slot { padding: 7px 6px; border-bottom: 1px solid var(--line-soft); }
+.grid-panel .grid-slot:last-child { border-bottom: 0; }
+/* 한 칸 카드라 코어 이름 · 포인트 · 단계가 한 줄, 붙는 효과가 그 아래 줄. */
+.grid-panel .grid-slot-hd {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 62px 78px;
+  gap: 6px;
+  align-items: center;
+}
+.grid-panel .grid-slot-hd h3 { font-size: 13px; font-weight: 600; color: var(--txt-2); }
+.grid-panel .grid-lines,
+.grid-panel .grid-note { grid-column: 2 / -1; margin-top: 5px; padding: 0; }
+.grid-panel .grid-lines { gap: 2px; }
+.grid-panel .grid-lines li { font-size: 12.5px; }
+.grid-panel .grid-lines b { min-width: 28px; font-size: 12px; }
+
+/* 젬은 코어와 열 구조가 다르다. 이름 · 힌트 · 그리고 세 줄짜리 한 덩이.
+   예전에는 세 칸을 격자에 그대로 풀어 놨는데, 열이 셋뿐이라 뒤 둘이 다음 줄
+   첫 칸(26px)으로 넘어가 카드 밖으로 삐져나왔다. */
+.grid-panel .grid-slot-hd.gem { grid-template-columns: 26px auto minmax(0, 1fr); }
+.gem-fields { display: grid; gap: 5px; }
+.gem-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px 58px;
+  align-items: center;
+  gap: 9px;
+}
+.gem-field > span {
+  font-size: 12px;
+  color: var(--txt-3);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gem-field .boxed { width: 100%; }
+.gem-field .derived { text-align: right; }
+
+.hint-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--line-lift);
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--txt-3);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.hint-btn:hover, .hint-btn[aria-expanded="true"] { border-color: var(--cool); color: var(--cool); }
+
+.hint-pop {
+  position: absolute;
+  z-index: 80;
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+  width: max-content;
+  max-width: 268px;
+  padding: 11px 13px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line-lift);
+  border-radius: var(--r);
+  background: var(--pop);
+  box-shadow: var(--pop-shadow);
+  text-align: left;
+  cursor: default;
+}
+/* 표처럼 가로로 스크롤되는 칸 안에서는 화면 기준으로 띄운다. 자리는
+   Hint.svelte가 인라인으로 넣는다 — 여기서는 배치 방식만 바꾼다. */
+.hint-pop.float { position: fixed; transform: none; max-width: none; }
+
+/* 말풍선은 어디에 놓이든 본문 글자여야 한다. 표 머리글 안에 있으면
+   대문자 변환과 자간을 물려받아 'min('이 'MIN('으로, 'κ'가 'Κ'로 나온다. */
+.hint-pop {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+  color: var(--txt-2);
+}
+
+.hint-pop strong { font-size: 13px; color: var(--txt); }
+.hint-pop code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--txt);
+  background: var(--sunken);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  padding: 4px 7px;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.hint-pop p { font-size: 13px; line-height: 1.6; color: var(--txt-2); }
+.hint-pop p + p { margin-top: 5px; }
+.hint-pop b { color: var(--cool); font-weight: 600; }
+
+/* 오른쪽 끝 필드는 팝오버가 화면 밖으로 나간다. 왼쪽으로 편다. */
+.setup-grid > .card:nth-child(3n) .hint-pop,
+.split .hint-pop { left: auto; right: calc(100% + 8px); }
+
+@media (max-width: 640px) {
+  .hint-pop { left: auto; right: calc(100% + 8px); max-width: 220px; }
+}
 
 /* ─── 설명은 접어둔다 ──────────────────────────────────────────────
    상시 노출된 산문은 컨트롤보다 먼저 읽히고 자리를 먹는다. 필요한
@@ -952,7 +2728,7 @@ input.boxed[type="number"] { text-align: right; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--txt-3);
   cursor: pointer;
   list-style: none;
@@ -973,7 +2749,7 @@ input.boxed[type="number"] { text-align: right; }
 .note > summary:hover::before { border-color: var(--cool-dim); color: var(--cool-dim); }
 .note[open] > summary { margin-bottom: 6px; }
 .note p {
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1.6;
   color: var(--txt-3);
   padding-left: 19px;
@@ -993,3 +2769,1137 @@ input.boxed[type="number"] { text-align: right; }
   color: var(--txt);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── 캐릭터 불러오기 ───────────────────────────────────────────────────────
+   API가 주는 것과 이 계산기가 들고 있는 것이 일대일이 아니다. 그래서 갈래마다
+   "무엇이 들어오는지"를 값으로 보여 준다 — 체크만 있으면 무엇을 덮어쓰는지
+   모르는 채로 누르게 된다. */
+
+.api-key, .lookup { padding-bottom: 4px; }
+/* 키와 캐릭터 이름은 이 화면에서 유일하게 손으로 채우는 칸이다. .field의
+   `라벨 | 값` 두 칸 배치에 그대로 두면 값 칸이 글자 폭만큼 쪼그라들어서,
+   붙여 넣은 키가 여덟 글자만 보인다. 이 줄만 아래로 편다. */
+.api-key .field, .lookup .field {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px 6px 8px;
+  border-bottom: 0;
+}
+.key-row { display: flex; align-items: center; gap: 8px; }
+/* .field input은 수치 칸이라 96px 고정에 오른쪽 정렬이다. 여기 둘은 글이므로
+   폭을 풀고 왼쪽으로 되돌린다. */
+.key-row input {
+  flex: 1;
+  width: auto;
+  /* .field input에는 width 96px과 max-width 120px이 따로 걸려 있다. 둘 다
+     풀어야 한다 — width만 풀면 max-width가 그대로 눌러 앉는다. */
+  max-width: none;
+  min-width: 0;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.lookup .key-row input { font-family: inherit; font-size: 13px; }
+.key-note { margin-top: 8px; font-size: 12.5px; color: var(--txt-3); }
+.key-note a { color: var(--cool); }
+
+.api-error {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--warm-ink);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--warm) 8%, transparent);
+  font-size: 12.5px;
+  color: var(--warm);
+}
+.api-warn { margin-top: 8px; font-size: 12.5px; color: var(--warm); }
+
+/* 적용을 막는 줄. 경고와 달리 여기서 멈추므로 눈에 띄어야 한다. */
+.api-block {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warm-ink);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--warm);
+}
+.api-block b { font-weight: 600; }
+.api-block span { display: block; margin-top: 2px; font-family: var(--mono); font-size: 12px; }
+.api-block .btn { margin-top: 8px; }
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.who img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: top; flex: none; }
+.who > div { display: grid; gap: 2px; min-width: 0; }
+.who strong { font-size: 13.5px; color: var(--txt); }
+.who span { font-size: 12.5px; color: var(--txt-3); }
+.who > .eyebrow { margin-left: auto; text-align: right; }
+
+.import-list { display: grid; gap: 0; }
+.import-list > li {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.import-list > li:last-child { border-bottom: 0; }
+.import-list > li.blank { opacity: 0.5; }
+.import-detail { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; min-width: 0; }
+.import-detail b {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--txt-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.import-detail .more { font-size: 12px; color: var(--txt-3); }
+/* 출처와 단서는 값과 같은 줄에 두되 눈에 덜 걸리게. 매번 읽을 것은 아니다. */
+.import-detail .src { flex-basis: 100%; font-size: 12px; color: var(--txt-3); }
+
+.import-notes { margin: 2px 0 4px; padding-left: 16px; display: grid; gap: 4px; }
+.import-notes li { font-size: 12.5px; line-height: 1.55; color: var(--txt-3); list-style: disc; }
+
+.applied-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* 전투 특성의 뺄셈. API는 합계 하나를 주는데 이 계산기는 출처별로 나눠 든다.
+   그 나눗셈을 안 보여주면 도감·물약 칸의 숫자가 어디서 왔는지 알 수가 없다. */
+.stat-split { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.stat-split th, .stat-split td {
+  padding: 6px 10px;
+  text-align: right;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--line-soft);
+}
+.stat-split th { font-weight: 400; color: var(--txt-3); font-size: 12px; }
+.stat-split th:first-child, .stat-split td:first-child { text-align: left; color: var(--txt-2); }
+.stat-split td b { color: var(--txt); font-weight: 500; }
+.stat-split tr.warn td, .stat-split tr.warn td b { color: var(--warm); }
+/* 펫이 붙은 줄만 뺄셈이 하나 더 있다. 나머지 줄의 가운뎃점은 자리만 지킨다. */
+.stat-split td.pet-cell { color: var(--txt-3); }
+
+/* 기준값이 없어 못 센 평면 증가 */
+.setup-warn {
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--warm);
+}
+
+/* 제곱근으로 접히는 그룹 — 합계와 배수 사이에 근거를 한 줄 끼운다.
+   +12.86%와 ×1.062를 그냥 나란히 두면 계산이 틀린 것처럼 읽힌다. */
+.g-root {
+  padding: 2px 0 3px 13px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+}
+/* 맞춰 보기가 어긋났을 때. 넘어가도 되지만 넘어가면 평면 환산이 다 부풀어 오른다. */
+.import-detail .src.off { color: var(--warm); }
+.stat-note { margin-top: 8px; font-size: 12px; color: var(--txt-3); line-height: 1.55; }
+/* 특화를 깊게 찍고 온 캐릭터에게 '특화 30 고정'을 권하는 줄. */
+.nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--sunken);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--txt-2);
+}
+.nudge b { color: var(--txt); font-weight: 500; }
+.nudge-on { color: var(--cool); }
+/* 세팅에 안 들어가는 항목의 이름 — 체크칸이 없으니 자리를 맞춰 준다. */
+.check.readonly { color: var(--txt-3); }
+/* 계산에 실제로 들어간 것 — 안 들어간 것과 눈으로 갈려야 한다. */
+.import-detail .src.ok { color: var(--cool); }
+
+/* ─── 파티 시너지 ──────────────────────────────────────────────────
+   한 줄이 한 사람이다. 직업 · 갈래 · 가동율이 한 줄에 나란히 서고, 그 줄이
+   실제로 주는 것을 바로 아래에 적는다 — 고른 결과를 카드 맨 아래까지 내려가
+   확인해야 한다면 고르는 동안 아무것도 모르는 것과 같다. */
+
+/* 고정 탓에 못 쓰는 포인트. 막대 바로 아래에 둬야 "136 / 140"과 같이 읽힌다. */
+.board-stranded {
+  padding: 6px 18px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--warm);
+  font-variant-numeric: tabular-nums;
+}
+
+.syn { display: grid; gap: 8px; }
+
+/* 한 줄에 직업 · 갈래 · 값 · 가동율이 나란히 서야 읽힌다. 한 칸(348px)에
+   밀어 넣으면 "치명타 적중률 +10%"가 세 줄로 접힌다. 그래서 두 칸을 쓴다.
+   두 칸이 없는 폭에서는 격자가 알아서 한 칸으로 줄인다. */
+/* 옛 벤또 격자에서 두 칸을 쓰던 규칙이 있었다. 이제 이 카드는 격자 밖
+   전폭이라 span이 남아 있으면 .page 격자에 없던 둘째 열을 만들고, 뒤에 오는
+   직접 입력 효과가 그 좁은 첫 칸으로 밀린다. */
+
+/* 딜 시너지 수. 3딜 1폿이 기본이라 셋이 관례지만 막지는 않는다. */
+.syn-count {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--txt-3);
+}
+.syn-count b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--cool);
+  font-variant-numeric: tabular-nums;
+}
+.syn-count small { font-size: 11.5px; }
+.syn-count.over b, .syn-count.over small { color: var(--warm); }
+
+.syn-none { font-size: 12.5px; color: var(--txt-3); }
+
+.syn-row {
+  display: grid;
+  gap: 4px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.syn-row:first-of-type { border-top: 0; padding-top: 0; }
+/* 내 줄은 여기서 못 고친다 — 내가 나에게 주는 몫은 깨달음의 자버프 카드가
+   정한다. 여기 있는 것은 그 결과일 뿐이라 물러나 있어야 한다. */
+.syn-row.own { opacity: 0.5; }
+.syn-row.own .chip { pointer-events: none; }
+
+/* 버프 한 칸. 무엇이 · 얼마나 · 얼마나 자주가 한 줄에 선다. */
+.syn-buff {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto 20px;
+  gap: 8px;
+  align-items: center;
+}
+/* 갈래 칸은 직업 칸 아래로 한 뼘 들어간다 — 딸린 것임이 보여야 한다. */
+.syn-buff.sub { padding-left: 12px; }
+.syn-buff.sub > :first-child { justify-self: start; }
+
+.syn-who { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.syn-who b { font-size: 13px; font-weight: 500; color: var(--txt); }
+.syn-me { font-size: 11px; color: var(--txt-3); }
+
+button.chip.syn-pick {
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--txt-3);
+}
+button.chip.syn-pick:hover, button.chip.syn-pick:focus-visible {
+  border-color: var(--cool-dim);
+  color: var(--txt-2);
+}
+.chip.on { border-color: var(--cool-dim); background: var(--cool-ink); color: var(--txt); }
+button.chip.syn-pick.on { color: var(--txt); }
+
+/* 이 버프가 실제로 주는 것. 가동율을 먹인 뒤의 값이라 그대로 합계로 간다.
+   아직 안 켠 갈래는 표에 적힌 값을 흐리게 보여 준다. */
+.syn-gives {
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--cool-dim);
+  font-variant-numeric: tabular-nums;
+}
+.syn-gives.dim { color: var(--txt-3); }
+/* 같은 버프인데 나와 남이 받는 방식이 다를 때. 왜 기본 가동율이 다른지 적는다. */
+.syn-gives small { margin-left: 7px; color: var(--txt-3); }
+
+/* 가동율. 상시가 아닌 시너지가 대부분이라 칸을 늘 띄워 두고, 100%가 아닐
+   때만 색이 붙는다 — 안 건드린 줄과 깎은 줄이 눈으로 갈려야 한다. */
+.syn-up {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--txt-3);
+  white-space: nowrap;
+}
+.syn-up input {
+  width: 44px;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--field-bg);
+  color: var(--txt-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.syn-up input:focus-visible { border-color: var(--cool); outline: none; }
+.syn-up.cut { color: var(--warm); }
+.syn-up.cut input { border-color: var(--warm-ink); color: var(--warm); }
+/* 가동율 칸이 없는 줄. 자리를 비워 두지 않으면 아래위 칸이 어긋난다. */
+.syn-up-gap { width: 84px; }
+
+button.syn-x {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--r);
+  background: none;
+  color: var(--txt-3);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+button.syn-x:hover, button.syn-x:focus-visible { color: var(--warm); background: var(--sunken); }
+
+.syn-add {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 1px dashed var(--line-lift);
+  border-radius: var(--r);
+  background: none;
+  color: var(--txt-3);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.syn-add:hover, .syn-add:focus-visible { border-color: var(--cool); color: var(--cool); }
+
+/* 실제로 붙은 값. 줄마다 따로 보면 종류별 합을 알 수 없다. */
+.syn-total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--txt-2);
+  font-variant-numeric: tabular-nums;
+}
+.syn-total b { font-weight: 500; color: var(--txt-3); margin-right: 3px; }
+
+/* --- 슬롯 -------------------------------------------------------------------
+   비교의 단위. 줄은 빌드 화면 위, 표는 5페이지에 있다. */
+
+.slotbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.slot-tabs { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; min-width: 0; }
+
+.slot-tab {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.slot-tab.on { border-color: var(--cool); background: var(--surface-2); }
+
+.slot-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px 6px 11px;
+  border: 0;
+  border-radius: 10px 0 0 10px;
+  background: none;
+  color: var(--txt-2);
+  font: inherit;
+  cursor: pointer;
+}
+.slot-tab.on .slot-pick { color: var(--txt); }
+.slot-pick b { font-weight: 500; font-size: 13px; }
+.slot-pick small { color: var(--txt-3); font-size: 11.5px; }
+
+.slot-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warm);
+  flex: none;
+}
+
+.slot-name-input {
+  width: 108px;
+  margin: 3px;
+  padding: 3px 7px;
+  font-size: 13px;
+}
+
+
+.slot-add {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  border: 1px dashed var(--line-lift);
+  border-radius: 10px;
+  background: none;
+  color: var(--txt-3);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.slot-add svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.slot-add:hover:not(:disabled) { border-color: var(--cool); color: var(--cool); }
+.slot-add:disabled { opacity: 0.45; cursor: default; }
+
+/* --- 비교표 ---------------------------------------------------------------- */
+
+.compare-scroll { overflow-x: auto; }
+
+/* 열 너비는 슬롯 수와 무관하게 못 박는다.
+   100%로 늘리면 슬롯이 하나일 때 그 하나가 화면을 가로지른다 — 값 한 줄을
+   읽으려고 눈이 60cm를 움직이고, 슬롯을 담을 때마다 이미 읽던 열의 너비가
+   바뀐다. 비교는 열끼리 눈이 오가는 일이라 너비가 흔들리면 안 된다.
+   슬롯이 많으면 표가 제 상자 안에서 옆으로 흐른다. */
+.compare-table {
+  /* auto면 안 된다 — 고정 배치에서 width:auto는 담는 상자에 맞춰 눌려서
+     열 너비를 못 박은 것이 그대로 무시된다. max-content라야 지정한 폭의
+     합이 표의 폭이 된다. */
+  width: max-content;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.compare-table col.c-head { width: 148px; }
+.compare-table col.c-slot { width: 196px; }
+.compare-table col.c-add { width: 196px; }
+
+.compare-table th,
+.compare-table td { padding: 6px 10px; text-align: center; }
+.compare-table th[scope="row"] {
+  text-align: left;
+  font-weight: 400;
+  color: var(--txt-2);
+  white-space: nowrap;
+}
+
+.c-name { display: flex; align-items: center; justify-content: center; gap: 5px; }
+.c-name b { font-weight: 500; font-size: 14px; }
+
+
+
+.c-group td {
+  padding: 12px 10px 3px;
+  text-align: left;
+  color: var(--txt-3);
+  font-size: 11.5px;
+}
+
+.compare-table tbody tr:not(.c-group) { border-top: 1px solid var(--line-soft); }
+.compare-table tbody td { color: var(--txt-3); }
+.compare-table tbody td.moved { color: var(--txt); }
+.compare-table tbody td.base { color: var(--txt); }
+
+/* 기준 열은 계속 눈이 돌아오는 자리다. 옅게 깔아 어디가 기준인지 붙들어 둔다. */
+.compare-table th.base,
+.compare-table td.base { background: var(--surface-2); }
+
+.c-value { font-weight: 400; }
+td.moved .c-value { font-weight: 500; }
+.compare-table tbody em {
+  display: block;
+  margin-top: 1px;
+  color: var(--good);
+  font-size: 11.5px;
+  font-style: normal;
+}
+.compare-table tbody em.down { color: var(--bad); }
+
+.compare .card-hd .check { margin-left: 0; }
+
+/* 접히는 카드. '진화 시뮬레이터'가 하는 일에서 먼 것은 접어 둔다 — 지우지는
+   않는다. 팔찌 무공 +9,000 같은 평면 증가를 세려면 기준값이 있어야 한다. */
+.card-fold { padding: 0; }
+.card-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.card-fold > summary::-webkit-details-marker { display: none; }
+.card-fold > summary::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-right: 1.4px solid var(--txt-3);
+  border-bottom: 1.4px solid var(--txt-3);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+.card-fold[open] > summary::before { transform: rotate(45deg); }
+.card-fold > summary h2 { margin: 0; }
+.card-fold > summary:hover { background: var(--surface-2); }
+.card-fold[open] > summary { border-bottom: 1px solid var(--line-soft); }
+.card-fold > .card-body { padding-top: 12px; }
+.card-fold > summary .fold-note { font-size: 12px; color: var(--txt-3); }
+
+/* 격자 아래 전폭 카드. 파티 시너지는 줄마다 직업·가동율이 늘어서고, 직접 입력
+   효과는 이름·갈래·수식이 한 줄이라 1/3 폭에서는 둘 다 접힌다. */
+.setup-grid + .card { margin-top: 16px; }
+.card + .card { margin-top: 16px; }
+.setup-col .card + .card { margin-top: 0; }
+
+/* 아크 그리드의 두 갈래. 질서 셋과 혼돈 셋이 한 카드에 붙어 있으면 어느 줄이
+   딜에 실리는지 알 수가 없다. */
+.grid-family {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--txt-3);
+}
+.grid-family:not(:first-child) { margin-top: 10px; }
+.grid-family small { color: var(--warm); }
+.order-name {
+  min-width: 0;
+  height: 26px;
+  padding: 0 7px;
+  font-size: 12.5px;
+}
+
+/* 기준 표식이자 기준을 옮기는 단추. 별이 이미 어느 슬롯이 기준인지 말하고
+   있으므로, 누르면 기준이 오게 해서 '기준으로' 글자 고리를 없앴다. */
+.slot-star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* 되돌리기·지우기와 같은 크기. 이것도 누르는 단추인데 혼자 작을 이유가 없다. */
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--line-lift);
+  cursor: pointer;
+}
+.slot-star svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.slot-star:hover { color: var(--cool-dim); }
+.slot-star.on { color: var(--cool); }
+.slot-star.on svg { fill: currentColor; stroke: none; }
+
+/* 비교표 머리 — 별과 이름이 한 줄, 아랫줄은 평소엔 출처이고 가리키면 잔일이다.
+   잔일을 ⋯ 메뉴에 넣어 봤는데, 메뉴는 한 번 열어 봐야 무엇이 있는지 알 수
+   있어서 자주 하는 일이 매번 두 번 누르기가 된다. 자리를 아끼려고 넣은 것이
+   손을 늘렸다. 아랫줄 하나를 두 용도로 쓰면 높이도 안 늘고 메뉴도 없다. */
+
+.c-name { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.c-name b { font-weight: 500; font-size: 14px; }
+.c-title th.live .c-name b { color: var(--cool); }
+
+/* 출처와 잔일이 같은 자리를 쓴다. 겹쳐 두고 하나만 보여야 가리킬 때 줄이
+   안 밀린다 — 표는 눈이 열을 따라 내려가는 곳이라 한 칸만 움직여도 티가 난다. */
+.c-under { display: grid; margin: 2px 0 0; min-height: 20px; }
+.c-under > * { grid-area: 1 / 1; }
+.c-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--txt-3);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+.c-acts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 110ms ease;
+}
+/* 바뀌는 단위는 칸이 아니라 줄이다. 칸마다 따로 바뀌면 가리킨 칸만 아이콘이고
+   옆 칸은 글자라, 한 줄 안에 다른 것이 둘 놓여 오와 열이 어긋나 보인다. */
+.c-title:hover .c-acts,
+.c-title:focus-within .c-acts { opacity: 1; pointer-events: auto; }
+.c-title:hover .c-meta,
+.c-title:focus-within .c-meta { opacity: 0; }
+.c-acts button {
+  padding: 2px 5px;
+  border-radius: var(--r);
+  color: var(--txt-3);
+  font-size: 11.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.c-acts button:hover { color: var(--cool); background: var(--sunken); }
+.c-acts button.rm:hover { color: var(--bad); }
+.c-acts button:disabled { opacity: 0.35; cursor: default; }
+.c-acts button:disabled:hover { color: var(--txt-3); background: none; }
+/* 저장 단추는 칸 한가운데. 슬롯 머리처럼 위에 붙이면 이름줄과 아랫줄 사이
+   어중간한 자리에 걸린다 — 이 칸에는 맞출 두 줄이 없다. */
+.c-add-head { vertical-align: middle; text-align: center; border-bottom: 1px solid var(--line); }
+.c-add-head .slot-add { height: 30px; }
+
+/* 티어 한 줄에 찍은 노드만 늘어놓는다. 노드마다 한 줄이면 안 찍은 스물몇 개가
+   0으로 깔려서, 실제로 찍은 서넛을 그 사이에서 골라 읽어야 했다. */
+.compare-table th[scope="row"] small {
+  display: block;
+  margin-top: 1px;
+  color: var(--txt-3);
+  font-size: 11px;
+}
+.compare-table tr.tall td { padding-top: 8px; padding-bottom: 8px; vertical-align: top; }
+.c-levels { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.c-levels li {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  color: var(--txt-3);
+}
+.c-levels li b { font-weight: 400; }
+.c-levels li.moved { color: var(--txt); }
+.c-levels li.moved b { font-weight: 500; }
+td.base .c-levels li { color: var(--txt); }
+.c-none { color: var(--txt-3); }
+
+/* 열 머리는 두 줄이다 — [별 · 이름] 그리고 [출처 / 잔일].
+   예전에는 이름 · 출처 · 편집 · 그리고 기준으로/되돌리기/지우기 글자 고리까지
+   넉 줄이었다. 열이 넷이면 작은 글자가 열여섯 덩이 깔린다. */
+.c-title th {
+  padding: 9px 8px 10px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+/* 괘선. 열이 하나뿐일 때 오른쪽이 그냥 끊겨서 표가 잘린 것처럼 보였다.
+   칸 사이에도 세로줄이 있어야 눈이 열을 따라 내려간다. */
+.compare-table tr > * + * { border-left: 1px solid var(--line-soft); }
+.compare-table tr > *:first-child { border-left: 1px solid var(--line); }
+.compare-table tr > *:last-child { border-right: 1px solid var(--line); }
+.compare-table thead tr:first-child > * { border-top: 1px solid var(--line); }
+.compare-table tbody tr:last-child > * { border-bottom: 1px solid var(--line); }
+
+/* 기준 열은 머리에서만 또렷하게 짚는다. 표 전체 높이를 파랑으로 채우면
+   슬래브 하나가 화면을 가르고, 그 안의 글자는 죄다 파랑 위에 얹힌다. */
+.compare-table td.base { background: color-mix(in srgb, var(--cool) 8%, transparent); }
+.compare-table th.base { background: var(--surface-2); }
+
+.c-name .slot-name-input { width: 96px; }
+
+/* 표가 상자보다 넓어지면 상자 안에서만 흘러야 한다. 격자 항목의 min-width는
+   auto라서 그냥 두면 카드가 표 폭만큼 늘어나고, 문서 전체가 옆으로 밀린다. */
+.card.compare { min-width: 0; }
+.compare-scroll { max-width: 100%; }
+
+/* 슬롯 탭의 잔일. 가리킬 때만 나온다 — 늘 보이면 탭 셋이 단추 열둘이 된다. */
+/* 자리는 늘 잡아 두고 보이기만 바꾼다.
+   폭을 접었다 펴면 가리킨 탭이 옆 탭을 밀어낸다. 노리던 단추가 손 밑에서
+   도망가고, 줄이 넘치면 아래 노드판까지 통째로 내려앉는다. 여백 몇 픽셀이
+   아까워서 판 전체를 흔들 이유가 없다. */
+.slot-acts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.slot-tab:hover .slot-acts,
+.slot-tab:focus-within .slot-acts { opacity: 1; pointer-events: auto; }
+.slot-acts button {
+  padding: 2px 5px;
+  border-radius: var(--r);
+  color: var(--txt-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.slot-acts button:hover { color: var(--cool); background: var(--sunken); }
+.slot-acts button.rm:hover { color: var(--bad); }
+.slot-acts button:disabled { opacity: 0.35; cursor: default; }
+.slot-acts button:disabled:hover { color: var(--txt-3); background: none; }
+.slot-pick { padding-right: 8px; border-radius: 10px; }
+
+/* 겹쳐 둔 두 줄의 키를 잔일 쪽에 맞춘다. 안 맞추면 격자 행이 둘의 합만큼
+   벌어져서, 아무것도 안 가리켰을 때 빈 줄이 하나 더 있는 것처럼 보인다. */
+.c-under { min-height: 24px; align-items: center; }
+.c-under > * { align-self: center; }
+.c-acts { height: 24px; }
+.c-acts button { line-height: 1.35; }
+
+/* 아이콘 잔일. 낱말로 넷을 늘어놓으면 196px 칸이 꽉 차고, 그 글자들이
+   슬롯 이름보다 눈에 먼저 들어온다. 뜻은 title이 든다. */
+.c-acts button,
+.slot-acts button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: var(--r);
+  color: var(--txt-3);
+}
+.c-acts button svg,
+.slot-acts button svg { width: 14px; height: 14px; stroke-width: 1.7; }
+/* 가리킨 표시가 --sunken이었다. 밤에는 그 색이 종이와 거의 같고 기준 칸의
+   파란 바탕 위에서는 아예 안 보여서, 눌리는 자리인지 아닌지를 알 수가 없었다.
+   바탕색이 무엇이든 같은 만큼 밝아지도록 강조색을 섞는다. */
+.c-acts button:hover, .slot-acts button:hover,
+.c-acts button:focus-visible, .slot-acts button:focus-visible {
+  color: var(--cool);
+  background: color-mix(in srgb, var(--cool) 22%, transparent);
+}
+.c-acts button.rm:hover, .slot-acts button.rm:hover {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 22%, transparent);
+}
+
+/* 이름 = 이름 바꾸기. 제일 짐작하기 쉬운 자리라 여기 둔다. */
+.c-open {
+  padding: 0 3px;
+  border-radius: var(--r);
+  color: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+.c-open:hover { color: var(--cool); text-decoration: underline; text-underline-offset: 3px; }
+.c-title th.live .c-open { color: var(--cool); }
+.slot-acts { gap: 2px; }
+.c-acts { gap: 4px; }
+
+/* 겹쳐 둔 출처 줄은 투명해져도 자리를 지킨다. 그대로 두면 아이콘 위에 얹혀
+   포인터를 가로채서, 가리켰는데 아무 반응이 없는 칸이 생긴다. */
+.c-meta { pointer-events: none; }
+.c-acts button, .slot-acts button { width: 24px; height: 24px; }
+.c-acts { height: 26px; }
+.c-under { min-height: 26px; }
+
+/* `.c-title th`가 뒤에 오면서 특정도(0,1,1)로 `.c-add-head`(0,1,0)의
+   vertical-align을 눌렀다. 이 칸만 낱말을 하나 더 붙여 되찾는다. */
+.c-title th.c-add-head { vertical-align: middle; padding-top: 0; padding-bottom: 0; }
+
+/* 탭은 align-items: stretch다. 늘어날 수 있는 것(.slot-pick)은 줄 전체를 채우고
+   중심이 맞지만, 높이가 24px로 못 박힌 별과 아이콘은 늘어나지 못해 줄 맨 위에
+   붙는다 — 그래서 별만 글자보다 4px 위에 떠 있었다. */
+.slot-tab > .slot-star,
+.slot-tab > .slot-acts { align-self: center; }
+
+/* 탭이 두 줄이 됐다 — 이름, 그리고 숫자. */
+.slot-tab > .slot-pick {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  padding: 5px 6px 5px 8px;
+}
+.slot-line { display: flex; align-items: center; gap: 5px; }
+.slot-score {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 11.5px;
+  color: var(--txt-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.slot-score b { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--txt-2); }
+.slot-tab.on .slot-score b { color: var(--txt); }
+.slot-score em { font-family: var(--mono); font-style: normal; font-weight: 500; color: var(--txt-3); }
+.slot-score em.up { color: var(--good); }
+.slot-score em.down { color: var(--bad); }
+
+/* 잔일은 숫자 줄에 겹친다. 옆으로 붙이면 탭마다 52px이 늘 비어 있고, 탭이
+   228px가 되어 여섯이면 두 줄로 접힌다. 비교표 머리와 같은 방식이다. */
+.slot-tab { position: relative; }
+.slot-tab > .slot-acts {
+  position: absolute;
+  left: 30px;
+  bottom: 4px;
+  align-self: auto;
+}
+.slot-tab:hover .slot-score,
+.slot-tab:focus-within .slot-score { opacity: 0; }
+.slot-score { transition: opacity 120ms ease; }
+
+/* 잔일은 이름 줄 오른쪽으로. 숫자 줄에 겹쳐 두면 가리키는 동안 그 탭의 숫자가
+   사라진다 — 비교하려고 가리킨 건데 비교할 값이 없어진다. 탭이 두 줄로
+   커졌으니 첫 줄 오른쪽에 자리가 있다. */
+.slot-tab > .slot-acts { top: 5px; right: 6px; bottom: auto; left: auto; }
+.slot-tab:hover .slot-score,
+.slot-tab:focus-within .slot-score { opacity: 1; }
+.slot-tab > .slot-pick { padding-right: 58px; }
+
+/* 상단 단계 단추 — 두 줄짜리 글자를 34px 상자에 넣으니 위아래가 붙었다. */
+.page-tab { min-height: 44px; padding: 5px 12px 5px 9px; }
+/* 자리를 비워 줄 것은 이름 줄 하나다. 두 줄 모두에 여백을 주면 이미 넓은
+   숫자 줄까지 밀려서 탭이 공연히 커진다. */
+.slot-tab > .slot-pick { padding-right: 8px; }
+.slot-tab .slot-line { padding-right: 54px; }
+
+/* 음식 — 넷 중 하나. 칩 하나가 이름과 효과를 같이 든다. */
+.food-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 6px 0; }
+.chip.food {
+  display: grid;
+  gap: 1px;
+  padding: 6px 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: none;
+  color: var(--txt-3);
+}
+.chip.food b { font-weight: 500; font-size: 13px; color: var(--txt-2); }
+.chip.food small { font-size: 11.5px; color: var(--txt-3); }
+.chip.food:hover { border-color: var(--line-lift); }
+.chip.food.on { border-color: var(--cool); background: var(--surface-2); }
+.chip.food.on b { color: var(--txt); }
+
+/* 공격력 조립 내역. 무엇에 무엇이 곱해져 그 값이 됐는지 한 줄로 보인다. */
+.attack-parts { display: grid; gap: 8px; margin: 4px 6px 0; }
+.attack-parts dt { font-size: 12.5px; color: var(--txt-3); }
+.attack-parts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 1px 0 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--txt-2);
+  font-variant-numeric: tabular-nums;
+}
+.attack-parts dd em { font-family: var(--sans); font-style: normal; font-size: 12px; color: var(--txt-3); }
+.attack-parts dd b { margin-left: auto; font-weight: 600; color: var(--cool); }
+
+/* 탐색 대상 — 노드판과 각인 목록이 왼쪽, 범위·하한이 오른쪽 레일.
+   모달일 때는 1000px 안이었지만 이제 페이지라 폭이 넉넉하다. */
+.engraving-layout > .split-main { display: grid; gap: 18px; min-width: 0; }
+.engraving-layout > .split-main > * { min-width: 0; }
+
+/* 고정 노드 판. 클릭이 레벨을 안 바꾸므로 레벨 숫자는 물러나고
+   지금 상태(자유·고정·제외)가 앞에 선다.
+
+   이 판은 빈 판에서 시작한다 — 고정한 칸에만 숫자가 있고 나머지는 '—'다.
+   빌드를 비춰 주면 규칙과 세팅이 한 칸에서 겹쳐 보여서, 슬롯을 갈아끼웠을 때
+   고정이 따라 움직인 것처럼 읽힌다. */
+.board-scope .node-main { cursor: pointer; }
+.board-scope .node .lv { opacity: 0.55; }
+.board-scope .node.locked .node-main { border-color: var(--cool); }
+.board-scope .node.excluded .node-main { border-style: dashed; }
+/* 고정한 칸은 숫자 자리를 입력에 내준다. 자리를 비우지 않고 덮는 이유는
+   폭이 그대로여야 판이 안 흔들리기 때문이다. */
+.board-scope .node.pinned .node-main .lv { visibility: hidden; }
+.node-lv {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-50%);
+  width: 46px;
+  padding: 2px 4px;
+  border: 1px solid var(--cool-ink);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--cool);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.node-lv::-webkit-outer-spin-button,
+.node-lv::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.node-lv:focus { outline: none; border-color: var(--cool); box-shadow: 0 0 0 2px var(--cool-ink); }
+
+/* 1페이지 첫 줄. 손으로 채우기 전에 게임에서 읽어 오는 길이 먼저 보여야 한다. */
+.lead-load { display: flex; align-items: center; gap: 14px; padding: 13px 16px; }
+.lead-load .btn { flex: none; white-space: nowrap; }
+.lead-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cool-ink);
+  border-radius: 50%;
+  color: var(--cool);
+  background: color-mix(in srgb, var(--cool) 8%, transparent);
+}
+.lead-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.lead-text { display: grid; gap: 2px; min-width: 0; }
+.lead-text > b { font-size: 13.5px; font-weight: 600; }
+.lead-text small { font-size: 12.5px; color: var(--txt-3); }
+.lead-text small b { font-weight: 600; color: var(--txt-2); }
+
+/* ─── 빌드 서랍 ───────────────────────────────────────────────────
+   빌드는 페이지가 아니라 물건이다. 어느 화면에 있든 오른쪽에서 꺼내고
+   밀어서 닫는다. 하단 막대는 그 위에 그대로 남는다 — 만지는 동안
+   한 방 딜·DPS가 사라지면 만지는 이유가 사라진다.                    */
+
+.bd-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 28;
+  border: 0;
+  padding: 0;
+  cursor: default;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  backdrop-filter: blur(2px);
+  animation: bd-fade 160ms ease;
+}
+@keyframes bd-fade { from { opacity: 0; } }
+
+.build-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  /* 넓다. 노드판 30칸과 계기판이 한 화면에 같이 서야 해서다 — 좁히면 노드
+     이름이 '치…'로 잘리고, 그러면 게임 화면처럼 자리로 찾는 감각이 사라진다.
+     왼쪽에 남는 한 뼘이 '이건 덮개다'라고 말해 준다. */
+  width: min(1560px, 96vw);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  box-shadow: -24px 0 48px -24px color-mix(in srgb, #000 55%, transparent);
+  transform: translateX(101%);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.build-drawer.open { transform: none; }
+/* 끌고 있는 동안에는 손가락을 따라간다. 전환이 걸려 있으면 손보다 늦게 온다. */
+.build-drawer.dragging { transition: none; }
+.build-drawer:not(.open) { visibility: hidden; }
+
+/* 왼쪽 모서리. 커서를 손잡이까지 옮기지 않아도 밀어서 닫힌다. */
+.bd-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.bd-grip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 3px;
+  height: 46px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--line-lift);
+}
+.bd-grip:hover::after { background: var(--cool-dim); }
+
+.bd-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 12px 18px 12px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.bd-title { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+.bd-title b { font-size: 14px; font-weight: 650; }
+.bd-title small {
+  font-size: 12px;
+  color: var(--txt-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.build-drawer .slotbar { flex: none; margin: 0; padding: 10px 18px 10px 24px; border-bottom: 1px solid var(--line); }
+
+/* 아래 고정 막대(약 68px) 자리를 비워 둔다. 서랍이 그 밑으로 이어지면
+   마지막 카드가 숫자에 가린다. */
+.bd-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 18px 84px 24px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+/* 서랍 안의 계기판은 서랍 안에서 붙박인다. 바깥 화면 좌표(top:70px)를 쓰면
+   서랍 머리 밑에 숨는다. */
+.build-drawer .gauge { top: 0; max-height: calc(100vh - 190px); }
+
+.bd-note {
+  padding: 9px 12px;
+  border: 1px solid var(--cool-ink);
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--cool) 7%, var(--surface));
+  font-size: 12.5px;
+  color: var(--txt-2);
+}
+.bd-note b { font-weight: 600; color: var(--txt); }
+
+/* 손잡이. 이름표가 하던 일(누구 숫자인가)에 '그것을 연다'가 붙었다. */
+.sb-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--txt-2);
+  transition: border-color 130ms ease, color 130ms ease;
+}
+.sb-handle:hover { border-color: var(--line-lift); color: var(--txt); }
+.sb-handle svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 180ms ease;
+}
+.sb-handle.open svg { transform: rotate(180deg); }
+.sb-handle.open { border-color: var(--cool); color: var(--cool); }
+
+/* 서랍 안에서는 서랍이 구른다. 계기판이 또 제 높이를 재면 스크롤이 둘이 된다. */
+.gauge-drawer .gauge { max-height: none; }
+.gauge-drawer .g-scroll { overflow-y: visible; }
+
+/* 하한 · 상한 — 한 줄에 두 칸. 따로 카드를 두면 같은 축이 두 군데로 갈린다. */
+.bounds { display: grid; gap: 4px; margin: 2px 6px 0; }
+.bounds-hd,
+.bounds-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px 72px; gap: 8px; align-items: center; }
+.bounds-hd span { font-size: 11.5px; color: var(--txt-3); text-align: center; }
+.bounds-hd span:first-child { text-align: left; }
+.bounds-name { display: grid; gap: 1px; min-width: 0; }
+.bounds-name label { font-size: 12.5px; color: var(--txt-2); }
+.bounds-name .now { font-size: 11.5px; color: var(--txt-3); font-style: normal; font-variant-numeric: tabular-nums; }
+.bounds-row.short .now { color: var(--warm); }
+/* 마지막 줄과 안내가 붙어 있으면 표의 일부처럼 읽힌다. */
+.bounds + .hint { margin-top: 10px; }
+
+/* ─── 보유 각인 ────────────────────────────────────────────────────
+   각인은 원정대 공유라 세팅과 따로 산다. 남의 원정대를 대신 굴려 보는 동안
+   내 것이 덮이면 안 되므로 저장은 누를 때만 한다.                    */
+
+.roster { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.roster > b { font-size: 12.5px; font-weight: 600; color: var(--txt-2); }
+.roster-slots { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.roster-slot { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.roster-apply {
+  padding: 5px 11px;
+  border: 0;
+  background: var(--surface);
+  color: var(--txt-2);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.roster-apply:hover { background: color-mix(in srgb, var(--cool) 14%, var(--surface)); color: var(--cool); }
+.roster-act {
+  padding: 5px 8px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: var(--sunken);
+  color: var(--txt-3);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.roster-act:hover { color: var(--txt); }
+.roster-act.rm:hover { color: var(--warm); }
+.roster-add {
+  padding: 5px 11px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  background: none;
+  color: var(--txt-3);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.roster-add:hover { border-color: var(--cool); color: var(--cool); }
+
+/* --- 비교함 (접힌 막대) ---------------------------------------------------
+   담은 빌드를 열로 세운다. 예전에는 한 빌드만 들어서 슬롯을 갈아끼우며 숫자를
+   외워야 비교가 됐다.
+   열이 늘면 한 방 딜·DPS를 22px로 둘 수 없다. 두 숫자를 한 줄에 나란히 놓고
+   크기를 낮춘다 — 여섯 칸까지 읽힌다. */
+.statusbar.columns { gap: 14px; }
+.sb-slots {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.sb-slot {
+  flex: none;
+  display: grid;
+  gap: 1px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.sb-slot:hover { border-color: var(--line-lift); }
+/* 지금 만지고 있는 칸. 노드판이 이 빌드를 고친다. */
+.sb-slot.on { border-color: var(--cool); background: color-mix(in srgb, var(--cool) 12%, transparent); }
+.sb-slot-name {
+  font-size: 11px;
+  color: var(--txt-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.sb-slot.on .sb-slot-name { color: var(--cool); }
+.sb-slot-nums {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+/* 한 방 딜이 앞이고 DPS가 뒤다. 둘을 같은 크기로 두면 어느 쪽이 어느 쪽인지
+   매번 세어야 한다. */
+.sb-slot-nums b { font-size: 15px; font-weight: 640; letter-spacing: -0.02em; color: var(--cool); }
+.sb-slot-nums i { font-style: normal; font-size: 12.5px; color: var(--txt-2); }
+.sb-slot-nums em {
+  font-style: normal;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+}
+.sb-slot-nums em.up { color: var(--good); }
+.sb-slot-nums em.down { color: var(--bad); }
+.sb-slot-nums em.ref { color: var(--txt-3); }

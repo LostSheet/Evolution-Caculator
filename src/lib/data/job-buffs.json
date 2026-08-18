@@ -1,0 +1,1068 @@
+{
+  "102": {
+    "name": "버서커",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "버서커",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "강인한 육체",
+        "stat": "spec",
+        "direction": ""
+      },
+      {
+        "node": "광기",
+        "stat": "critSwift",
+        "direction": ""
+      }
+    ]
+  },
+  "103": {
+    "name": "디스트로이어",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "디스트로이어",
+        "branch": "",
+        "group": "",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "중력 갑옷",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "중력 충격",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "104": {
+    "name": "워로드",
+    "buffs": [
+      {
+        "id": "전투 태세",
+        "label": "전투 태세",
+        "branch": "전투 태세",
+        "group": "tier1",
+        "types": [
+          "defense",
+          "backHead"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": true,
+        "selfUptime": null
+      },
+      {
+        "id": "고독한 기사",
+        "label": "고독한 기사",
+        "branch": "고독한 기사",
+        "group": "tier1",
+        "types": [
+          "backHead"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "고독한 기사",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "철옹성",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "105": {
+    "name": "홀리나이트",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "홀리나이트",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critOnly"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "신의 기사",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "신성 보호",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "112": {
+    "name": "슬레이어",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "슬레이어",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "지치지 않는 힘",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "끝나지 않는 분노",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "113": {
+    "name": "발키리",
+    "buffs": [
+      {
+        "id": "빛의 기사",
+        "label": "빛의 기사",
+        "branch": "빛의 기사",
+        "group": "tier1",
+        "types": [
+          "critOnly"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": true,
+        "selfUptime": null
+      },
+      {
+        "id": "해방의 날개",
+        "label": "해방의 날개",
+        "branch": "해방의 날개",
+        "group": "tier1",
+        "types": [
+          "moveSpeed"
+        ],
+        "amounts": {
+          "moveSpeed": 8
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "빛의 기사",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "해방자",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "202": {
+    "name": "아르카나",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "아르카나",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "황후의 은총",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "황제의 칙령",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "203": {
+    "name": "서머너",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "서머너",
+        "branch": "",
+        "group": "",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "넘치는 교감",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "상급 소환사",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "204": {
+    "name": "바드",
+    "buffs": [
+      {
+        "id": "진실된 용맹",
+        "label": "진실된 용맹",
+        "branch": "진실된 용맹",
+        "group": "tier1",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": true,
+        "selfUptime": null
+      },
+      {
+        "id": "증폭의 세레나데",
+        "label": "증폭의 세레나데",
+        "branch": "증폭의 세레나데",
+        "group": "tier1",
+        "types": [
+          "attackSpeed"
+        ],
+        "amounts": {
+          "attackSpeed": 4.5
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "완벽한 화음",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "진실된 용맹",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "205": {
+    "name": "소서리스",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "소서리스",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "점화",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "환류",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "302": {
+    "name": "배틀마스터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "배틀마스터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "강력한 체술",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "강력한 오의",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "303": {
+    "name": "인파이터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "인파이터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "기력 회복",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "속도 강화",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "304": {
+    "name": "기공사",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "기공사",
+        "branch": "",
+        "group": "",
+        "types": [
+          "attack"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "무상신공",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "역천지체",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "305": {
+    "name": "창술사",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "창술사",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critOnly"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "절제",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "절정 I",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "312": {
+    "name": "스트라이커",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "스트라이커",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "오의난무",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "일격필살 I",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "313": {
+    "name": "브레이커",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "브레이커",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "권왕파천무",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "수라의 길",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "402": {
+    "name": "블레이드",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "블레이드",
+        "branch": "",
+        "group": "",
+        "types": [
+          "backHead"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "버스트 강화",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "신속한 일격",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "403": {
+    "name": "데모닉",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "데모닉",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "멈출 수 없는 충동",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "완벽한 억제",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "404": {
+    "name": "리퍼",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "리퍼",
+        "branch": "",
+        "group": "",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "달의 소리",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "피냄새",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "405": {
+    "name": "소울이터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "소울이터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "영혼친화력",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "그믐의 경계",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "502": {
+    "name": "호크아이",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "호크아이",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      },
+      {
+        "id": "두 번째 동료",
+        "label": "두 번째 동료",
+        "branch": "두 번째 동료",
+        "group": "silverhawk",
+        "types": [
+          "moveSpeed"
+        ],
+        "amounts": {
+          "moveSpeed": 8
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "죽음의 습격",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "두 번째 동료",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "503": {
+    "name": "데빌헌터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "데빌헌터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "전술 탄환",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "핸드 거너",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "504": {
+    "name": "블래스터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "블래스터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "포격 강화",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "화력 강화",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "505": {
+    "name": "스카우터",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "스카우터",
+        "branch": "",
+        "group": "",
+        "types": [
+          "attack"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "진화의 유산",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "아르데타인의 기술",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "512": {
+    "name": "건슬링어",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "건슬링어",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "피스메이커 - 핸드건",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "사냥의 시간",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "602": {
+    "name": "도화가",
+    "buffs": [
+      {
+        "id": "회귀",
+        "label": "회귀",
+        "branch": "회귀",
+        "group": "tier1",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": true,
+        "selfUptime": null
+      },
+      {
+        "id": "해의 축복",
+        "label": "해의 축복",
+        "branch": "해의 축복",
+        "group": "tier1",
+        "types": [
+          "moveSpeed"
+        ],
+        "amounts": {
+          "moveSpeed": 10
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      },
+      {
+        "id": "승천",
+        "label": "승천",
+        "branch": "승천",
+        "group": "leap",
+        "types": [
+          "attackSpeed",
+          "moveSpeed"
+        ],
+        "amounts": {
+          "attackSpeed": 6,
+          "moveSpeed": 12
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "저물어 가는 달",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "회귀",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "603": {
+    "name": "기상술사",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "기상술사",
+        "branch": "",
+        "group": "",
+        "types": [
+          "critRate"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      },
+      {
+        "id": "질풍노도",
+        "label": "질풍노도",
+        "branch": "질풍노도",
+        "group": "tier1",
+        "types": [
+          "attackSpeed",
+          "moveSpeed"
+        ],
+        "amounts": {
+          "attackSpeed": 12,
+          "moveSpeed": 12
+        },
+        "self": true,
+        "party": true,
+        "partyUptime": 30,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "질풍노도",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "이슬비",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "604": {
+    "name": "환수사",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "환수사",
+        "branch": "",
+        "group": "",
+        "types": [
+          "defense"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "야성",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "환수 각성",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "612": {
+    "name": "차원술사",
+    "buffs": [],
+    "branches": [
+      {
+        "node": "시간 관리자",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "공간 검사",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  },
+  "702": {
+    "name": "가디언나이트",
+    "buffs": [
+      {
+        "id": "base",
+        "label": "가디언나이트",
+        "branch": "",
+        "group": "",
+        "types": [
+          "damage"
+        ],
+        "amounts": {},
+        "self": true,
+        "party": true,
+        "partyUptime": null,
+        "pick": false,
+        "selfUptime": null
+      }
+    ],
+    "branches": [
+      {
+        "node": "업화의 계승자",
+        "stat": "",
+        "direction": ""
+      },
+      {
+        "node": "드레드 로어",
+        "stat": "",
+        "direction": ""
+      }
+    ]
+  }
+}

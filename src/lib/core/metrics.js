@@ -3,12 +3,18 @@
 
 import { ARC_PASSIVE_CONSTANTS, ACCESSORY_OPTION_VALUES, EVOLUTION_TIERS, NODE_LIBRARY } from "./data.js";
 import { BRACELET_GRADES, BRACELET_STAT_FIELDS, BRACELET_EFFECTS } from "./bracelets.js";
-import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "./engravings.js";
 import {
-  CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS, CHAOS_CORE_STAGES, CHAOS_CORES,
-  GEM_ADDITIONAL_DAMAGE_PER_LEVEL, GEM_MAX_LEVEL, STANDALONE_SOURCES,
+  ENGRAVING_TIERS, ENGRAVING_LIBRARY, engravingAmount, engravingStoneAmount, LEGACY_ENGRAVING_TIERS,
+} from "./engravings.js";
+import {
+  CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS, CHAOS_CORE_STAGES, CHAOS_CORES, emptyOrderCores,
+  ARK_GRID_GEM_EFFECTS, arkGridGemDamage, GEM_MAX_LEVEL, STANDALONE_SOURCES,
   WEAPON_QUALITY_MAX, weaponQualityDamage,
 } from "./cores.js";
+import { awakeningBonuses } from "./awakening.js";
+import {
+  SYNERGY_SLOTS, getSynergyJob, normalizeSynergyRows, normalizeUptimeMap, synergyBonuses,
+} from "./synergy.js";
 import { readNumber, clamp, cloneState, makeId } from "./util.js";
 
 const DEFAULT_STATE = {
@@ -18,7 +24,9 @@ const DEFAULT_STATE = {
     critStat: 0,
     specStat: 0,
     swiftStat: 0,
-    dominationStat: 0,
+    // 카드 · 도감 · 물약을 완성한 기준값. 제압은 대난투에서 피해가 되므로
+    // 0으로 두면 대난투 비중을 적어도 아무 값이 안 나온다.
+    dominationStat: 79,
     enduranceStat: 0,
     expertiseStat: 0,
     specDamagePer100: 0,
@@ -26,55 +34,164 @@ const DEFAULT_STATE = {
   settings: {
     // 진화 포인트는 140 고정이다.
     pointBudget: 140,
-    includeCooldown: true,
     backAttack: false,
     headAttack: false,
   },
   convenience: {
     petStat: "none",
     evolutionKarmaRank: 0,
+    // 옛 단일 슬라이더. damageMix가 채워지면 더 읽지 않는다.
     manaShare: 100,
-    goddessBlessing: false,
-    feast: false,
+    damageMix: null,
+    // 대난투 딜 비중(%). 무력화 대상 피해는 이 비중만큼만 실린다.
+    staggerShare: 0,
+    // 레이드에 들어가면 거의 항상 받는 것들이라 켜 둔 채로 시작한다.
+    goddessBlessing: true,
+    feast: true,
+    // 서포터의 아크 그리드가 딜러에게 주는 진화형 피해. 1Lv 6%, 2Lv 12%.
+    // 파티가 깔아 주는 것이라 파티 시너지 칸에 산다. 레이드에서는 거의 항상
+    // 2렙이 깔리므로 그것을 기본값으로 둔다.
+    passionDance: 2,
+    // 사람이 직접 고른 적이 있는가. 기본값이 바뀐 뒤에도 고른 값을 지키려면
+    // "안 골랐음"과 "0을 골랐음"을 갈라야 한다.
+    passionDanceSet: false,
+    // 음식 하나. 탐색 갈래이기도 하다 — FOODS 참고.
+    food: "none",
+    // 깨달음의 카르마 레벨. 1레벨당 무기 공격력 +0.1%. API에 안 실려 온다.
+    awakeningKarmaLevel: 0,
   },
   accessories: {
-    necklace: { additionalDamage: "none" },
+    necklace: { additionalDamage: "none", dealtDamage: "none" },
+    earrings: [
+      { attackPower: "none", weaponAttack: "none" },
+      { attackPower: "none", weaponAttack: "none" },
+    ],
     rings: [
       { critRate: "none", critDamage: "none" },
       { critRate: "none", critDamage: "none" },
     ],
   },
+  // 평면 증가를 퍼센트로 환산하는 기준값. 팔찌 무공 +9,000이 몇 %인지는
+  // 지금 무공이 얼마인지를 알아야 정해진다 — 그래서 여기가 비어 있는 동안은
+  // 평면 항목을 통째로 버려 왔다.
+  //
+  //   기본 공격력 = √(힘민지 × 무기 공격력 / 6)
+  //
+  // 셋 다 0이면 예전과 똑같이 굴러간다. 평면 항목만 계속 버려질 뿐이다.
+  attack: {
+    // 손으로 적는 최종값. 아래 조각이 채워지면 그쪽이 이긴다.
+    weaponAttack: 0,
+    mainStat: 0,
+    flatAttack: 0,
+    // 불러오기가 채우는 조각들 — assembleAttack 참고.
+    weaponFlat: 0,
+    weaponPercent: 0,
+    mainFlat: 0,
+    // 게임의 기본 공격력에서 되짚은 힘민지 총합. 있으면 이쪽이 이긴다.
+    mainTotal: 0,
+    // 되짚기 재료 — 게임이 알려 준 기본 공격력 D와 그 위에 곱해진 보석·스톤 %,
+    // 그리고 팔찌까지 포함한 무공 평면. assembleAttack이 이걸로 힘민지를 푼다.
+    baseAttackPower: 0,
+    baseScalePercent: 0,
+    weaponFlatAll: 0,
+    // 아바타는 부위별 등급으로 든다. 퍼센트 한 칸이었을 때는 "8%"만 남아서
+    // 어느 부위가 비었는지, 영웅을 전설로 갈면 얼마가 오르는지 알 수 없었다.
+    avatars: { weapon: "none", head: "none", top: "none", bottom: "none" },
+  },
   bracelet: {
     stats: { critStat: 0, specStat: 0, swiftStat: 0 },
+    // 힘민지는 등급이 아니라 범위다 — 고대 기준 9,600~16,000 사이의 아무 값.
+    // 그래서 값을 그대로 든다.
+    mainStat: 0,
     effects: {},
   },
   arkGrid: {
+    // 질서 코어. 이름만 적어 두고 딜에는 안 싣는다 — legacy/cores.js 참고.
+    order: emptyOrderCores(),
     cores: {
       sun: { id: "none", points: 20, stage: 1 },
       moon: { id: "none", points: 20, stage: 1 },
       star: { id: "none", points: 20, stage: 1 },
     },
-    gemLevel: 0,
+    // 젬은 효과마다 레벨 합계가 따로다. 예전에는 추가 피해 하나만 들었다.
+    gems: { attack: 0, additional: 0, boss: 0 },
   },
   collection: {
-    ranch: false,
+    // 펫 목장은 둘이다. 추가 피해를 주는 목장과 힘민지를 주는 목장이 따로 있고
+    // 등급도 따로 매긴다 — 한 칸으로 묶으면 한쪽만 올려 둔 사람이 나머지도
+    // 올린 것으로 계산된다.
+    //
+    // 힘민지 쪽만 되짚을 수 있다("auto"). 기본 공격력에서 푼 총합에 그 몫이
+    // 들어 있기 때문이다. 추가 피해 목장은 어디에도 안 드러나서 손으로 고른다.
+    ranchDamage: 0,
+    ranchMainStat: "auto",
     critStat: 0,
     specStat: 0,
     swiftStat: 0,
   },
   weapon: { quality: 0 },
+  // 보석(작열·광휘). 쿨감만 쓴다 — 피해 증가형은 스킬에만 걸려 진화 배분을
+  // 안 바꾼다. 레벨이 아니라 퍼센트를 든다: 보석마다 레벨이 달라서 하나로
+  // 못 적고, 어느 스킬에 몇 레벨이 박혔는지에 따라 실효값이 달라지기 때문이다.
+  jewel: { cooldown: 0 },
+  // 깨달음·도약. 직업 코드와 찍은 레벨만 든다 — 수치는 표에 있다.
+  // 탐색이 건드리지 않는다. 진화 140포인트와 달리 자주 갈아엎는 것이 아니다.
+  // uptime — 줄마다의 유효율(%). 비어 있으면 100으로 읽는다. awakeningUptimeRate 참고.
+  awakening: { job: 0, nodeLevels: {}, uptime: {} },
+  // 파티 시너지. 내 것은 직업과 깨달음이 정하므로 여기엔 고른 것만 담는다.
+  synergy: { rows: [], ownUptime: {} },
   engravings: {},
+  // 어빌리티 스톤이 각인마다 얹은 레벨(1~4). 돌은 하나뿐이라 탐색이 안 굴린다.
+  engravingStones: {},
   nodeLevels: {},
   baseEffects: [
-    { id: makeId(), label: "카드 추가 피해", category: "damage:추가 피해", customCategory: "", amount: 0 },
-    { id: makeId(), label: "각인/시너지 치적", category: "critRate", customCategory: "", amount: 0 },
-    { id: makeId(), label: "추가 치명타 피해", category: "critDamage", customCategory: "", amount: 0 },
+    { id: makeId(), label: "카드 추가 피해", category: "damage:추가 피해", customCategory: "", amount: 0, formula: "", cap: "" },
+    { id: makeId(), label: "각인/시너지 치적", category: "critRate", customCategory: "", amount: 0, formula: "", cap: "" },
+    { id: makeId(), label: "추가 치명타 피해", category: "critDamage", customCategory: "", amount: 0, formula: "", cap: "" },
   ],
+  // 특화가 미는 스킬 묶음 — 아이덴티티류. 줄은 게임의 특화 툴팁을 그대로 옮긴다.
+  specBundles: [],
   selectedTier: "전체",
   setupName: "",
 };
 
 const MULTIPLICATIVE_DAMAGE_GROUPS = new Set(["주는 피해"]);
+
+const SQRT_DAMAGE_GROUPS = new Set(["무기 공격력", "힘민지"]);
+
+function damageGroupFactor(key, value) {
+  const ratio = 1 + readNumber(value) / 100;
+  if (!SQRT_DAMAGE_GROUPS.has(key)) return ratio;
+  return ratio <= 0 ? 0 : Math.sqrt(ratio);
+}
+
+function normalizeSynergy(synergy) {
+  const rows = Array.isArray(synergy?.rows) ? synergy.rows : legacySynergyRows(synergy?.picks);
+  return {
+    rows: normalizeSynergyRows(rows).map((row, index) => ({
+      ...row, id: row.id || `syn-${index}`,
+    })),
+    ownUptime: normalizeUptimeMap(synergy?.ownUptime),
+  };
+}
+
+function legacySynergyRows(picks) {
+  const byJob = new Map();
+  (Array.isArray(picks) ? picks : []).forEach(id => {
+    const [job, node] = String(id).split(":");
+    const code = readNumber(job);
+    if (!getSynergyJob(code)) return;
+    if (!byJob.has(code)) byJob.set(code, { job: code, nodes: [], uptime: {} });
+    if (node) byJob.get(code).nodes.push(node);
+  });
+  return [...byJob.values()];
+}
+
+const STAGGER_DAMAGE_GROUPS = new Set(["무력화 대상 피해"]);
+
+function getStaggerShare(convenience) {
+  return clamp(readNumber(convenience?.staggerShare) / 100, 0, 1);
+}
 
 function normalizeArkGrid(arkGrid) {
   const cores = {};
@@ -89,10 +206,17 @@ function normalizeArkGrid(arkGrid) {
       stage: clamp(Math.round(readNumber(chosen.stage)), 0, CHAOS_CORE_STAGES.length - 1),
     };
   });
-  return { cores, gemLevel: clamp(Math.round(readNumber(arkGrid?.gemLevel)), 0, GEM_MAX_LEVEL) };
+  // 옛 저장본은 gemLevel 하나만 들고 있다. 그건 추가 피해였다.
+  const legacyGem = readNumber(arkGrid?.gemLevel);
+  const gems = {};
+  ARK_GRID_GEM_EFFECTS.forEach(effect => {
+    const raw = arkGrid?.gems?.[effect.key] ?? (effect.key === "additional" ? legacyGem : 0);
+    gems[effect.key] = clamp(Math.round(readNumber(raw)), 0, GEM_MAX_LEVEL);
+  });
+  return { cores, gems };
 }
 
-function applyCoreEffect(effect, stage, times, percentBonuses, damageGroups) {
+function applyCoreEffect(effect, stage, times, percentBonuses, damageGroups, flat) {
   const raw = Array.isArray(effect.amounts) ? effect.amounts[stage] : effect.amount;
   const amount = readNumber(raw) * times;
   if (amount === 0) return;
@@ -102,13 +226,17 @@ function applyCoreEffect(effect, stage, times, percentBonuses, damageGroups) {
     return;
   }
   if (effect.kind === "critOnlyDamage") {
-    percentBonuses.critOnlyDamage = readNumber(percentBonuses.critOnlyDamage) + amount;
+    addCritOnlyDamage(percentBonuses, amount);
+    return;
+  }
+  if (effect.kind === "flat") {
+    addFlatBonus(flat, effect.key, amount);
     return;
   }
   percentBonuses[effect.key] = readNumber(percentBonuses[effect.key]) + amount;
 }
 
-function applyArkGridEffects(arkGrid, percentBonuses, damageGroups) {
+function applyArkGridEffects(arkGrid, percentBonuses, damageGroups, flat) {
   const grid = normalizeArkGrid(arkGrid);
 
   CHAOS_CORE_SLOTS.forEach(slot => {
@@ -120,7 +248,7 @@ function applyArkGridEffects(arkGrid, percentBonuses, damageGroups) {
     [10, 14, 17].forEach(threshold => {
       if (chosen.points < threshold) return;
       (core.thresholds[threshold] || []).forEach(effect => {
-        applyCoreEffect(effect, chosen.stage, 1, percentBonuses, damageGroups);
+        applyCoreEffect(effect, chosen.stage, 1, percentBonuses, damageGroups, flat);
       });
     });
 
@@ -128,12 +256,14 @@ function applyArkGridEffects(arkGrid, percentBonuses, damageGroups) {
     const extra = clamp(chosen.points - 17, 0, 3);
     if (extra > 0) {
       core.perPoint.forEach(effect => {
-        applyCoreEffect(effect, chosen.stage, extra, percentBonuses, damageGroups);
+        applyCoreEffect(effect, chosen.stage, extra, percentBonuses, damageGroups, flat);
       });
     }
   });
 
-  addDamageGroup(damageGroups, "추가 피해", grid.gemLevel * GEM_ADDITIONAL_DAMAGE_PER_LEVEL);
+  ARK_GRID_GEM_EFFECTS.forEach(effect => {
+    addDamageGroup(damageGroups, effect.group, arkGridGemDamage(effect.key, grid.gems[effect.key]));
+  });
 }
 
 function applyCollectionEffects(collection, totalStats, damageGroups) {
@@ -141,18 +271,143 @@ function applyCollectionEffects(collection, totalStats, damageGroups) {
   totalStats.critStat = readNumber(totalStats.critStat) + readNumber(source.critStat);
   totalStats.specStat = readNumber(totalStats.specStat) + readNumber(source.specStat);
   totalStats.swiftStat = readNumber(totalStats.swiftStat) + readNumber(source.swiftStat);
-  if (source.ranch) {
-    addDamageGroup(damageGroups, "추가 피해", STANDALONE_SOURCES.ranchCollection.amount);
-  }
+  // 추가 피해 목장. 힘민지 목장과 등급이 따로다.
+  addDamageGroup(damageGroups, "추가 피해", resolveRanchDamage(collection || {}));
 }
 
 function applyWeaponEffects(weapon, damageGroups) {
   const quality = clamp(Math.round(readNumber(weapon?.quality)), 0, WEAPON_QUALITY_MAX);
-  addDamageGroup(damageGroups, "무기 추가 피해", weaponQualityDamage(quality));
+  addDamageGroup(damageGroups, "추가 피해", weaponQualityDamage(quality));
+}
+
+const DAMAGE_MIX_KEYS = ["manaCooldown", "plainCooldown", "identityPlain", "identityMana"];
+
+const DAMAGE_MIX_LABELS = {
+  manaCooldown: "마나 O · 자체 쿨",
+  plainCooldown: "마나 X · 자체 쿨",
+  identityPlain: "마나 X · 아이덴티티",
+  identityMana: "마나 O · 아이덴티티",
+};
+
+function normalizeDamageMix(convenience) {
+  const mix = convenience?.damageMix;
+  if (mix && typeof mix === "object") {
+    const shares = {};
+    let total = 0;
+    DAMAGE_MIX_KEYS.forEach(key => {
+      const value = Math.max(0, readNumber(mix[key]));
+      shares[key] = value;
+      total += value;
+    });
+    if (total > 0) return { shares, total, feederMana: mix.feederMana !== false };
+  }
+  const manaShare = clamp(readNumber(convenience?.manaShare ?? 100), 0, 100);
+  return {
+    shares: {
+      manaCooldown: manaShare,
+      plainCooldown: 0,
+      identityPlain: 100 - manaShare,
+      identityMana: 0,
+    },
+    total: 100,
+    feederMana: true,
+  };
+}
+
+const SPEC_BUNDLE_KINDS = [
+  { value: "damage", label: "피해" },
+  { value: "gain", label: "수급" },
+  { value: "speed", label: "공속" },
+  { value: "cooldown", label: "쿨감" },
+];
+
+function normalizeSpecBundles(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(bundle => ({
+    id: bundle?.id || makeId(),
+    name: typeof bundle?.name === "string" ? bundle.name : "",
+    share: readNumber(bundle?.share),
+    refSpec: readNumber(bundle?.refSpec),
+    rows: (Array.isArray(bundle?.rows) ? bundle.rows : []).map(row => ({
+      kind: SPEC_BUNDLE_KINDS.some(kind => kind.value === row?.kind) ? row.kind : "damage",
+      base: readNumber(row?.base),
+      amount: readNumber(row?.amount),
+      // 값 두 개로 못 적는 꼴은 식으로 적는다 — 기공사의 "기본 × 증폭(특화)".
+      formula: typeof row?.formula === "string" ? row.formula : "",
+    })),
+  }));
+}
+
+function specBundleValue(row, spec, refSpec, stats) {
+  const text = String(row?.formula ?? "").trim();
+  if (text) {
+    const value = evaluateFormula(text, specBundleVariables(stats, spec));
+    return value === null ? 0 : value;
+  }
+  const base = readNumber(row?.base);
+  const at = readNumber(row?.amount);
+  if (!(refSpec > 0)) return at;
+  return base + (at - base) * (spec / refSpec);
+}
+
+function specBundleRowFactor(row, spec, refSpec, stats) {
+  const atRef = specBundleValue(row, refSpec, refSpec, stats);
+  if (row?.kind === "cooldown") {
+    // 쿨감은 시전 횟수 1/(1−c)로 실린다. 모델의 쿨감 상한과 같은 80으로 막는다.
+    const now = clamp(specBundleValue(row, spec, refSpec, stats), 0, 80) / 100;
+    const ref = clamp(atRef, 0, 80) / 100;
+    return (1 - ref) / (1 - now);
+  }
+  const now = 1 + specBundleValue(row, spec, refSpec, stats) / 100;
+  const ref = 1 + atRef / 100;
+  if (ref <= 0 || now <= 0) return 1;
+  return now / ref;
+}
+
+function specBundleVariables(stats, spec) {
+  return {
+    "치명": readNumber(stats?.critStat),
+    "특화": spec,
+    "신속": readNumber(stats?.swiftStat),
+    "제압": readNumber(stats?.dominationStat),
+    "인내": readNumber(stats?.enduranceStat),
+    "숙련": readNumber(stats?.expertiseStat),
+  };
+}
+
+function specBundleBlend(bundles, stats) {
+  const spec = readNumber(stats?.specStat);
+  let blend = 1;
+  const applied = [];
+  normalizeSpecBundles(bundles).forEach(bundle => {
+    const share = clamp(bundle.share, 0, 100) / 100;
+    if (share <= 0 || bundle.rows.length === 0) return;
+    const multiplier = bundle.rows.reduce(
+      (acc, row) => acc * specBundleRowFactor(row, spec, bundle.refSpec, stats), 1,
+    );
+    blend += share * (multiplier - 1);
+    applied.push({ id: bundle.id, name: bundle.name, share: share * 100, multiplier });
+  });
+  return { blend: Math.max(0, blend), applied };
 }
 
 function getManaShareRatio(convenience) {
-  return clamp(readNumber(convenience?.manaShare ?? 100), 0, 100) / 100;
+  const { shares, total } = normalizeDamageMix(convenience);
+  return (shares.manaCooldown + shares.identityMana) / total;
+}
+
+function getManaCooldownShareRatio(convenience) {
+  const { shares, total, feederMana } = normalizeDamageMix(convenience);
+  const identityPlain = feederMana ? shares.identityPlain : 0;
+  return (shares.manaCooldown + shares.identityMana + identityPlain) / total;
+}
+
+function blendCooldownRemain(reduction, share) {
+  const beta = clamp(readNumber(share), 0, 1);
+  if (beta <= 0) return 1;
+  const remain = Math.max(0, 1 - readNumber(reduction) / 100);
+  if (remain <= 0) return 0;
+  return 1 / (1 - beta + beta / remain);
 }
 
 function calculateMetrics(inputState) {
@@ -184,6 +439,9 @@ function calculateMetrics(inputState) {
     critOnlyDamage: 0,
   };
   const damageGroups = {};
+  // 평면 증가는 여기 모아 둔다. 퍼센트로 바꾸려면 기준값이 필요한데,
+  // 그 나눗셈은 출처를 다 걷은 뒤 한 번만 하는 편이 읽기 쉽다.
+  const flatBonuses = emptyFlatBonuses();
   const specials = {
     bluntThorn: 0,
     sonicBreakthrough: 0,
@@ -194,21 +452,29 @@ function calculateMetrics(inputState) {
     const level = clamp(Math.round(inputState.nodeLevels?.[node.id] || 0), 0, node.maxLevel);
     pointsUsed += level * getNodeCost(node);
     node.effects.forEach(effect => {
-      applyEffect(effect, level, totalStats, percentBonuses, damageGroups, specials, manaShare);
+      applyEffect(effect, level, totalStats, percentBonuses, damageGroups, specials, manaShare, inputState.settings);
     });
   });
 
+  // 속도를 재료로 삼는 항목은 여기서 값을 정할 수 없다. 모아 두었다가
+  // finalizeMetrics가 속도를 확정한 뒤에 건다.
+  const conversions = [];
   (inputState.baseEffects || []).forEach(effect => {
-    applyBaseEffect(effect, percentBonuses, damageGroups);
+    applyBaseEffect(effect, percentBonuses, damageGroups, conversions, flatBonuses);
   });
 
   const accessoryBonuses = calculateAccessoryBonuses(accessories);
   percentBonuses.critRate += accessoryBonuses.critRate;
   percentBonuses.critDamage += accessoryBonuses.critDamage;
   addDamageGroup(damageGroups, "추가 피해", accessoryBonuses.additionalDamage);
+  addDamageGroup(damageGroups, "주는 피해", accessoryBonuses.dealtDamage);
+  addDamageGroup(damageGroups, "공격력", accessoryBonuses.attackPower);
+  addDamageGroup(damageGroups, "무기 공격력", accessoryBonuses.weaponAttack);
 
   const karmaDamage = clamp(Math.round(readNumber(convenience.evolutionKarmaRank)), 0, 6);
   addDamageGroup(damageGroups, "진화형 피해", karmaDamage);
+  // 정열의 춤사위 — 서폿 아크 그리드. 진화 카르마와 같은 그룹이라 합연산이다.
+  addDamageGroup(damageGroups, "진화형 피해", passionDanceAmount(convenience.passionDance));
 
   const goddessNodeLevel = clamp(
     Math.round(readNumber(inputState.nodeLevels?.["e2-goddess-blessing"])),
@@ -222,6 +488,7 @@ function calculateMetrics(inputState) {
   if (convenience.feast) {
     percentBonuses.attackSpeed += ARC_PASSIVE_CONSTANTS.feastSpeed;
   }
+  applyFoodEffects(convenience.food, percentBonuses, flatBonuses);
 
   if (inputState.settings.backAttack) {
     percentBonuses.critRate += ARC_PASSIVE_CONSTANTS.backAttackCritRate;
@@ -231,10 +498,12 @@ function calculateMetrics(inputState) {
     addDamageGroup(damageGroups, "헤드어택 피해", ARC_PASSIVE_CONSTANTS.headAttackDamage);
   }
 
-  applyArkGridEffects(inputState.arkGrid, percentBonuses, damageGroups);
+  applyArkGridEffects(inputState.arkGrid, percentBonuses, damageGroups, flatBonuses);
+  const awakening = applyAwakeningEffects(inputState.awakening, percentBonuses, damageGroups, conversions);
+  const synergy = applySynergyEffects(inputState, percentBonuses, damageGroups);
   applyCollectionEffects(inputState.collection, totalStats, damageGroups);
   applyWeaponEffects(inputState.weapon, damageGroups);
-  applyBraceletEffects(bracelet, inputState.settings, totalStats, percentBonuses, damageGroups);
+  applyBraceletEffects(bracelet, inputState.settings, totalStats, percentBonuses, damageGroups, flatBonuses);
 
   const engravingSpecials = applyEngravingEffects(
     inputState.engravings,
@@ -242,7 +511,12 @@ function calculateMetrics(inputState) {
     damageGroups,
     manaShare,
     inputState.settings,
+    inputState.engravingStones,
   );
+
+  // 걷은 평면 증가를 퍼센트로 바꾼다. 기준값이 비어 있으면 못 센 목록만 남는다.
+  const attack = assembleAttack(inputState);
+  const droppedFlat = applyFlatAttackBonuses(flatBonuses, attack, damageGroups);
 
   return finalizeMetrics({
     settings: inputState.settings,
@@ -255,6 +529,16 @@ function calculateMetrics(inputState) {
     engravingSpecials,
     pointsUsed,
     accessoryBonuses,
+    manaCooldownShare: getManaCooldownShareRatio(convenience),
+    staggerShareRatio: getStaggerShare(convenience),
+    conversions,
+    attack,
+    flatBonuses,
+    droppedFlat,
+    awakening,
+    synergy,
+    jewelCooldownPercent: inputState.jewel?.cooldown,
+    specBundles: inputState.specBundles,
   });
 }
 
@@ -270,8 +554,19 @@ function finalizeMetrics(context) {
     engravingSpecials,
     pointsUsed,
     accessoryBonuses,
+    manaCooldownShare,
+    staggerShareRatio,
+    conversions,
+    attack,
+    flatBonuses,
+    droppedFlat,
+    awakening,
+    synergy,
+    jewelCooldownPercent,
+    specBundles,
   } = context;
 
+  const manaCooldownCoverage = clamp(readNumber(manaCooldownShare ?? 1), 0, 1);
   const specDamage = (totalStats.specStat / 100) * readNumber(specDamagePer100);
   if (specDamage !== 0) {
     addDamageGroup(damageGroups, "특화 효율", specDamage);
@@ -280,13 +575,20 @@ function finalizeMetrics(context) {
   const critRateFromStat = totalStats.critStat * ARC_PASSIVE_CONSTANTS.critRatePerCrit;
   const attackSpeedFromSwift = totalStats.swiftStat * ARC_PASSIVE_CONSTANTS.attackSpeedPerSwift;
   const cooldownFromSwift = totalStats.swiftStat * ARC_PASSIVE_CONSTANTS.cooldownPerSwift;
+  const sharedSpeedBonus = attackSpeedFromSwift + percentBonuses.attackSpeed;
+  const attackSpeed = sharedSpeedBonus + percentBonuses.attackSpeedOnly;
+  const moveSpeedBonus = sharedSpeedBonus + percentBonuses.moveSpeedOnly;
+  // 2단 — 속도·특성을 읽어 치명타/쿨감을 만드는 식. 치적이 정해지기 전에 건다.
+  // 예) 기민함: 기본 공격 속도 증가량 %의 120%만큼 치명타 피해
+  const stage1Variables = buildFormulaVariables(attackSpeed, moveSpeedBonus, totalStats, null);
+  const stage2Results = applyFormulaEffects(
+    conversions, stage1Variables, percentBonuses, damageGroups, 2,
+  );
+
   const critRateRaw = Math.max(
     critRateFromStat + percentBonuses.critRate,
     engravingSpecials.critRateMinimum,
   );
-  const sharedSpeedBonus = attackSpeedFromSwift + percentBonuses.attackSpeed;
-  const attackSpeed = sharedSpeedBonus + percentBonuses.attackSpeedOnly;
-  const moveSpeedBonus = sharedSpeedBonus + percentBonuses.moveSpeedOnly;
   const attackSpeedRaw = 100 + attackSpeed;
   const moveSpeedRaw = 100 + moveSpeedBonus;
   const attackSpeedExcess = Math.max(0, attackSpeedRaw - 140);
@@ -296,14 +598,29 @@ function finalizeMetrics(context) {
   const moveSpeed = 100 + clamp(moveSpeedBonus, -99, 40);
   const raidCaptainDamage = clamp(moveSpeedBonus, 0, 40) * engravingSpecials.raidCaptainRate / 100;
   addDamageGroup(damageGroups, "주는 피해", raidCaptainDamage);
-  const globalCooldownReduction = cooldownFromSwift + percentBonuses.cooldownReduction;
+  // 쿨감은 피해 그룹과 같은 규칙이다. 네 그룹이 있고, 그룹 안에서는 더하고
+  // 그룹끼리는 곱한다. 넷 다 적용된다 — 어느 하나를 골라 버리지 않는다.
+  //   신속 · 직접 입력(일반) · 끝마/무마 · 최훈/타지
+  // 끝마/무마만 예외다. 마나를 쓰는 스킬에만 붙으므로, 그 혜택을 받는 딜
+  // 비중만큼만 사이클이 당겨진다. 나머지 세 그룹은 전 스킬에 걸린다.
+  const manaCooldownRemain = blendCooldownRemain(
+    percentBonuses.manaCooldownReduction,
+    manaCooldownCoverage,
+  );
   const cooldownGroups = {
-    global: globalCooldownReduction,
-    mana: globalCooldownReduction + percentBonuses.manaCooldownReduction,
-    skill: globalCooldownReduction + percentBonuses.skillCooldownReduction,
+    swift: cooldownFromSwift,
+    generic: percentBonuses.cooldownReduction,
+    mana: (1 - manaCooldownRemain) * 100,
+    skill: percentBonuses.skillCooldownReduction,
+    jewel: clamp(readNumber(jewelCooldownPercent), 0, 100),
   };
-  const cooldownReduction = Math.max(cooldownGroups.global, cooldownGroups.mana, cooldownGroups.skill);
-  const cooldownGroupLabel = getCooldownGroupLabel(cooldownGroups, cooldownReduction);
+  // 곱은 "남은 쿨타임"으로 계산해야 맞는다. 감소율을 더하면 부풀려진다.
+  const cooldownRemain = COOLDOWN_GROUP_KEYS.reduce(
+    (acc, key) => acc * (1 - readNumber(cooldownGroups[key]) / 100),
+    1,
+  );
+  const cooldownReduction = (1 - cooldownRemain) * 100;
+  const cooldownGroupLabel = getCooldownGroupLabel(cooldownGroups);
   const bluntThornBonus = calculateBluntThornBonus(specials.bluntThorn, critRateRaw);
   const sonicBreakdown = calculateSonicBreakthroughBonus(
     specials.sonicBreakthrough,
@@ -325,14 +642,43 @@ function finalizeMetrics(context) {
     ARC_PASSIVE_CONSTANTS.baseCritDamage + readNumber(critDamageBonus) + percentBonuses.critDamage,
   );
 
+  // 3단 — 치명타까지 정해진 뒤에 피해 그룹을 만드는 식.
+  // 예) 성검 개방: 모든 치명타 발생 확률 1%당 주는 피해 0.55% (최대 55%)
+  const stage2Variables = buildFormulaVariables(attackSpeed, moveSpeedBonus, totalStats, {
+    rateCapped: critRateCapped, rateRaw: critRateRaw, damage: critDamage,
+  });
+  const stage3Results = applyFormulaEffects(
+    conversions, stage2Variables, percentBonuses, damageGroups, 3,
+  );
+  const formulaResults = [...stage2Results, ...stage3Results].filter(Boolean);
+
+  // 제압은 무력화 대상 피해로 바뀐다. 특성이 다 모인 뒤에 한 번 얹는다.
+  const staggerShare = clamp(readNumber(staggerShareRatio ?? 0), 0, 1);
+  if (staggerShare > 0) {
+    addDamageGroup(
+      damageGroups, "무력화 대상 피해",
+      readNumber(totalStats.dominationStat) * ARC_PASSIVE_CONSTANTS.staggerDamagePerDomination,
+    );
+  }
+
   const critChance = critRateCapped / 100;
   const critOnlyMultiplier = 1 + percentBonuses.critOnlyDamage / 100;
   const critFactor = (1 - critChance) + critChance * (critDamage / 100) * critOnlyMultiplier;
-  const damageMultiplier = Object.values(damageGroups).reduce((acc, value) => acc * (1 + value / 100), 1);
+  // 평시 배수와 무력화 배수를 따로 접는다. 무력화 쪽은 대난투 비중만큼만 섞는다.
+  const plainMultiplier = Object.entries(damageGroups)
+    .filter(([key]) => !STAGGER_DAMAGE_GROUPS.has(key))
+    .reduce((acc, [key, value]) => acc * damageGroupFactor(key, value), 1);
+  const staggerMultiplier = Object.entries(damageGroups)
+    .filter(([key]) => STAGGER_DAMAGE_GROUPS.has(key))
+    .reduce((acc, [key, value]) => acc * damageGroupFactor(key, value), 1);
+  const staggerBlend = 1 - staggerShare + staggerShare * staggerMultiplier;
+  // 특화 묶음. 특성 합이 다 선 뒤의 특화로 계산해야 탐색 후보마다 제대로 갈린다.
+  const specBundleResult = specBundleBlend(specBundles, totalStats);
+  const damageMultiplier = plainMultiplier * staggerBlend * specBundleResult.blend;
   const cooldownIncrease = Math.max(0, percentBonuses.cooldownIncrease);
-  const cooldownFactor = settings.includeCooldown
-    ? 1 / ((1 - clamp(cooldownReduction, 0, 80) / 100) * (1 + cooldownIncrease / 100))
-    : 1;
+  // 쿨감은 언제나 DPS에 실린다. 끄는 스위치가 있었는데, 끄면 DPS가 한 방 딜과
+  // 같아져서 곡선이 점 하나로 무너진다 — 계산기가 하는 일이 사라진다.
+  const cooldownFactor = 1 / ((1 - clamp(cooldownReduction, 0, 80) / 100) * (1 + cooldownIncrease / 100));
   // 공속을 DPS에 곱하지 않는다. 공속이 곧 딜 사이클 단축이라는 근거가 약하고,
   // 공속의 실제 이득은 음속 돌파의 진화형 피해 전환으로만 반영한다.
   const attackSpeedFactor = 1;
@@ -350,6 +696,11 @@ function finalizeMetrics(context) {
     sonicBreakdown,
     pointsUsed,
     critRateFromStat,
+    // 신속이 얼마나 속도로 환산됐는지 — 계기판의 공이속 출처 목록에 필요하다.
+    attackSpeedFromSwift,
+    // 식으로 적은 효과들의 실제 결과. 계기판이 출처로 적는다.
+    formulaResults,
+    formulaVariables: stage2Variables,
     critRateRaw,
     critRateCapped,
     critDamage,
@@ -365,24 +716,54 @@ function finalizeMetrics(context) {
     accessoryBonuses,
     cooldownGroups,
     cooldownGroupLabel,
+    // 끝마/무마의 "깎이기 전" 값과 그 축소 비중 — 계기판이 근거를 보여줘야 한다.
+    manaCooldownRaw: readNumber(percentBonuses.manaCooldownReduction),
+    manaCooldownShare: manaCooldownCoverage,
     cooldownReduction,
     cooldownIncrease,
     critOnlyDamage: percentBonuses.critOnlyDamage,
     critFactor,
     damageMultiplier,
+    plainMultiplier,
+    staggerMultiplier,
+    staggerShare,
+    specBundleFactor: specBundleResult.blend,
+    specBundleResults: specBundleResult.applied,
     cooldownFactor,
     attackSpeedFactor,
     damageIndex,
     dpsIndex,
+    // 공격력 축. 지수에는 곱하지 않는다 — 지수는 어디까지나 상대값이고,
+    // 절대 데미지를 내려면 스킬 계수가 있어야 하는데 그건 이 계산기 밖이다.
+    // 여기 있는 값은 평면 증가를 퍼센트로 바꾸는 데에만 쓰이고, 계기판이
+    // 근거로 적는다.
+    attack: attack ?? { weaponAttack: 0, mainStat: 0, flatAttack: 0 },
+    baseAttackPower: baseAttackPower(attack),
+    flatBonuses: flatBonuses ?? emptyFlatBonuses(),
+    // 기준값이 없어 버린 평면 증가들. 조용히 빠지면 왜 안 맞는지 모른다.
+    droppedFlat: droppedFlat ?? [],
+    // 깨달음·도약 — 무엇이 들어갔고 무엇이 안 들어갔는지.
+    awakening: awakening ?? { applied: [], skipped: [] },
+    synergy: synergy ?? { own: null, rows: [], lines: [], combatCount: 0, over: false },
   };
 }
 
-function applyEffect(effect, level, totalStats, percentBonuses, damageGroups, specials, manaShare) {
+function addCritOnlyDamage(percentBonuses, amount) {
+  const added = readNumber(amount);
+  if (added === 0) return;
+  const before = readNumber(percentBonuses.critOnlyDamage);
+  percentBonuses.critOnlyDamage = ((1 + before / 100) * (1 + added / 100) - 1) * 100;
+}
+
+function applyEffect(effect, level, totalStats, percentBonuses, damageGroups, specials, manaShare, settings) {
   if (effect.kind === "note") return;
   if (effect.kind === "special") {
     if (level > 0) specials[effect.key] = Math.max(specials[effect.key] || 0, level);
     return;
   }
+  // 노드 하나 안에서도 효과마다 조건이 다를 수 있다. 일격이 그렇다 —
+  // 치적은 전체, 치피는 방향성 스킬 한정.
+  if (!isDirectionalConditionActive(effect.condition, settings)) return;
 
   const amount = readNumber(effect.amount) * level * (effect.manaOnly ? manaShare : 1);
   if (amount === 0) return;
@@ -398,15 +779,34 @@ function applyEffect(effect, level, totalStats, percentBonuses, damageGroups, sp
   }
 
   if (effect.kind === "critOnlyDamage") {
-    percentBonuses.critOnlyDamage = readNumber(percentBonuses.critOnlyDamage) + amount;
+    addCritOnlyDamage(percentBonuses, amount);
     return;
   }
 
   percentBonuses[effect.key] = readNumber(percentBonuses[effect.key]) + amount;
 }
 
-function applyBaseEffect(effect, percentBonuses, damageGroups) {
-  const amount = readNumber(effect.amount);
+function applyBaseEffect(effect, percentBonuses, damageGroups, conversions, flat) {
+  const rate = effectUptimeRate(effect);
+  if (typeof effect.formula === "string" && effect.formula.trim()) {
+    if (Array.isArray(conversions)) {
+      conversions.push({
+        formula: effect.formula,
+        // 게임 노드는 대개 "최대 55%까지" 같은 상한을 함께 갖는다. 식 안에
+        // min()을 쓰게 하는 것보다 칸을 하나 두는 편이 읽고 고치기 쉽다.
+        cap: effect.cap,
+        category: effect.category,
+        customCategory: effect.customCategory,
+        label: effect.label,
+        // 유효율은 식이 낸 결과에 곱한다. 상한은 그대로 둔다 — 상한은 그 값에서
+        // 잘린다는 뜻이지 유효율만큼 같이 낮아지는 것이 아니다.
+        uptime: rate,
+      });
+    }
+    return;
+  }
+
+  const amount = readNumber(effect.amount) * rate;
   if (amount === 0) return;
 
   if (effect.category === "customDamage") {
@@ -421,10 +821,200 @@ function applyBaseEffect(effect, percentBonuses, damageGroups) {
     return;
   }
 
+  // 퍼센트가 아니라 숫자로 붙는 것들 — 팔찌 무공 +9,000 같은. 기준값을 만나야
+  // 퍼센트가 되므로 여기서는 모으기만 한다.
+  if (effect.category.startsWith("flat:")) {
+    addFlatBonus(flat, effect.category.slice("flat:".length), amount);
+    return;
+  }
+
+  if (effect.category === "critOnlyDamage") {
+    addCritOnlyDamage(percentBonuses, amount);
+    return;
+  }
+
   percentBonuses[effect.category] = readNumber(percentBonuses[effect.category]) + amount;
 }
 
-function applyEngravingEffects(engravingState, percentBonuses, damageGroups, manaShare, settings) {
+function effectUptimeRate(effect) {
+  const value = effect?.uptime;
+  if (value === undefined || value === null || value === "") return 1;
+  return clamp(readNumber(value), 0, 100) / 100;
+}
+
+const FORMULA_VARIABLES = [
+  { name: "공격속도", hint: "상한 40% 적용", stage: 1 },
+  { name: "이동속도", hint: "상한 40% 적용", stage: 1 },
+  { name: "공격속도합", hint: "상한 전", stage: 1 },
+  { name: "이동속도합", hint: "상한 전", stage: 1 },
+  { name: "치명", hint: "특성 수치", stage: 1 },
+  { name: "특화", hint: "특성 수치", stage: 1 },
+  { name: "신속", hint: "특성 수치", stage: 1 },
+  { name: "제압", hint: "특성 수치", stage: 1 },
+  { name: "인내", hint: "특성 수치", stage: 1 },
+  { name: "숙련", hint: "특성 수치", stage: 1 },
+  { name: "치명타적중률", hint: "상한 적용", stage: 2 },
+  { name: "치명타적중률합", hint: "상한 전", stage: 2 },
+  { name: "치명타피해", hint: "합계", stage: 2 },
+];
+
+function getFormulaStage(category) {
+  const key = String(category);
+  if (key === "attackSpeedOnly" || key === "moveSpeedOnly" || key === "attackSpeed") return 0;
+  if (key === "customDamage" || key.startsWith("damage:")) return 3;
+  return 2;
+}
+
+function evaluateFormula(text, variables) {
+  const src = String(text ?? "");
+  let at = 0;
+
+  const skip = () => { while (at < src.length && /\s/.test(src[at])) at += 1; };
+
+  function primary() {
+    skip();
+    if (src[at] === "(") {
+      at += 1;
+      const value = expression();
+      skip();
+      if (src[at] !== ")") throw new Error("괄호가 닫히지 않았습니다");
+      at += 1;
+      return value;
+    }
+    if (src[at] === "-") { at += 1; return -primary(); }
+    if (src[at] === "+") { at += 1; return primary(); }
+
+    if (src.startsWith("{{", at)) {
+      const end = src.indexOf("}}", at);
+      if (end < 0) throw new Error("변수 괄호가 닫히지 않았습니다");
+      const name = src.slice(at + 2, end).trim();
+      at = end + 2;
+      if (!Object.hasOwn(variables, name)) throw new Error(`모르는 변수: ${name}`);
+      return readNumber(variables[name]);
+    }
+
+    const fn = /^(min|max)\s*\(/i.exec(src.slice(at));
+    if (fn) {
+      at += fn[0].length;
+      const left = expression();
+      skip();
+      if (src[at] !== ",") throw new Error("min/max에는 값이 둘 필요합니다");
+      at += 1;
+      const right = expression();
+      skip();
+      if (src[at] !== ")") throw new Error("괄호가 닫히지 않았습니다");
+      at += 1;
+      return fn[1].toLowerCase() === "min" ? Math.min(left, right) : Math.max(left, right);
+    }
+
+    // 120% 처럼 퍼센트로 적는 편이 읽기 쉽다. 숫자 뒤에서만 허용한다.
+    const number = /^\d+(\.\d+)?%?/.exec(src.slice(at));
+    if (number) {
+      at += number[0].length;
+      const raw = Number(number[0].replace("%", ""));
+      return number[0].endsWith("%") ? raw / 100 : raw;
+    }
+    throw new Error("읽을 수 없는 글자입니다");
+  }
+
+  function term() {
+    let value = primary();
+    for (;;) {
+      skip();
+      if (src[at] === "*") { at += 1; value *= primary(); continue; }
+      if (src[at] === "/") {
+        at += 1;
+        const divisor = primary();
+        value = divisor === 0 ? 0 : value / divisor;
+        continue;
+      }
+      return value;
+    }
+  }
+
+  function expression() {
+    let value = term();
+    for (;;) {
+      skip();
+      if (src[at] === "+") { at += 1; value += term(); continue; }
+      if (src[at] === "-") { at += 1; value -= term(); continue; }
+      return value;
+    }
+  }
+
+  try {
+    if (!src.trim()) return null;
+    const value = expression();
+    skip();
+    if (at !== src.length) throw new Error("식 뒤에 남은 글자가 있습니다");
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildFormulaVariables(attackSpeed, moveSpeedBonus, totalStats, crit) {
+  return {
+    "공격속도": clamp(readNumber(attackSpeed), 0, 40),
+    "이동속도": clamp(readNumber(moveSpeedBonus), 0, 40),
+    "공격속도합": readNumber(attackSpeed),
+    "이동속도합": readNumber(moveSpeedBonus),
+    "치명": readNumber(totalStats?.critStat),
+    "특화": readNumber(totalStats?.specStat),
+    "신속": readNumber(totalStats?.swiftStat),
+    "제압": readNumber(totalStats?.dominationStat),
+    "인내": readNumber(totalStats?.enduranceStat),
+    "숙련": readNumber(totalStats?.expertiseStat),
+    // 2단. 치명타가 정해지기 전에 부르면 없는 채로 남고, 그 식은 '모르는 변수'로
+    // 걸러진다 — 조용히 0이 되지 않는다.
+    ...(crit ? {
+      "치명타적중률": readNumber(crit.rateCapped),
+      "치명타적중률합": readNumber(crit.rateRaw),
+      "치명타피해": readNumber(crit.damage),
+    } : {}),
+  };
+}
+
+function applyFormulaEffects(conversions, variables, percentBonuses, damageGroups, stage) {
+  if (!Array.isArray(conversions)) return [];
+
+  return conversions.map(item => {
+    const itemStage = getFormulaStage(item.category);
+    // 속도를 대상으로 삼는 식은 아예 걸지 않는다. 속도가 정해진 뒤에 걸리므로
+    // 되먹임이 없어 조용히 아무 일도 안 일어난 것처럼 보이기 때문이다.
+    if (itemStage === 0) return { ...item, amount: 0, invalid: true, reason: "속도는 대상이 될 수 없습니다" };
+    if (itemStage !== stage) return null;
+
+    const value = evaluateFormula(item.formula, variables);
+    // 식이 깨졌으면 0으로 두되 그 사실을 남긴다. 조용히 빠지면 왜 안 맞는지 모른다.
+    const raw = value === null ? 0 : value;
+    const cap = readNumber(item.cap);
+    const capped = item.cap !== "" && item.cap !== null && item.cap !== undefined && raw > cap;
+    // 상한을 먼저 먹이고 유효율을 곱한다. 게임의 상한은 그 값에서 잘린다는
+    // 뜻이지 "실리는 시간만큼 상한도 낮아진다"는 뜻이 아니다.
+    const rate = item.uptime === undefined ? 1 : clamp(readNumber(item.uptime), 0, 1);
+    const amount = (capped ? cap : raw) * rate;
+    const applied = {
+      ...item, amount, raw, capped,
+      invalid: value === null,
+      reason: value === null ? "식을 읽을 수 없습니다" : "",
+    };
+
+    if (amount === 0) return applied;
+    if (item.category === "customDamage") {
+      addDamageGroup(damageGroups, (item.customCategory || item.label || "기타 피해").trim(), amount);
+    } else if (String(item.category).startsWith("damage:")) {
+      addDamageGroup(damageGroups, String(item.category).slice("damage:".length), amount);
+    } else if (item.category === "critOnlyDamage") {
+      addCritOnlyDamage(percentBonuses, amount);
+    } else {
+      percentBonuses[item.category] = readNumber(percentBonuses[item.category]) + amount;
+    }
+    return applied;
+  });
+}
+
+function applyEngravingEffects(engravingState, percentBonuses, damageGroups, manaShare, settings, stones) {
   const engravingSpecials = {
     critRateMinimum: 0,
     raidCaptainRate: 0,
@@ -433,31 +1023,31 @@ function applyEngravingEffects(engravingState, percentBonuses, damageGroups, man
   ENGRAVING_LIBRARY.forEach(engravingItem => {
     const tierIndex = getEngravingTierIndex(engravingState?.[engravingItem.id]);
     if (tierIndex < 0) return;
-    applyEngravingTier(engravingItem, tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings);
+    applyEngravingTier(engravingItem, tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings, stones?.[engravingItem.id]);
   });
 
   return engravingSpecials;
 }
 
-function applyEngravingTier(engravingItem, tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings) {
+function applyEngravingTier(engravingItem, tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings, stoneLevel = 0) {
   // Directional engravings follow the same 백어택/헤드어택 gating as bracelets,
   // so head-attack and back-attack effects can never stack on one hit.
   if (!isDirectionalConditionActive(engravingItem.condition, settings)) return;
 
+  const put = (kind, key, amount) => {
+    if (kind === "damage") { addDamageGroup(damageGroups, key, amount); return; }
+    if (kind === "percent") { percentBonuses[key] = readNumber(percentBonuses[key]) + amount; return; }
+    if (kind === "special") engravingSpecials[key] = Math.max(readNumber(engravingSpecials[key]), amount);
+  };
+
   engravingItem.effects.forEach(effect => {
-    const amount = readNumber(effect.amounts?.[tierIndex]) * (effect.manaOnly ? manaShare : 1);
-    if (effect.kind === "damage") {
-      addDamageGroup(damageGroups, effect.key, amount);
-      return;
-    }
-    if (effect.kind === "percent") {
-      percentBonuses[effect.key] = readNumber(percentBonuses[effect.key]) + amount;
-      return;
-    }
-    if (effect.kind === "special") {
-      engravingSpecials[effect.key] = Math.max(readNumber(engravingSpecials[effect.key]), amount);
-    }
+    const amount = engravingAmount(effect.amounts, tierIndex) * (effect.manaOnly ? manaShare : 1);
+    put(effect.kind, effect.key, amount);
   });
+
+  // 어빌리티 스톤이 얹는 몫. 단계 사다리와 따로 더해진다.
+  const stone = engravingStoneAmount(engravingItem.id, stoneLevel, tierIndex);
+  if (stone) put(stone.kind, stone.key, stone.amount * (stone.manaOnly ? manaShare : 1));
 }
 
 function getEngravingTierIndex(value) {
@@ -476,13 +1066,15 @@ function normalizeBracelet(bracelet) {
     if (getBraceletGradeIndex(grade) >= 0) effects[item.id] = grade;
   });
 
-  return { stats, effects };
+  return { stats, mainStat: Math.max(0, Math.round(readNumber(bracelet?.mainStat))), effects };
 }
 
-function applyBraceletEffects(bracelet, settings, totalStats, percentBonuses, damageGroups) {
+function applyBraceletEffects(bracelet, settings, totalStats, percentBonuses, damageGroups, flat) {
   BRACELET_STAT_FIELDS.forEach(item => {
     totalStats[item.key] = readNumber(totalStats[item.key]) + readNumber(bracelet.stats[item.key]);
   });
+  // 힘민지는 평면으로 붙는다. 기준값(사전 세팅의 공격력)을 만나야 퍼센트가 된다.
+  addFlatBonus(flat, "mainStat", readNumber(bracelet.mainStat));
 
   BRACELET_EFFECTS.forEach(item => {
     const gradeIndex = getBraceletGradeIndex(bracelet.effects[item.id]);
@@ -492,6 +1084,10 @@ function applyBraceletEffects(bracelet, settings, totalStats, percentBonuses, da
       const amount = readNumber(effect.amounts?.[gradeIndex]);
       if (effect.kind === "damage") {
         addDamageGroup(damageGroups, effect.key, amount);
+        return;
+      }
+      if (effect.kind === "flat") {
+        addFlatBonus(flat, effect.key, amount);
         return;
       }
       if (effect.kind === "percent") {
@@ -509,17 +1105,24 @@ function isDirectionalConditionActive(condition, settings) {
   if (!condition) return true;
   if (condition === "backAttack") return Boolean(settings?.backAttack);
   if (condition === "headAttack") return Boolean(settings?.headAttack);
+  // 일격처럼 뒤든 머리든 방향성이기만 하면 되는 것. 백·헤드 중 하나면 붙는다.
+  if (condition === "directional") return Boolean(settings?.backAttack) || Boolean(settings?.headAttack);
   if (condition === "nonDirectional") return !settings?.backAttack && !settings?.headAttack;
   return false;
 }
 
 function normalizeAccessories(accessories) {
   const nextRings = Array.isArray(accessories?.rings) ? accessories.rings : [];
+  const nextEarrings = Array.isArray(accessories?.earrings) ? accessories.earrings : [];
   return {
     necklace: {
       ...DEFAULT_STATE.accessories.necklace,
       ...(accessories?.necklace || {}),
     },
+    earrings: DEFAULT_STATE.accessories.earrings.map((earring, index) => ({
+      ...earring,
+      ...(nextEarrings[index] || {}),
+    })),
     rings: DEFAULT_STATE.accessories.rings.map((ring, index) => ({
       ...ring,
       ...(nextRings[index] || {}),
@@ -530,10 +1133,18 @@ function normalizeAccessories(accessories) {
 function calculateAccessoryBonuses(accessories) {
   const result = {
     additionalDamage: getAccessoryOptionValue("necklace", "additionalDamage", accessories.necklace.additionalDamage),
+    // 목걸이의 '적에게 주는 피해'. 원한과 같은 그룹이라 서로 곱해진다.
+    dealtDamage: getAccessoryOptionValue("necklace", "dealtDamage", accessories.necklace.dealtDamage),
     critRate: 0,
     critDamage: 0,
+    attackPower: 0,
+    weaponAttack: 0,
   };
 
+  accessories.earrings.forEach(earring => {
+    result.attackPower += getAccessoryOptionValue("earring", "attackPower", earring.attackPower);
+    result.weaponAttack += getAccessoryOptionValue("earring", "weaponAttack", earring.weaponAttack);
+  });
   accessories.rings.forEach(ring => {
     result.critRate += getAccessoryOptionValue("ring", "critRate", ring.critRate);
     result.critDamage += getAccessoryOptionValue("ring", "critDamage", ring.critDamage);
@@ -543,6 +1154,247 @@ function calculateAccessoryBonuses(accessories) {
 
 function getAccessoryOptionValue(part, field, grade) {
   return readNumber(ACCESSORY_OPTION_VALUES[part]?.[field]?.[grade]);
+}
+
+function normalizeAttack(attack) {
+  return {
+    weaponAttack: Math.max(0, readNumber(attack?.weaponAttack)),
+    mainStat: Math.max(0, readNumber(attack?.mainStat)),
+    flatAttack: Math.max(0, readNumber(attack?.flatAttack)),
+    // 불러오기가 채우는 조각. 이걸 안 들고 다니면 세팅을 저장했다 열 때마다
+    // 조립이 무너져 기준값이 0이 되고, 평면 증가가 통째로 안 세어진다.
+    weaponFlat: Math.max(0, readNumber(attack?.weaponFlat)),
+    weaponPercent: Math.max(0, readNumber(attack?.weaponPercent)),
+    mainFlat: Math.max(0, readNumber(attack?.mainFlat)),
+    mainTotal: Math.max(0, readNumber(attack?.mainTotal)),
+    baseAttackPower: Math.max(0, readNumber(attack?.baseAttackPower)),
+    baseScalePercent: Math.max(0, readNumber(attack?.baseScalePercent)),
+    weaponFlatAll: Math.max(0, readNumber(attack?.weaponFlatAll)),
+    avatarPercent: Math.max(0, readNumber(attack?.avatarPercent)),
+  };
+}
+
+function assembleAttack(inputState) {
+  const source = inputState?.attack || {};
+  const convenience = inputState?.convenience;
+  const weaponFlat = Math.max(0, readNumber(source.weaponFlat));
+  const mainFlat = Math.max(0, readNumber(source.mainFlat));
+  const karma = Math.max(0, readNumber(convenience?.awakeningKarmaLevel)) * ARC_PASSIVE_CONSTANTS.awakeningKarmaWeaponPerLevel;
+  const ranch = resolveRanchMainStat(inputState);
+
+  const weaponAttack = weaponFlat > 0
+    ? weaponFlat * (1 + (readNumber(source.weaponPercent) + karma) / 100)
+    : Math.max(0, readNumber(source.weaponAttack));
+
+  // 힘민지 총합은 되짚은 값이 이긴다.
+  //
+  // 장비만 더하면 물약·도감·원정대 몫(약 2,400)이 빠져 0.4% 모자란다. 게임이
+  // 알려 준 기본 공격력에는 그게 이미 들어 있으므로, 되짚은 값이 있으면 그것을
+  // 총합으로 못 박고 배수는 나누는 쪽으로만 쓴다 — 그래야 목장 등급을 잘못
+  // 적어 두어도 총합은 게임과 맞고, 어긋나는 것은 평면을 나눌 기준뿐이다.
+  const mainScale = 1 + (avatarTotal(source) + ranch) / 100;
+  const derivedTotal = derivedMainTotal(inputState);
+  const mainTotal = derivedTotal > 0 ? derivedTotal : Math.max(0, readNumber(source.mainTotal));
+  const mainStat = mainTotal > 0
+    ? mainTotal
+    : (mainFlat > 0 ? mainFlat * mainScale : Math.max(0, readNumber(source.mainStat)));
+
+  return {
+    weaponAttack: Math.round(weaponAttack),
+    mainStat: Math.round(mainStat),
+    flatAttack: Math.max(0, readNumber(source.flatAttack)),
+    // 평면 증가를 나눌 기준. 조립한 값이 아니라 **배수 이전**의 합이다.
+    //
+    //   지능 = (장비 598,677 + 채끝 12,000) × 1.09
+    //   채끝의 몫 = (598,677 + 12,000)/598,677 = 1.02004   → 배수가 약분된다
+    //
+    // 게임에서 잰 값과 정확히 맞는다: 채끝을 먹으면 지능이 655,151 → 668,231,
+    // 차이 13,080 = 12,000 × 1.09. 조립한 값(652,558)으로 나누면 1.839%가 나와
+    // 채끝을 9% 낮게 본다 — 와인이냐 채끝이냐가 그 차이에서 갈린다.
+    //
+    // 팔찌 무공 +9,000도 같은 자리다. 그래서 weaponFlat은 팔찌를 안 담는다.
+    weaponBase: weaponFlat > 0 ? weaponFlat : Math.max(0, readNumber(source.weaponAttack)),
+    mainBase: mainTotal > 0
+      ? mainTotal / mainScale
+      : (mainFlat > 0 ? mainFlat : Math.max(0, readNumber(source.mainStat))),
+  };
+}
+
+function baseAttackPower(attack) {
+  const { weaponAttack, mainStat } = normalizeAttack(attack);
+  if (weaponAttack <= 0 || mainStat <= 0) return 0;
+  return Math.sqrt(mainStat * weaponAttack / 6);
+}
+
+function emptyFlatBonuses() {
+  return { weaponAttack: 0, mainStat: 0, attackPower: 0 };
+}
+
+function applyFlatAttackBonuses(flat, attack, damageGroups) {
+  // 나누는 값은 배수 이전의 합이다 — assembleAttack의 weaponBase/mainBase 참고.
+  // 조립한 값으로 나누면 아바타·목장·카르마만큼 평면 증가가 작아 보인다.
+  const base = {
+    weaponAttack: Math.max(0, readNumber(attack?.weaponBase ?? attack?.weaponAttack)),
+    mainStat: Math.max(0, readNumber(attack?.mainBase ?? attack?.mainStat)),
+  };
+  const power = baseAttackPower(attack);
+  const dropped = [];
+
+  const convert = (amount, divisor, group, label) => {
+    const value = readNumber(amount);
+    if (value === 0) return;
+    if (divisor <= 0) {
+      dropped.push({ label, amount: value });
+      return;
+    }
+    addDamageGroup(damageGroups, group, value / divisor * 100);
+  };
+
+  convert(flat.weaponAttack, base.weaponAttack, "무기 공격력", "평면 무기 공격력");
+  convert(flat.mainStat, base.mainStat, "힘민지", "평면 힘민지");
+  convert(flat.attackPower, power, "평면 공격력", "평면 공격력");
+
+  return dropped;
+}
+
+function addFlatBonus(flat, key, amount) {
+  if (!flat || !Object.hasOwn(flat, key)) return;
+  flat[key] = readNumber(flat[key]) + readNumber(amount);
+}
+
+const FOODS = [
+  { id: "none", label: "안 먹음", summary: "" },
+  { id: "wine", label: "베르닐 와인", summary: "이동 속도 +3%", moveSpeed: 3 },
+  { id: "blessing", label: "에아달린의 축복", summary: "공격 속도 +3%", attackSpeed: 3 },
+  { id: "steak", label: "거장의 채끝 스테이크", summary: "힘·민첩·지능 +12,000", mainStat: 12000 },
+];
+
+const FOOD_BY_ID = new Map(FOODS.map(food => [food.id, food]));
+
+function getFood(id) {
+  return FOOD_BY_ID.get(String(id ?? "none")) ?? FOOD_BY_ID.get("none");
+}
+
+function applyFoodEffects(id, percentBonuses, flatBonuses) {
+  const food = getFood(id);
+  if (food.attackSpeed) percentBonuses.attackSpeedOnly = readNumber(percentBonuses.attackSpeedOnly) + food.attackSpeed;
+  if (food.moveSpeed) percentBonuses.moveSpeedOnly = readNumber(percentBonuses.moveSpeedOnly) + food.moveSpeed;
+  if (food.mainStat) addFlatBonus(flatBonuses, "mainStat", food.mainStat);
+  return food;
+}
+
+const RANCH_GRADES = [
+  { value: 0, label: "없음", amount: 0 },
+  { value: 0.4, label: "0.4%", amount: 0.4 },
+  { value: 0.7, label: "0.7%", amount: 0.7 },
+  { value: 1, label: "1%", amount: 1 },
+];
+
+function ranchAmount(grade) {
+  if (grade === true) return 1;
+  const value = readNumber(grade);
+  const hit = RANCH_GRADES.find(item => item.value === value);
+  return hit ? hit.amount : 0;
+}
+
+const PASSION_DANCE_GRADES = [
+  { value: 0, label: "없음", amount: 0 },
+  { value: 1, label: "1Lv", amount: 6 },
+  { value: 2, label: "2Lv", amount: 12 },
+];
+
+function passionDanceAmount(level) {
+  const hit = PASSION_DANCE_GRADES.find(item => item.value === Math.round(readNumber(level)));
+  return hit ? hit.amount : 0;
+}
+
+const AVATAR_SLOTS = [
+  { key: "weapon", label: "무기" },
+  { key: "head", label: "머리" },
+  { key: "top", label: "상의" },
+  { key: "bottom", label: "하의" },
+];
+
+const AVATAR_GRADES = [
+  { value: "none", label: "없음", amount: 0 },
+  { value: "epic", label: "영웅", amount: 1 },
+  { value: "legendary", label: "전설", amount: 2 },
+];
+
+function avatarAmount(grade) {
+  const hit = AVATAR_GRADES.find(item => item.value === grade);
+  return hit ? hit.amount : 0;
+}
+
+function avatarTotal(attack) {
+  const slots = attack?.avatars;
+  if (slots && typeof slots === "object") {
+    return AVATAR_SLOTS.reduce((sum, slot) => sum + avatarAmount(slots[slot.key]), 0);
+  }
+  return Math.max(0, readNumber(attack?.avatarPercent));
+}
+
+function derivedMainTotal(inputState) {
+  const source = inputState?.attack || {};
+  const karma = Math.max(0, readNumber(inputState?.convenience?.awakeningKarmaLevel))
+    * ARC_PASSIVE_CONSTANTS.awakeningKarmaWeaponPerLevel;
+  const gameBase = Math.max(0, readNumber(source.baseAttackPower));
+  const baseScale = 1 + Math.max(0, readNumber(source.baseScalePercent)) / 100;
+  const weaponAll = Math.max(0, readNumber(source.weaponFlatAll));
+  if (!(gameBase > 0) || !(weaponAll > 0)) return 0;
+  return 6 * (gameBase / baseScale) ** 2 / (weaponAll * (1 + (readNumber(source.weaponPercent) + karma) / 100));
+}
+
+function ranchResidual(inputState) {
+  const source = inputState?.attack || {};
+  const mainFlat = Math.max(0, readNumber(source.mainFlat));
+  const total = derivedMainTotal(inputState);
+  if (!(total > 0) || !(mainFlat > 0)) return null;
+  return (total / mainFlat - 1) * 100 - avatarTotal(source);
+}
+
+function autoRanchAmount(inputState) {
+  const residual = ranchResidual(inputState);
+  if (residual === null) return 0;
+  return RANCH_GRADES.reduce(
+    (best, grade) => (Math.abs(grade.amount - residual) < Math.abs(best - residual) ? grade.amount : best),
+    0,
+  );
+}
+
+function resolveRanchMainStat(inputState) {
+  const source = inputState?.collection ?? {};
+  // 둘로 나뉘기 전 저장본은 ranch 한 칸에 둘 다 들어 있었다.
+  const grade = source.ranchMainStat ?? source.ranch;
+  return grade === "auto" ? autoRanchAmount(inputState) : ranchAmount(grade);
+}
+
+function resolveRanchDamage(collection) {
+  return ranchAmount(collection?.ranchDamage ?? collection?.ranch);
+}
+
+function applyAwakeningEffects(awakening, percentBonuses, damageGroups, conversions) {
+  const result = awakeningBonuses(awakening?.job, awakening?.nodeLevels, awakening?.uptime);
+  // 식으로 붙는 것은 여기서 값을 못 낸다 — 재료가 되는 속도·치적이 아직 없다.
+  // 직접 입력 효과와 같은 줄에 실어 두면 계산이 제 단계에서 푼다.
+  if (Array.isArray(conversions)) conversions.push(...(result.conversions ?? []));
+  Object.entries(result.percentBonuses).forEach(([key, amount]) => {
+    percentBonuses[key] = readNumber(percentBonuses[key]) + readNumber(amount);
+  });
+  Object.entries(result.damageGroups).forEach(([key, amount]) => {
+    addDamageGroup(damageGroups, key, amount);
+  });
+  return result;
+}
+
+function applySynergyEffects(inputState, percentBonuses, damageGroups) {
+  const result = synergyBonuses(inputState.awakening, inputState.synergy, inputState.settings);
+  Object.entries(result.damageGroups).forEach(([key, amount]) => addDamageGroup(damageGroups, key, amount));
+  Object.entries(result.percentBonuses).forEach(([key, amount]) => {
+    percentBonuses[key] = readNumber(percentBonuses[key]) + readNumber(amount);
+  });
+  if (result.critOnly !== 0) addCritOnlyDamage(percentBonuses, result.critOnly);
+  return result;
 }
 
 function addDamageGroup(damageGroups, key, amount) {
@@ -560,19 +1412,32 @@ function addDamageGroup(damageGroups, key, amount) {
 }
 
 function calculateBluntThornBonus(level, critRateRaw) {
-  if (level <= 0) return { damage: 0, convertedCrit: 0 };
+  if (level <= 0) {
+    return { damage: 0, convertedCrit: 0, excessCrit: 0, rate: 0, limit: 0, raw: 0, capped: false };
+  }
   const excessCritRate = Math.max(0, readNumber(critRateRaw) - 80);
   const conversionRate = level >= 2 ? 1.5 : 1.25;
   const conversionLimit = level >= 2 ? 60 : 45;
+  const raw = excessCritRate * conversionRate;
   return {
-    damage: Math.min(excessCritRate * conversionRate, conversionLimit),
+    damage: Math.min(raw, conversionLimit),
     convertedCrit: Math.min(excessCritRate, conversionLimit / conversionRate),
+    // 상한 80%를 넘긴 치적. 전환의 재료다.
+    excessCrit: excessCritRate,
+    rate: conversionRate,
+    limit: conversionLimit,
+    raw,
+    capped: raw > conversionLimit,
   };
 }
 
 function calculateSonicBreakthroughBonus(level, attackSpeedBonus, moveSpeedBonus) {
   if (level <= 0) {
-    return { damage: 0, baseDamage: 0, capBonus: 0, excessDamage: 0 };
+    return {
+      damage: 0, baseDamage: 0, capBonus: 0, excessDamage: 0,
+      baseRate: 0, excessRate: 0, fixedCapBonus: 0, maxDamage: 0,
+      speedSum: 0, excessSum: 0, bothOverCap: false, capped: false,
+    };
   }
 
   const maxDamage = level >= 2 ? 24 : 12;
@@ -594,16 +1459,40 @@ function calculateSonicBreakthroughBonus(level, attackSpeedBonus, moveSpeedBonus
     baseDamage,
     capBonus,
     excessDamage,
+    // 계기판이 그대로 옮겨 적을 근거들
+    baseRate,
+    excessRate,
+    fixedCapBonus,
+    maxDamage,
+    speedSum: appliedAttackBonus + appliedMoveBonus,
+    excessSum: attackExcess + moveExcess,
+    bothOverCap,
+    capped: rawExcessDamage > excessDamage,
   };
 }
 
-function getCooldownGroupLabel(groups, selectedValue) {
-  const epsilon = 0.0001;
-  const labels = [];
-  if (groups.mana > groups.global + epsilon && Math.abs(groups.mana - selectedValue) < epsilon) labels.push("끝마/무마");
-  if (groups.skill > groups.global + epsilon && Math.abs(groups.skill - selectedValue) < epsilon) labels.push("최훈/타지");
-  if (labels.length === 0) labels.push("공통");
-  return labels.join(", ");
+const COOLDOWN_GROUP_KEYS = ["swift", "generic", "mana", "skill", "jewel"];
+
+const COOLDOWN_GROUP_LABELS = {
+  swift: "신속",
+  generic: "직접 입력",
+  mana: "끝마/무마",
+  skill: "최훈/타지",
+  jewel: "보석",
+};
+
+const JEWEL_MAX_LEVEL = 10;
+
+function jewelCooldown(level) {
+  const value = clamp(Math.round(readNumber(level)), 0, JEWEL_MAX_LEVEL);
+  return value <= 0 ? 0 : (value + 2) * 2;
+}
+
+function getCooldownGroupLabel(groups) {
+  const labels = COOLDOWN_GROUP_KEYS
+    .filter(key => readNumber(groups[key]) !== 0)
+    .map(key => COOLDOWN_GROUP_LABELS[key]);
+  return labels.length > 0 ? labels.join(" × ") : "없음";
 }
 
 function getNodeCost(node) {
@@ -640,12 +1529,23 @@ function mergeState(base, next) {
     convenience: { ...base.convenience, ...(next.convenience || {}) },
     accessories,
     bracelet,
+    attack: normalizeAttack(next.attack),
+    awakening: {
+      job: readNumber(next.awakening?.job),
+      nodeLevels: { ...(next.awakening?.nodeLevels || {}) },
+      uptime: { ...(next.awakening?.uptime || {}) },
+    },
+    // 적어 넣은 줄만 담는다. 내 줄은 직업과 깨달음이 정하므로 가동율만 저장한다.
+    synergy: normalizeSynergy(next.synergy),
     arkGrid: normalizeArkGrid(next.arkGrid),
     collection: { ...base.collection, ...(next.collection || {}) },
     weapon: { ...base.weapon, ...(next.weapon || {}) },
+    jewel: { ...base.jewel, ...(next.jewel || {}) },
     engravings: { ...(next.engravings || {}) },
+    engravingStones: { ...(next.engravingStones || {}) },
     nodeLevels: { ...(next.nodeLevels || {}) },
     baseEffects: normalizeBaseEffects(next.baseEffects, base.baseEffects),
+    specBundles: normalizeSpecBundles(next.specBundles),
     selectedTier: next.selectedTier || base.selectedTier,
     setupName: next.setupName || "",
   };
@@ -680,16 +1580,40 @@ function normalizeBaseEffects(effects, fallbackEffects) {
 export {
   DEFAULT_STATE,
   MULTIPLICATIVE_DAMAGE_GROUPS,
+  SQRT_DAMAGE_GROUPS,
+  damageGroupFactor,
+  normalizeSynergy,
+  legacySynergyRows,
+  STAGGER_DAMAGE_GROUPS,
+  getStaggerShare,
   normalizeArkGrid,
   applyCoreEffect,
   applyArkGridEffects,
   applyCollectionEffects,
   applyWeaponEffects,
+  DAMAGE_MIX_KEYS,
+  DAMAGE_MIX_LABELS,
+  normalizeDamageMix,
+  SPEC_BUNDLE_KINDS,
+  normalizeSpecBundles,
+  specBundleValue,
+  specBundleRowFactor,
+  specBundleVariables,
+  specBundleBlend,
   getManaShareRatio,
+  getManaCooldownShareRatio,
+  blendCooldownRemain,
   calculateMetrics,
   finalizeMetrics,
+  addCritOnlyDamage,
   applyEffect,
   applyBaseEffect,
+  effectUptimeRate,
+  FORMULA_VARIABLES,
+  getFormulaStage,
+  evaluateFormula,
+  buildFormulaVariables,
+  applyFormulaEffects,
   applyEngravingEffects,
   applyEngravingTier,
   getEngravingTierIndex,
@@ -700,9 +1624,38 @@ export {
   normalizeAccessories,
   calculateAccessoryBonuses,
   getAccessoryOptionValue,
+  normalizeAttack,
+  assembleAttack,
+  baseAttackPower,
+  emptyFlatBonuses,
+  applyFlatAttackBonuses,
+  addFlatBonus,
+  FOODS,
+  FOOD_BY_ID,
+  getFood,
+  applyFoodEffects,
+  RANCH_GRADES,
+  ranchAmount,
+  PASSION_DANCE_GRADES,
+  passionDanceAmount,
+  AVATAR_SLOTS,
+  AVATAR_GRADES,
+  avatarAmount,
+  avatarTotal,
+  derivedMainTotal,
+  ranchResidual,
+  autoRanchAmount,
+  resolveRanchMainStat,
+  resolveRanchDamage,
+  applyAwakeningEffects,
+  applySynergyEffects,
   addDamageGroup,
   calculateBluntThornBonus,
   calculateSonicBreakthroughBonus,
+  COOLDOWN_GROUP_KEYS,
+  COOLDOWN_GROUP_LABELS,
+  JEWEL_MAX_LEVEL,
+  jewelCooldown,
   getCooldownGroupLabel,
   getNodeCost,
   normalizeNodeLevels,

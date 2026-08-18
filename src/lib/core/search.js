@@ -2,12 +2,13 @@
 // Source: ../../../../legacy/optimizer.js (search engine, UI stripped)
 
 import { EVOLUTION_TIERS, NODE_LIBRARY, ARC_PASSIVE_CONSTANTS } from "./data.js";
-import { ENGRAVING_TIERS, ENGRAVING_LIBRARY, NON_RAID_ENGRAVINGS } from "./engravings.js";
+import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "./engravings.js";
 import { readNumber, clamp } from "./util.js";
 import {
   DEFAULT_STATE, finalizeMetrics, applyBaseEffect, applyBraceletEffects, applyEngravingTier,
   calculateAccessoryBonuses, normalizeAccessories, normalizeBracelet, addDamageGroup,
   getEngravingTierIndex, getManaShareRatio, getNodeCost, emptyNodeLevels,
+  FOODS, assembleAttack,
 } from "./metrics.js";
 
 const OPTIMIZER_EXHAUSTIVE_LIMIT = 5000000;
@@ -24,16 +25,19 @@ const OPTIMIZER_MAX_EXPANSIONS = 800000;
 
 const OPTIMIZER_REFINE_BUDGET = 800000;
 
-const OPTIMIZER_PET_OPTIONS = ["none", "critStat", "specStat", "swiftStat"];
+const OPTIMIZER_PET_OPTIONS = ["none", "critStat", "specStat", "swiftStat", "dominationStat"];
 
 const OPTIMIZER_PET_LABELS = {
   none: "펫 없음",
   critStat: "펫 치명",
   specStat: "펫 특화",
   swiftStat: "펫 신속",
+  // 제압은 대난투 비중을 적었을 때만 딜이 된다. 그래도 갈래로 둔다 —
+  // 비중이 있는 사람에게는 실제로 고르는 선택지다.
+  dominationStat: "펫 제압",
 };
 
-const OPTIMIZER_TIER1_STEPS = { step10: 10, step5: 5, step2: 2 };
+const OPTIMIZER_TIER1_STEPS = { step10: 10, step5: 5, step2: 2, step1: 1 };
 
 const OPTIMIZER_ENGRAVING_ROLES = ["locked", "candidate", "excluded"];
 
@@ -45,13 +49,28 @@ const DIRECTION_REQUIREMENT_LABELS = {
   nonDirectional: "백어택·헤드어택을 모두 꺼야 적용",
 };
 
+const OPTIMIZER_INERT_NODES = new Map([
+  ["e2-goddess-blessing", "서폿용 노드 — 딜러에게는 가치가 없다"],
+  ["e3-passionate-dance", "서폿용 노드 — 딜러에게는 가치가 없다"],
+]);
+
 function getModeledStatKeys(sourceState) {
   const keys = new Set(["critStat", "swiftStat"]);
   if (readNumber(sourceState.base.specDamagePer100) !== 0) keys.add("specStat");
+  // 특화 묶음이 있으면 특화가 실제 딜이 된다 — 후보에 올려야 저울질이 된다.
+  if ((sourceState.specBundles || []).some(bundle =>
+    readNumber(bundle?.share) > 0 && (bundle?.rows || []).length > 0)) {
+    keys.add("specStat");
+  }
+  // 대난투 딜 비중을 적었으면 제압이 실제 피해가 된다. 안 적었으면 아무 값도
+  // 안 내므로 후보에서 빼는 편이 맞다 — 넣으면 탐색이 헛돈다.
+  if (readNumber(sourceState.convenience?.staggerShare) > 0) keys.add("dominationStat");
   return keys;
 }
 
-function isNodeImpactful(node, modeledStatKeys) {
+function isNodeImpactful(node, modeledStatKeys, excluded) {
+  if (excluded && excluded.has(node.id)) return false;
+  if (OPTIMIZER_INERT_NODES.has(node.id)) return false;
   return node.effects.some(effect => {
     if (effect.kind === "note") return false;
     if (effect.kind === "stat") return modeledStatKeys.has(effect.key);
@@ -99,8 +118,10 @@ function getModeledEngravings() {
   return ENGRAVING_LIBRARY.filter(item => item.effects.length > 0);
 }
 
+const DEFAULT_CANDIDATES = new Set(["grudge", "cursed-doll"]);
+
 function defaultEngravingRole(item) {
-  return NON_RAID_ENGRAVINGS.has(item.id) ? "excluded" : "candidate";
+  return DEFAULT_CANDIDATES.has(item.id) ? "candidate" : "excluded";
 }
 
 function enumerateEngravingSets(candidates, pickCount, locked) {
@@ -125,45 +146,57 @@ function enumerateEngravingSets(candidates, pickCount, locked) {
   return options;
 }
 
-function createTopList(limit, key) {
+function createTopList(limit, key, tiebreak) {
   const items = [];
   const seen = new Set();
-  let threshold = -Infinity;
+  const compare = (a, b) => (b[key] - a[key]) || (tiebreak ? b[tiebreak] - a[tiebreak] : 0);
+  const edge = () => (items.length >= limit ? items[items.length - 1] : null);
+
+  const wants = (score, tie) => {
+    const last = edge();
+    if (!last) return true;
+    if (score > last[key]) return true;
+    if (score < last[key]) return false;
+    // 값이 같으면 tiebreak으로 가른다. tiebreak이 없으면 예전처럼 안 받는다.
+    return tiebreak ? tie > last[tiebreak] : false;
+  };
 
   return {
     items,
+    wants,
     get threshold() {
-      return items.length >= limit ? threshold : -Infinity;
+      const last = edge();
+      return last ? last[key] : -Infinity;
     },
     offer(entry) {
-      const score = entry[key];
-      if (items.length >= limit && score <= threshold) return;
+      if (!wants(entry[key], tiebreak ? entry[tiebreak] : 0)) return;
       if (seen.has(entry.signature)) return;
       seen.add(entry.signature);
       items.push(entry);
-      items.sort((a, b) => b[key] - a[key]);
+      items.sort(compare);
       if (items.length > limit) {
         const dropped = items.pop();
         seen.delete(dropped.signature);
       }
-      threshold = items[items.length - 1][key];
     },
   };
 }
 
-function createParetoFront() {
+function createParetoFront(xKey, yKey) {
+  const x = xKey || "damageIndex";
+  const y = yKey || "dpsIndex";
   const items = [];
 
-  // Largest index whose damageIndex beats `value`, or -1 when none does.
+  // Largest index whose x beats `value`, or -1 when none does.
   // `strict` distinguishes "> value" (insert position) from ">= value"
-  // (domination test); equal-damage entries must be handled differently by each.
+  // (domination test); equal-x entries must be handled differently by each.
   const floorIndex = (damageIndex, strict) => {
     let low = 0;
     let high = items.length - 1;
     let found = -1;
     while (low <= high) {
       const mid = (low + high) >> 1;
-      const beats = strict ? items[mid].damageIndex > damageIndex : items[mid].damageIndex >= damageIndex;
+      const beats = strict ? items[mid][x] > damageIndex : items[mid][x] >= damageIndex;
       if (beats) {
         found = mid;
         low = mid + 1;
@@ -181,44 +214,22 @@ function createParetoFront() {
     // strongest possible dominator.
     accepts(damageIndex, dpsIndex) {
       const floor = floorIndex(damageIndex, false);
-      return floor < 0 || items[floor].dpsIndex < dpsIndex;
+      return floor < 0 || items[floor][y] < dpsIndex;
     },
     offer(entry) {
-      const floor = floorIndex(entry.damageIndex, false);
-      if (floor >= 0 && items[floor].dpsIndex >= entry.dpsIndex) return;
+      const floor = floorIndex(entry[x], false);
+      if (floor >= 0 && items[floor][y] >= entry[y]) return;
 
-      // Everything from here on has damage <= the new entry, so the leading run
-      // with dps <= the new entry is now dominated and drops out.
-      const insertAt = floorIndex(entry.damageIndex, true) + 1;
+      // Everything from here on has x <= the new entry, so the leading run
+      // with y <= the new entry is now dominated and drops out.
+      const insertAt = floorIndex(entry[x], true) + 1;
       let removeCount = 0;
-      while (insertAt + removeCount < items.length && items[insertAt + removeCount].dpsIndex <= entry.dpsIndex) {
+      while (insertAt + removeCount < items.length && items[insertAt + removeCount][y] <= entry[y]) {
         removeCount += 1;
       }
       items.splice(insertAt, removeCount, entry);
     },
   };
-}
-
-function annotateParetoKnees(front) {
-  const rates = front.map((item, index) => {
-    if (index === 0) return 0;
-    const previous = front[index - 1];
-    const damageDrop = previous.damageIndex - item.damageIndex;
-    if (damageDrop <= 0) return 0;
-    return (item.dpsIndex - previous.dpsIndex) / damageDrop;
-  });
-
-  const scored = rates.filter((rate, index) => index > 0 && rate > 0);
-  const median = scored.length > 0
-    ? scored.slice().sort((a, b) => a - b)[Math.floor(scored.length / 2)]
-    : 0;
-
-  return front.map((item, index) => ({
-    ...item,
-    exchangeRate: rates[index],
-    // Flagged when this step trades markedly better than the front's norm.
-    isKnee: index > 0 && median > 0 && rates[index] >= median * 1.6,
-  }));
 }
 
 function createChunkClock() {
@@ -242,12 +253,26 @@ function createChunkClock() {
 
 function selectBeam(candidates, beamWidth) {
   const half = Math.max(1, Math.floor(beamWidth / 2));
-  const byDamage = candidates.slice().sort((a, b) => b.damageIndex - a.damageIndex).slice(0, half);
-  const byDps = candidates.slice().sort((a, b) => b.dpsIndex - a.dpsIndex).slice(0, half);
+  // 하한 조건이 걸린 탐색에서는 조건을 채운 후보가 먼저다. 빔은 앞 차원에서
+  // 자른 것을 뒤에서 되돌리지 못하므로, 여기서 지표만 보고 고르면 마지막에
+  // 조건을 통과하는 빌드가 하나도 안 남는 일이 생긴다. 채운 후보가 빔을 다
+  // 채우지 못할 때만 모자란 순으로 나머지를 메운다.
+  //
+  // shortfall이 없으면(하한을 안 걸었으면) 전부 통과로 읽혀 예전과 같다.
+  const ok = candidates.filter(item => !(item.shortfall > 0));
+  const short = ok.length === candidates.length
+    ? []
+    : candidates.filter(item => item.shortfall > 0).sort((a, b) => a.shortfall - b.shortfall);
+
+  const take = key => {
+    const best = ok.slice().sort((a, b) => b[key] - a[key]).slice(0, half);
+    return best.length >= half ? best : best.concat(short.slice(0, half - best.length));
+  };
+
   const merged = [];
   const seen = new Set();
 
-  [...byDamage, ...byDps].forEach(item => {
+  [...take("damageIndex"), ...take("dpsIndex")].forEach(item => {
     const key = item.indexes.join(",");
     if (seen.has(key)) return;
     seen.add(key);
@@ -271,16 +296,17 @@ export {
   OPTIMIZER_ENGRAVING_ROLES,
   OPTIMIZER_ROLE_LABELS,
   DIRECTION_REQUIREMENT_LABELS,
+  OPTIMIZER_INERT_NODES,
   getModeledStatKeys,
   isNodeImpactful,
   enumerateNodeCombos,
   keepFullBudgetCombos,
   getModeledEngravings,
+  DEFAULT_CANDIDATES,
   defaultEngravingRole,
   enumerateEngravingSets,
   createTopList,
   createParetoFront,
-  annotateParetoKnees,
   createChunkClock,
   selectBeam,
 };

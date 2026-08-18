@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 인벤에서 받아 둔 아크 패시브 원본 — scripts/inven-dump.mjs
+#
+# 앞의 슬래시가 중요하다. `data/`라고만 쓰면 어느 깊이에서든 걸려서
+# src/lib/data/ 아래 **생성 결과까지** 빠진다 — 새로 받은 사람은 트리가
+# 통째로 비어 있게 된다. 원본은 안 올리고 생성물은 올린다
+# (src/lib/core/*.js와 같은 규칙이다).
+/data/
+
+# search-audit이 API 응답을 받아 두는 자리 — 캐릭터 데이터라 올리지 않는다.
+.cache-character.json
+
+# 전투정보실에서 받아 둔 캐릭터 덤프 — 파일 이름에 캐릭터명이 그대로 들어간다.
+# 같은 자리의 lostark-api.md는 문서라 올린다.
+docs/armory-*
+
+# 실수로 생긴 빈 파일
+새 텍스트 문서.txt

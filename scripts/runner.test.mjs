@@ -27,7 +27,7 @@ function randomState() {
   }
 
   return mergeState(DEFAULT_STATE, {
-    arkGrid: { cores, gemLevel: Math.floor(Math.random() * 11) },
+    arkGrid: { cores, gems: { attack: Math.floor(Math.random() * 31), additional: Math.floor(Math.random() * 21), boss: Math.floor(Math.random() * 21) } },
     weapon: { quality: Math.floor(Math.random() * 101) },
     collection: {
       ranch: maybe(),
@@ -42,7 +42,7 @@ function randomState() {
       specDamagePer100: maybe() ? Math.random() * 5 : 0,
     },
     settings: {
-      pointBudget: 140, includeCooldown: maybe(),
+      pointBudget: 140,
       backAttack: maybe(), headAttack: maybe(),
     },
     convenience: {
@@ -63,14 +63,16 @@ function referenceMetrics(state, plan, picks) {
   const nodeLevels = emptyNodeLevels();
   const engravings = { ...state.engravings };
   let petStat = "none";
+  let food = "none";
   for (const p of picks) {
     if (p.kind === "pet") petStat = p.pet;
+    else if (p.kind === "food") food = p.food;
     else if (p.kind === "engravingSet") {
       plan.engravings.controlledIds.forEach(id => delete engravings[id]);
       p.active.forEach(e => { engravings[e.item.id] = ENGRAVING_TIERS[e.tierIndex].value; });
     } else p.levels.forEach(([id, lv]) => { nodeLevels[id] = lv; });
   }
-  return calculateMetrics({ ...state, nodeLevels, engravings, convenience: { ...state.convenience, petStat } });
+  return calculateMetrics({ ...state, nodeLevels, engravings, convenience: { ...state.convenience, petStat, food } });
 }
 
 // --- (a) evaluator vs calculateMetrics --------------------------------------
@@ -82,7 +84,7 @@ for (let trial = 0; trial < 40; trial += 1) {
   const state = randomState();
   const options = {
     tier1Mode: pick(["fixed", "step10", "step5"]),
-    petSearch: true,
+    
     engravingSlots: pick(["fixed", "3", "5"]),
     fullBudget: maybe(),
   };
@@ -109,7 +111,7 @@ const checks = [];
 
 for (let trial = 0; trial < 6; trial += 1) {
   const state = randomState();
-  const options = { tier1Mode: "fixed", petSearch: true, engravingSlots: "fixed", fullBudget: true, mode: "exhaustive", resultLimit: 20 };
+  const options = { tier1Mode: "fixed", engravingSlots: "fixed", fullBudget: true, mode: "exhaustive", resultLimit: 20 };
   const result = await runSearch(state, options);
   const plan = result.plan;
   const evaluate = buildEvaluator(state, new Set(plan.engravings.controlledIds));
@@ -157,14 +159,16 @@ console.log(`(c) collected front == brute-force front: ${checks.filter(c => c.fr
 let applyFailures = 0;
 for (let trial = 0; trial < 8; trial += 1) {
   const state = randomState();
-  const result = await runSearch(state, { tier1Mode: "step10", petSearch: true, engravingSlots: "5", mode: "beam", beamWidth: 200 });
+  const result = await runSearch(state, { tier1Mode: "step10", engravingSlots: "5", mode: "beam", beamWidth: 200 });
   for (const entry of [result.damage[0], result.dps[0], ...result.pareto.slice(0, 3)]) {
     if (!entry) continue;
     const applied = calculateMetrics({
       ...state,
       nodeLevels: entry.nodeLevels,
       engravings: entry.engravings,
-      convenience: { ...state.convenience, petStat: entry.pet },
+      // 음식도 결과에 실려 온다. 안 옮기면 탐색이 보여 준 숫자와 어긋난다 —
+      // 실제로 이 검사가 그걸 잡았다.
+      convenience: { ...state.convenience, petStat: entry.pet, food: entry.food },
     });
     if (Math.abs(applied.damageIndex - entry.damageIndex) > 1e-9 || Math.abs(applied.dpsIndex - entry.dpsIndex) > 1e-9) {
       applyFailures += 1;
