@@ -219,7 +219,7 @@
   {/each}
 </nav>
 
-<main class="page" class:with-gauge={tab !== "setup"}>
+<main class="page">
   {#if tab === "setup"}
     <PageSetup
       onOpenBracelet={() => (braceletOpen = true)}

@@ -82,7 +82,7 @@
     return { point, label: ceilingLabel(sweep, point.id) };
   });
 
-  // 고르기만 한다. 실제로 얹는 것은 아래 막대의 '확정하고 빌드로'다.
+  // 고르기만 한다. 고른 점은 아래 막대에 임시 열로 서고, 담기는 표의 체크가 한다.
   function choose(point) {
     app.selectedId = point.id;
   }
@@ -173,6 +173,7 @@
     {/if}
     <span class="ramp-cloud" aria-hidden="true"></span>
     <small>순위권 {cloud.length}</small>
-    <small style="margin-left:auto">점을 누르면 그 세팅이 적용됩니다</small>
+    <!-- '적용됩니다'라고 적혀 있었다 — 지금은 아무것도 안 얹는다. 고르기다. -->
+    <small style="margin-left:auto">점 클릭 = 고르기</small>
   </div>
 {/if}

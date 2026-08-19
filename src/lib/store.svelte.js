@@ -451,6 +451,11 @@ function persistView() {
 
 export function goPage(page) {
   app.page = clamp(Math.round(page), 1, PAGES.length);
+  // 결과는 저장하지 않으므로 새로고침 뒤의 '결과' 탭 기억은 빈 화면을 가리킨다.
+  // 보여줄 결과가 없으면 설정에 내려 준다.
+  if (app.page === PAGE.search && !app.results && app.tabs.search === "results") {
+    app.tabs.search = "rules";
+  }
   persistView();
 }
 

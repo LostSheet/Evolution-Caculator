@@ -511,7 +511,7 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
 /* 표가 넓어도 카드가 안에서 스크롤하게 둔다. 격자 칸의 기본 min-width는
    auto라, 이걸 안 풀면 카드가 제 내용 폭을 그대로 밀어붙인다. */
 .split-main > * { min-width: 0; }
-.preview-rail { display: grid; gap: 18px; position: sticky; top: 70px; min-width: 0; }
+.preview-rail { display: grid; gap: 18px; position: sticky; top: 118px; min-width: 0; }
 
 /* 계기판은 화면 안에서 끝난다.
    블록이 열 몇 개라 그냥 두면 화면 세 배 높이가 되고, 출처를 읽으려고
@@ -519,8 +519,9 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
    목록만 안에서 구르게 한다 — 아래 고정 막대 자리(88px)를 빼고 잡는다. */
 .gauge {
   position: sticky;
-  top: 70px;
-  max-height: calc(100vh - 70px - 88px);
+  /* 상단 바 52 + 하위 탭 48 + 숨 18 */
+  top: 118px;
+  max-height: calc(100vh - 118px - 88px);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
@@ -571,19 +572,6 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
   font-variant-numeric: tabular-nums;
 }
 .g-formula b { color: var(--cool-dim); font-weight: 500; }
-
-/* 기준 지정 단추. 이름이 길어서 상자를 두르면 머리글을 단추 하나가 잡아먹는다.
-   테두리 없이 글자만 두고, 밑줄은 눌러 보이라고 hover에서만 켠다. */
-.g-pin {
-  font-size: 12px;
-  color: var(--txt-3);
-  white-space: nowrap;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-  transition: color 120ms ease, text-decoration-color 120ms ease;
-}
-.g-pin:hover, .g-pin:focus-visible { color: var(--cool); text-decoration-color: currentColor; }
 
 .g-note {
   padding: 9px 14px;
@@ -846,7 +834,7 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
   gap: 18px;
   align-items: start;
 }
-.scope-rail { display: grid; gap: 18px; position: sticky; top: 70px; }
+.scope-rail { display: grid; gap: 18px; position: sticky; top: 118px; }
 
 .pool-list {
   display: grid;
@@ -1143,7 +1131,7 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
 
 /* ─── 선택 상세 ────────────────────────────────────────────────── */
 
-.detail { position: sticky; top: 70px; }
+.detail { position: sticky; top: 118px; }
 
 .detail-empty { padding: 40px 18px; color: var(--txt-3); font-size: 12.5px; line-height: 1.6; }
 
@@ -3259,11 +3247,20 @@ td.moved .c-value { font-weight: 500; }
   transition: transform 120ms ease;
 }
 .card-fold[open] > summary::before { transform: rotate(45deg); }
-.card-fold > summary h2 { margin: 0; }
+/* 제목은 안 꺾인다. 좁아지면 '팔/찌'처럼 세로로 쪼개져 망가진 것으로 읽힌다.
+   양보는 옆의 요약이 한다 — 한 줄로 줄이고 넘치면 자른다. */
+.card-fold > summary h2 { margin: 0; white-space: nowrap; }
 .card-fold > summary:hover { background: var(--surface-2); }
 .card-fold[open] > summary { border-bottom: 1px solid var(--line-soft); }
 .card-fold > .card-body { padding-top: 12px; }
-.card-fold > summary .fold-note { font-size: 12px; color: var(--txt-3); }
+.card-fold > summary .fold-note {
+  font-size: 12px;
+  color: var(--txt-3);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* 격자 아래 전폭 카드. 파티 시너지는 줄마다 직업·가동율이 늘어서고, 직접 입력
    효과는 이름·갈래·수식이 한 줄이라 1/3 폭에서는 둘 다 접힌다. */
@@ -3990,12 +3987,19 @@ td.base .c-levels li { color: var(--txt); }
 .c-goto:hover { border-color: var(--cool); color: var(--cool); }
 
 /* 하위 탭 — 축 안의 부위.
-   상단 축 탭과 생김새를 달리한다. 같으면 어느 쪽이 큰 갈래인지 안 보인다. */
+   상단 축 탭과 생김새를 달리한다. 같으면 어느 쪽이 큰 갈래인지 안 보인다.
+   상단 바처럼 붙박이다 — 긴 페이지에서 탭을 갈아타려고 맨 위로 돌아가는 일이
+   없어야 한다. 배경도 상단 바와 같은 반투명이라 한 장처럼 붙는다. */
 .subtabs {
+  position: sticky;
+  top: 52px;
+  z-index: 29;
   display: flex;
   gap: 2px;
   padding: 10px clamp(14px, 3vw, 26px) 0;
   border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
 }
 .subtab {
   padding: 7px 16px 9px;
@@ -4027,6 +4031,23 @@ td.base .c-levels li { color: var(--txt); }
 .card { min-width: 0; }
 .results-main > .card { min-width: 0; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
+
+/* 결과 표는 제 상자 안에서 구른다. 80줄을 페이지째 구르면 머리글이 사라져
+   어느 열이 무엇인지 세어야 하고, 가로 스크롤바가 표 맨 아래에만 있어 중간
+   줄에서는 오른쪽 끝의 담기에 닿을 수 없다. 상자가 화면 안에서 끝나면
+   머리글은 붙박이가 되고 스크롤바는 늘 손 닿는 자리다. */
+.results-main .table-scroll {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+/* border-collapse에서는 붙박이 th의 밑금이 같이 굴러가 버린다. 그림자로 긋는다. */
+.results-main table.results thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
 
 /* 고른 줄을 잠깐 세운 것. 담은 것과 눈으로 갈려야 한다 — 담기 전에는
    화면을 떠나면 사라진다. */

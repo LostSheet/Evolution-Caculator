@@ -9,12 +9,9 @@
   //
   // showLead=false는 한 방 딜·DPS를 아래 고정 막대가 들고 있는 자리에서 쓴다.
   // 같은 숫자를 두 군데 띄우면 어느 쪽이 기준인지 흐려진다.
-  //
-  // onPinBaseline은 비교 기준을 손으로 정하는 단추다. 빌드 화면에서만 넘긴다 —
-  // 탐색 미리보기의 기준은 언제나 '지금 내 빌드'라서 고를 것이 없다.
   let {
     report, deltas = [], title = "상세", note = "", meta = "",
-    showHead = true, showLead = true, onPinBaseline = null,
+    showHead = true, showLead = true,
   } = $props();
 
   // 진화 배분을 바꿔도 안 움직이는 항목은 접어 둔다. 무기 공격력 같은 것은
@@ -154,10 +151,6 @@
       <h3>{title}</h3>
       <span class="spacer"></span>
       {#if meta}<span class="g-meta">{meta}</span>{/if}
-      <!-- 테두리 없이. 이름이 길어서 상자를 두르면 머리글이 단추 하나에 잡아먹힌다. -->
-      {#if onPinBaseline}
-        <button class="g-pin" type="button" onclick={onPinBaseline}>현재 세팅 기준으로 비교</button>
-      {/if}
     </div>
   {/if}
 
