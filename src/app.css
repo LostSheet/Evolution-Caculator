@@ -3673,21 +3673,21 @@ td.base .c-levels li { color: var(--txt); }
 
 .build-drawer {
   position: fixed;
-  top: 0;
+  left: 0;
   right: 0;
   bottom: 0;
   z-index: 30;
-  /* 넓다. 노드판 30칸과 계기판이 한 화면에 같이 서야 해서다 — 좁히면 노드
-     이름이 '치…'로 잘리고, 그러면 게임 화면처럼 자리로 찾는 감각이 사라진다.
-     왼쪽에 남는 한 뼘이 '이건 덮개다'라고 말해 준다. */
-  width: min(1560px, 96vw);
+  /* 아래에서 올라온다. 이 서랍을 여는 손잡이가 화면 맨 아래 막대(비교함)라,
+     옆에서 들어오면 손잡이와 물건이 따로 놀아 같은 것으로 안 읽힌다.
+     위를 한 뼘 남긴다 — 그 틈이 '이건 덮개다'라고 말해 주고 눌러 닫는 자리다. */
+  height: min(92vh, 100vh - 56px);
   display: flex;
   flex-direction: column;
   min-width: 0;
   background: var(--bg);
-  border-left: 1px solid var(--line);
-  box-shadow: -24px 0 48px -24px color-mix(in srgb, #000 55%, transparent);
-  transform: translateX(101%);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -24px 48px -24px color-mix(in srgb, #000 55%, transparent);
+  transform: translateY(101%);
   transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .build-drawer.open { transform: none; }
@@ -3699,20 +3699,20 @@ td.base .c-levels li { color: var(--txt); }
 .bd-grip {
   position: absolute;
   top: 0;
-  bottom: 0;
   left: 0;
-  width: 14px;
-  cursor: ew-resize;
+  right: 0;
+  height: 14px;
+  cursor: ns-resize;
   touch-action: none;
 }
 .bd-grip::after {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 5px;
-  width: 3px;
-  height: 46px;
-  transform: translateY(-50%);
+  left: 50%;
+  top: 5px;
+  width: 46px;
+  height: 3px;
+  transform: translateX(-50%);
   border-radius: 2px;
   background: var(--line-lift);
 }
@@ -3723,7 +3723,7 @@ td.base .c-levels li { color: var(--txt); }
   align-items: center;
   gap: 10px;
   flex: none;
-  padding: 12px 18px 12px 24px;
+  padding: 18px 18px 12px;
   border-bottom: 1px solid var(--line);
 }
 .bd-title { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
@@ -3903,3 +3903,63 @@ td.base .c-levels li { color: var(--txt); }
 .sb-slot-nums em.up { color: var(--good); }
 .sb-slot-nums em.down { color: var(--bad); }
 .sb-slot-nums em.ref { color: var(--txt-3); }
+
+/* 서랍 탭. 비교함과 빌드는 둘 다 세로를 많이 먹어 겹쳐 둘 수 없다. */
+.bd-tabs { display: flex; gap: 4px; flex: none; }
+.bd-tab {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.bd-tab:hover { color: var(--txt-2); }
+.bd-tab.on { border-color: var(--cool); color: var(--cool); background: color-mix(in srgb, var(--cool) 12%, transparent); }
+/* 지금 만지는 슬롯. 탭 옆에 붙어 어느 빌드를 여는지 말한다. */
+.bd-who { font-size: 12px; color: var(--txt-3); white-space: nowrap; }
+
+/* 결과 표의 담기·자세히 칸. 줄 클릭은 '고르기'라 이 둘은 줄로 안 번진다. */
+.results th.pick-col, .results td.pick-col { width: 34px; text-align: center; padding-left: 4px; padding-right: 4px; }
+.results td.pick-col input[type="checkbox"] { cursor: pointer; }
+/* 비교함에 담긴 줄. 고른 줄(selected)과 다른 표시라 색을 나눈다. */
+.results tr.boxed td { background: color-mix(in srgb, var(--cool) 7%, transparent); }
+.row-more {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.row-more:hover { background: var(--surface-2); color: var(--cool); }
+.row-more svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+
+/* 후보 자세히 모달 */
+.rd-figures { display: flex; flex-wrap: wrap; gap: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--line-soft); }
+.rd-figures > div { display: grid; gap: 2px; }
+.rd-figures dt { font-size: 11.5px; color: var(--txt-3); }
+.rd-figures dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  color: var(--cool);
+}
+.rd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; padding-top: 14px; }
+.rd-grid h3 { font-size: 12px; font-weight: 600; color: var(--txt-2); margin-bottom: 7px; }
+.rd-grid section > h3 + h3 { margin-top: 14px; }
+.rd-grid section > .summary-line + h3 { margin-top: 14px; }
+.rd-tier { margin-bottom: 9px; }
+.rd-tier > b { font-size: 11.5px; color: var(--txt-3); }
+.rd-tier ul { display: grid; gap: 2px; margin-top: 3px; }
+.rd-tier li { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--txt-2); }
+.rd-tier li em { font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--cool); margin-left: auto; }
+.rd-foot { display: flex; justify-content: flex-end; padding-top: 16px; }
+
+/* 미리보기 레일이 사라져 결과 화면은 한 칸이다. */
+.results-main { display: grid; gap: 14px; min-width: 0; }

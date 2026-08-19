@@ -33,7 +33,8 @@
     "test:lostark": "node scripts/lostark.test.mjs",
     "test:awakening-audit": "node scripts/awakening-audit.mjs",
     "test:legacy": "node scripts/diff-legacy.mjs",
-    "tool": "vite --config vite.tool.config.js"
+    "tool": "vite --config vite.tool.config.js",
+    "deploy": "vite build"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",

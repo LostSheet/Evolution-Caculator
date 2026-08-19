@@ -232,8 +232,9 @@ export const PAGES = [
   // 화면이 접혔다 펴졌다 한다. 설정 화면은 지금 빌드와도, 고른 후보와도 상관이
   // 없는 자리다 — 규칙만 산다.
   { n: 3, key: "rules", label: "탐색 설정" },
+  // 비교는 페이지가 아니라 비교함이다 — 하단 막대가 접힌 모습이고, 열면
+  // 서랍에서 나란히 선다. 페이지로 두면 담으려고 화면을 넘나들어야 했다.
   { n: 4, key: "results", label: "탐색 결과" },
-  { n: 5, key: "compare", label: "비교" },
 ];
 
 // 페이지 번호를 코드에 박아 두면 사이에 하나 끼울 때마다 여기저기가 어긋난다.
@@ -430,13 +431,26 @@ export function slotOriginLabel(slot) {
 
 /** 슬롯이 드는 세 가지. 상한 밖 값은 여기서 깎는다 — 슬롯마다 다르게 깎이면
  *  비교표가 실제로 존재할 수 없는 차이를 보여준다. */
-function currentBuild() {
+/**
+ * 지금 화면이 들고 있는 빌드.
+ *
+ * export한다. 화면 여러 곳이 "활성 슬롯은 저장된 값 말고 산 값으로 재야 한다"를
+ * 각자 손으로 짜고 있었는데, 그러다 음식을 빠뜨려서 활성 슬롯만 음식 없이
+ * 계산됐다 — 같은 세팅인데 어느 칸을 고르느냐에 따라 딜이 갈렸다.
+ * 빌드가 무엇으로 이루어지는지는 한 군데서만 정한다.
+ */
+export function currentBuild() {
   return normalizeBuild({
     nodeLevels: app.character.nodeLevels,
     engravings: app.character.engravings || {},
     pet: app.character.convenience.petStat,
     food: app.character.convenience.food,
   });
+}
+
+/** 이 슬롯을 잴 빌드 — 활성 슬롯이면 산 값, 아니면 담아 둔 값. */
+export function slotBuild(slot) {
+  return slot.id === app.activeSlotId ? currentBuild() : slot.build;
 }
 
 function normalizeBuild(build) {
@@ -538,6 +552,21 @@ function freeName(base) {
     if (!app.slots.some(slot => slot.name === name)) return name;
   }
   return base;
+}
+
+/**
+ * '탐색 N' 다음 번호.
+ *
+ * 개수로 세면 안 된다. 담고 빼고를 섞으면 이미 있는 이름과 부딪혀
+ * freeName이 '탐색 2 2'를 만든다 — 담기와 빼기를 번갈아 눌러 실제로 봤다.
+ * 지금 붙어 있는 번호 중 가장 큰 것에서 하나 올린다.
+ */
+function nextSearchName() {
+  const used = app.slots
+    .map(slot => /^탐색 (\d+)$/.exec(slot.name))
+    .filter(Boolean)
+    .map(match => Number(match[1]));
+  return `탐색 ${used.length > 0 ? Math.max(...used) + 1 : 1}`;
 }
 
 /**
@@ -1455,15 +1484,66 @@ export function previewResult(entry) {
  */
 export function confirmResult(entry) {
   if (!entry) return;
-  const n = app.slots.filter(slot => slot.origin === "search").length + 1;
   app.selectedId = entry.id;
   const slot = addSlot({
-    name: freeName(`탐색 ${n}`),
+    name: nextSearchName(),
     origin: "search",
     build: { nodeLevels: entry.nodeLevels, engravings: entry.engravings, pet: entry.pet, food: entry.food },
   });
   app.status = `'${slot.name}'로 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
   openDrawer();
+}
+
+// --- 비교함 담기 ------------------------------------------------------------
+//
+// 탐색 결과의 체크가 곧 담기다. 예전에는 줄을 고르고 하단 막대의 단추를
+// 눌러야 했는데, 그러면 "지금 고른 것"과 "담은 것"이 다른 개념이 되어
+// 여러 개를 견주려면 골랐다 담았다를 번갈아야 했다.
+//
+// 같은 빌드가 두 번 담기면 안 된다. 이름이 아니라 배분으로 견준다 — 이름은
+// 유저가 바꾸고, 탐색 결과는 이름을 안 들고 있다.
+function resultKey(build) {
+  return [
+    Object.entries(normalizeNodeLevels(build?.nodeLevels ?? {})).map(([, v]) => v).join(","),
+    build?.pet || "none",
+    build?.food || "none",
+    Object.entries(build?.engravings ?? {}).sort().map(([k, v]) => `${k}:${v}`).join(","),
+  ].join("|");
+}
+
+/** 이 후보가 이미 비교함에 있나. 있으면 그 슬롯. */
+export function boxedSlot(entry) {
+  if (!entry) return null;
+  const key = resultKey(entry);
+  return app.slots.find(slot => resultKey(slot.build) === key) ?? null;
+}
+
+/** 체크 = 담기, 체크 해제 = 빼기. */
+export function toggleBoxed(entry) {
+  if (!entry) return;
+  const found = boxedSlot(entry);
+  if (found) {
+    // 마지막 하나는 못 뺀다 — 비교함이 비면 하단 막대가 사라진다.
+    if (app.slots.length <= 1) {
+      app.status = "비교함에 하나는 남아야 합니다.";
+      return;
+    }
+    removeSlot(found.id);
+    app.status = `'${found.name}'을 비교함에서 뺐습니다.`;
+    return;
+  }
+  if (app.slots.length >= SLOT_LIMIT) {
+    app.status = `비교함이 ${SLOT_LIMIT}개로 가득 찼습니다. 하나 빼고 담으세요.`;
+    return;
+  }
+  const slot = addSlot({
+    name: nextSearchName(),
+    origin: "search",
+    build: { nodeLevels: entry.nodeLevels, engravings: entry.engravings, pet: entry.pet, food: entry.food },
+    // 담자마자 화면이 그 빌드로 갈아타면 곡선에서 눈이 떨어진다. 담기만 한다.
+    select: false,
+  });
+  app.status = `'${slot.name}'로 담았습니다.`;
 }
 
 export function currentSignature() {

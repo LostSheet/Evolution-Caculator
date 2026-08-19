@@ -1,10 +1,14 @@
 <script>
-  // 5페이지 — 슬롯을 열로 세우고 항목을 행으로 놓는다.
+  // 비교함 — 슬롯을 열로 세우고 항목을 행으로 놓는다.
   //
   // 슬롯을 행에 놓으면 열이 폭발한다. 진화 노드만 서른 개다. 열이 슬롯이면
   // 항목을 아무리 늘려도 세로로만 길어지고, 가로는 슬롯 수로 묶인다.
+  //
+  // 슬롯을 다루는 단추(이름 바꾸기·기준 삼기·되돌리기·지우기·담기)는 전부
+  // 열 머리에 있다. 예전에는 서랍 위에도 같은 줄이 있었는데, 아래 막대가
+  // 비교함이 되면서 같은 목록이 화면에 두 벌이 됐다.
   import {
-    app, goPage, PAGE, buildState, selectSlot, addSlot, renameSlot, revertSlot, removeSlot, openDrawer,
+    app, goPage, PAGE, buildState, slotBuild, selectSlot, addSlot, renameSlot, revertSlot, removeSlot, openDrawer,
     slotDirty, slotOriginLabel,
   } from "../store.svelte.js";
   import { calculateMetrics, getEngravingTierIndex } from "../core/metrics.js";
@@ -13,6 +17,9 @@
   import { OPTIMIZER_PET_LABELS } from "../core/search.js";
   import { formatNumber, percentDelta } from "../core/util.js";
   import SlotStar from "./SlotStar.svelte";
+
+  // 서랍 안에서는 서랍을 또 열 수 없다. 무엇을 할지는 부르는 쪽이 정한다.
+  let { onEdit = null } = $props();
 
   let diffOnly = $state(true);
   let editing = $state(null);
@@ -28,16 +35,9 @@
   ];
 
   // 활성 슬롯은 살아 있는 빌드를 쓴다. 슬롯에 적힌 값은 마지막 저장 시점이라
-  // 방금 만진 노드가 표에 안 나타난다.
-  const builds = $derived(app.slots.map(slot => (
-    slot.id === app.activeSlotId
-      ? {
-          nodeLevels: app.character.nodeLevels,
-          engravings: app.character.engravings || {},
-          pet: app.character.convenience.petStat || "none",
-        }
-      : slot.build
-  )));
+  // 방금 만진 노드가 표에 안 나타난다. 무엇이 빌드인지는 store가 정한다 —
+  // 여기서 손으로 짜다가 음식을 빠뜨려 활성 슬롯만 딜이 어긋난 적이 있다.
+  const builds = $derived(app.slots.map(slotBuild));
 
   const metrics = $derived(builds.map(build => calculateMetrics(buildState(build))));
   const baseAt = $derived(Math.max(0, app.slots.findIndex(slot => slot.id === app.baseSlotId)));
@@ -115,7 +115,8 @@
 
   function edit(slot) {
     selectSlot(slot.id);
-    openDrawer();
+    if (onEdit) onEdit(slot);
+    else openDrawer();
   }
 
   function startRename(slot) {

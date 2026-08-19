@@ -18,10 +18,21 @@
   } from "../store.svelte.js";
   import NodeBoard from "./NodeBoard.svelte";
   import Gauge from "./Gauge.svelte";
-  import SlotBar from "./SlotBar.svelte";
+  import CompareTable from "./CompareTable.svelte";
   import Select from "./Select.svelte";
 
   let { report, budget, onOpenEngravings } = $props();
+
+  /**
+   * 서랍 안의 두 얼굴.
+   *
+   * 비교함  담은 것을 나란히. 슬롯을 다루는 단추도 여기 열 머리에 있다.
+   * 빌드    지금 고른 슬롯 하나를 만진다.
+   *
+   * 겹쳐 두지 않고 탭으로 가른다. 둘 다 세로를 많이 먹어서 한 화면에 쌓으면
+   * 어느 쪽도 제대로 안 보인다.
+   */
+  let tab = $state("compare");
 
   const current = $derived(activeSlot());
   const readOnly = $derived(slotReadOnly(current));
@@ -47,24 +58,27 @@
     persist();
   }
 
-  // 왼쪽 모서리를 끌어서 닫는다. 서랍은 미는 물건이라는 감각이 있고,
-  // 손잡이까지 커서를 옮기지 않아도 된다.
-  let dragX = $state(0);
+  // 윗 모서리를 끌어내려 닫는다.
+  //
+  // 예전에는 오른쪽에서 밀려 들어왔다. 그런데 이 서랍을 여는 손잡이는 화면
+  // 맨 아래 막대다 — 아래를 눌렀는데 옆에서 나오면 같은 물건으로 안 읽힌다.
+  // 아래에서 올라오면 막대가 그대로 자라나는 것이 된다.
+  let dragY = $state(0);
   let dragging = $state(false);
 
   function grab(event) {
     if (event.button !== undefined && event.button !== 0) return;
     dragging = true;
-    dragX = 0;
-    const startX = event.clientX;
-    const move = e => { dragX = Math.max(0, e.clientX - startX); };
+    dragY = 0;
+    const startY = event.clientY;
+    const move = e => { dragY = Math.max(0, e.clientY - startY); };
     const drop = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", drop);
       dragging = false;
-      // 화면 폭의 6분의 1쯤 밀면 닫는다. 그보다 짧으면 제자리로 돌아온다.
-      if (dragX > window.innerWidth / 6) closeDrawer();
-      dragX = 0;
+      // 화면 높이의 6분의 1쯤 끌어내리면 닫는다. 그보다 짧으면 제자리로.
+      if (dragY > window.innerHeight / 6) closeDrawer();
+      dragY = 0;
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", drop);
@@ -83,26 +97,31 @@
 {/if}
 
 <aside class="build-drawer" class:open={app.drawer.open} class:dragging
-       style:transform={dragX > 0 ? `translateX(${dragX}px)` : undefined}
+       style:transform={dragY > 0 ? `translateY(${dragY}px)` : undefined}
        aria-hidden={!app.drawer.open}
        inert={!app.drawer.open || undefined}>
-  <div class="bd-grip" onpointerdown={grab} role="presentation" title="밀어서 닫기"></div>
+  <div class="bd-grip" onpointerdown={grab} role="presentation" title="끌어내려 닫기"></div>
 
   <header class="bd-hd">
-    <div class="bd-title">
-      <b>빌드</b>
-      <small>{current ? `${current.name} · ${slotOriginLabel(current)}` : "슬롯 없음"}</small>
+    <div class="bd-tabs" role="tablist" aria-label="서랍">
+      <button class="bd-tab" type="button" role="tab" class:on={tab === "compare"}
+              aria-selected={tab === "compare"} onclick={() => (tab = "compare")}>비교함</button>
+      <button class="bd-tab" type="button" role="tab" class:on={tab === "build"}
+              aria-selected={tab === "build"} onclick={() => (tab = "build")}>빌드</button>
     </div>
+    <small class="bd-who">{current ? `${current.name} · ${slotOriginLabel(current)}` : "슬롯 없음"}</small>
     <span class="spacer"></span>
-    <button class="btn sm" type="button" onclick={() => { closeDrawer(); goPage(PAGE.compare); }}>나란히 보기</button>
     <button class="btn icon" type="button" aria-label="닫기" onclick={closeDrawer}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
     </button>
   </header>
 
-  <SlotBar inDrawer />
-
   <div class="bd-body">
+    {#if tab === "compare"}
+      <!-- 편집을 누르면 그 슬롯으로 갈아타고 빌드 탭으로 넘어간다. 서랍 안이라
+           서랍을 또 열 수는 없다. -->
+      <CompareTable onEdit={() => (tab = "build")} />
+    {:else}
     <div class="split">
       <div class="split-main">
         <NodeBoard {report} {budget} />
@@ -153,5 +172,6 @@
       <!-- 진화 포인트는 노드판 머리에 이미 있다. 여기 또 적으면 같은 숫자가 두 번이다. -->
       <Gauge {report} title="상세" showLead={false} onPinBaseline={() => setBaseSlot(app.activeSlotId)} />
     </div>
+    {/if}
   </div>
 </aside>

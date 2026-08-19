@@ -1,7 +1,7 @@
 // 아머리 응답을 사람이 읽는 꼴로 펼친다.
 //
 //   node scripts/api-dump.mjs 캐릭터이름
-//   node scripts/api-dump.mjs 캐릭터이름 --out docs/덤프.txt
+//   node scripts/api-dump.mjs 캐릭터이름 --out reference/덤프.txt
 //   node scripts/api-dump.mjs 캐릭터이름 --json      (가공 전 원본도 같이)
 //
 // 원본은 세 겹으로 싸여 있어서 눈으로 못 읽는다:
@@ -258,7 +258,7 @@ const text = out.join("\n") + "\n";
 const flag = process.argv.indexOf("--out");
 const target = flag >= 0 && process.argv[flag + 1]
   ? resolve(process.cwd(), process.argv[flag + 1])
-  : resolve(HERE, `../docs/armory-${name}.txt`);
+  : resolve(HERE, `../reference/armory-${name}.txt`);
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(target, text, "utf8");
 console.log(`${text.split("\n").length}줄 · ${(text.length / 1024).toFixed(1)}KB → ${target}`);

@@ -1,8 +1,8 @@
 <script>
   import {
     app, PAGES, PAGE, goPage, startSearch, cancelSearch, cycleTheme,
-    baselineState, baselineRef, selectedResult, resultState, resultChanges, confirmResult,
-    toggleDrawer, openDrawer, activeSlot, selectSlot, buildState,
+    baselineState, baselineRef,
+    toggleDrawer, openDrawer, activeSlot, selectSlot, buildState, slotBuild,
   } from "./lib/store.svelte.js";
   import { explainMetrics } from "./lib/core/explain.js";
   import { calculateMetrics } from "./lib/core/metrics.js";
@@ -13,7 +13,6 @@
   import PageAwakening from "./lib/components/PageAwakening.svelte";
   import PageRules from "./lib/components/PageRules.svelte";
   import PageResults from "./lib/components/PageResults.svelte";
-  import PageCompare from "./lib/components/PageCompare.svelte";
   import EngravingDialog from "./lib/components/EngravingDialog.svelte";
   import BraceletDialog from "./lib/components/BraceletDialog.svelte";
   import SavesMenu from "./lib/components/SavesMenu.svelte";
@@ -54,16 +53,6 @@
     }));
   };
 
-  // 탐색에서 고른 후보. 탐색 화면에서는 막대가 이걸 든다 — 그 화면에서 눈이
-  // 좇는 숫자가 내 빌드가 아니라 후보이므로. 다만 서랍을 열면 손이 만지는 것은
-  // 내 빌드라, 그때는 다시 내 빌드를 잰다.
-  const picked = $derived(app.page === PAGE.results && !app.drawer.open ? selectedResult() : null);
-  const pickedReport = $derived.by(() => {
-    const state = resultState(picked);
-    return state ? explainMetrics(state) : null;
-  });
-  const pickedChanges = $derived(picked ? resultChanges(picked) : []);
-
   /**
    * 비교함 — 접힌 막대에 열로 서는 것들.
    *
@@ -74,15 +63,7 @@
    * 삼은 칸은 제 값을, 나머지는 그 칸 대비 증감을 적는다.
    */
   const boxSlots = $derived.by(() => {
-    const scores = app.slots.map(slot => calculateMetrics(buildState(
-      slot.id === app.activeSlotId
-        ? {
-            nodeLevels: app.character.nodeLevels,
-            engravings: app.character.engravings || {},
-            pet: app.character.convenience.petStat || "none",
-          }
-        : slot.build,
-    )));
+    const scores = app.slots.map(slot => calculateMetrics(buildState(slotBuild(slot))));
     const baseAt = Math.max(0, app.slots.findIndex(slot => slot.id === app.baseSlotId));
     return app.slots.map((slot, at) => {
       const was = scores[baseAt]?.damageIndex;
@@ -99,29 +80,20 @@
     });
   });
 
-  const bar = $derived.by(() => {
-    if (pickedReport) {
-      return {
-        report: pickedReport,
-        deltas: compare(pickedReport, report, "지금 내 빌드"),
-        label: "고른 후보",
-        handle: null,
-        action: {
-          label: pickedChanges.length > 0 ? `슬롯에 담기 (${pickedChanges.length}곳) →` : "지금 빌드와 같음",
-          disabled: pickedChanges.length === 0,
-          onClick: () => confirmResult(picked),
-        },
-      };
-    }
-    // 비교함이 접힌 모습. 담은 것을 열로 세운다.
-    return {
-      report: null,
-      deltas: [],
-      slots: boxSlots,
-      label: "비교함",
-      handle: { open: app.drawer.open, onToggle: toggleDrawer },
-      action: null,
-    };
+  /**
+   * 막대는 언제나 비교함이다.
+   *
+   * 예전에는 탐색 화면에서만 '고른 후보' 하나를 들고 옆에 '슬롯에 담기'가
+   * 붙어 있었다. 지금은 표의 체크가 곧 담기라 그 단추가 할 일이 없고, 오히려
+   * 그 모드 때문에 방금 담은 것이 막대에서 안 보였다.
+   */
+  const bar = $derived({
+    report: null,
+    deltas: [],
+    slots: boxSlots,
+    label: "비교함",
+    handle: { open: app.drawer.open, onToggle: toggleDrawer },
+    action: null,
   });
 
   // 테마는 CSS가 :root[data-theme]로 읽는다. "auto"면 표식을 지워서
@@ -217,8 +189,6 @@
       <button class="btn primary" type="button" disabled={plan.engravings.overflow} onclick={startSearch}>
         {app.results ? "다시 탐색" : "탐색 실행"}
       </button>
-    {:else if app.page === PAGE.results}
-      <button class="btn primary" type="button" onclick={() => goPage(PAGE.compare)}>나란히 보기 →</button>
     {:else}
       <button class="btn primary" type="button" onclick={openDrawer}>빌드 열기</button>
     {/if}
@@ -235,10 +205,8 @@
     <PageAwakening />
   {:else if app.page === PAGE.rules}
     <PageRules {report} {plan} {budget} />
-  {:else if app.page === PAGE.results}
-    <PageResults />
   {:else}
-    <PageCompare />
+    <PageResults />
   {/if}
 </main>
 

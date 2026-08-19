@@ -2,33 +2,28 @@
   /**
    * 4페이지 — 탐색 결과. 굴린 것을 보는 자리.
    *
-   * 고르면 계기판이 미리보기로 바뀌고, 하단 막대의 '슬롯에 담기'를 눌러야
-   * 슬롯이 된다. 여기서 규칙은 안 고친다 — 고치려면 설정으로 돌아간다.
+   * 표의 체크가 곧 비교함에 담기다. 담은 것은 하단 막대에 열로 서고, 막대를
+   * 열면 나란히 견줄 수 있다. 여기서 규칙은 안 고친다 — 고치려면 설정으로.
    */
-  import { explainMetrics } from "../core/explain.js";
   import { formatInteger, readNumber } from "../core/util.js";
   import { SEARCH_FLOOR_FIELDS } from "../core/runner.js";
   import { CHART_AXES } from "../core/axes.js";
   import {
     app, persist, startSearch, cancelSearch, goPage, PAGE, openDrawer,
-    selectedResult, resultState, resultChanges,
   } from "../store.svelte.js";
   import Select from "./Select.svelte";
   import TradeoffChart from "./TradeoffChart.svelte";
   import ResultsTable from "./ResultsTable.svelte";
-  import Gauge from "./Gauge.svelte";
+  import ResultDialog from "./ResultDialog.svelte";
   import CeilingBar from "./CeilingBar.svelte";
 
   const AXIS_OPTIONS = CHART_AXES.map(axis => ({ value: axis.key, label: axis.label }));
 
-  // 고른 후보와 그 상세는 하단 막대도 같이 본다. 그래서 계산은 store에 두고
-  // 여기서는 읽기만 한다 — 양쪽이 각자 세면 언젠가 서로 다른 빌드를 가리킨다.
-  const entry = $derived(selectedResult());
-  const previewReport = $derived.by(() => {
-    const state = resultState(entry);
-    return state ? explainMetrics(state) : null;
-  });
-  const changes = $derived(resultChanges(entry));
+  // 자세히 보기는 눌렀을 때만 연다. 예전에는 오른쪽 세로 레일이 늘 띄우고
+  // 있었는데, 한 번에 하나만 보여주면서 가로를 반이나 먹었다 — 여럿을 견주려고
+  // 온 화면에서 정작 하나만 보였다.
+  let inspectOpen = $state(false);
+  let inspecting = $state(null);
 
   // 걸어 둔 하한. 결과가 비었을 때 이유를 대는 데 쓴다.
   const activeFloors = $derived(
@@ -90,8 +85,7 @@
     </div>
   </section>
 {:else}
-  <div class="split">
-    <div class="split-main">
+  <div class="results-main">
       <section class="card">
         <div class="card-hd">
           <h2>균형 곡선</h2>
@@ -109,22 +103,8 @@
         {/if}
       </section>
 
-      <ResultsTable />
-    </div>
-
-    {#if previewReport}
-      <div class="preview-rail">
-        <!-- 한 방 딜·DPS는 아래 막대가 든다. 여기 또 적으면 같은 숫자가 두 번이고,
-             바로 그 중복 때문에 어느 쪽이 갱신되는지 헷갈린 적이 있다. -->
-        <Gauge
-          report={previewReport}
-          title="상세 · 미리보기"
-          showLead={false}
-          meta="아직 적용 전"
-          note="고른 지점의 수치입니다. 빌드는 아직 안 바뀌었습니다."
-        />
-
-      </div>
-    {/if}
+      <ResultsTable onInspect={next => { inspecting = next; inspectOpen = true; }} />
   </div>
 {/if}
+
+<ResultDialog bind:open={inspectOpen} entry={inspecting} />
