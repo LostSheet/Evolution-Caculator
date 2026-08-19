@@ -9,7 +9,7 @@
   import { SEARCH_FLOOR_FIELDS } from "../core/runner.js";
   import { CHART_AXES } from "../core/axes.js";
   import {
-    app, persist, startSearch, cancelSearch, goPage, PAGE, openDrawer,
+    app, persist, startSearch, cancelSearch, goTab, openDrawer,
   } from "../store.svelte.js";
   import Select from "./Select.svelte";
   import TradeoffChart from "./TradeoffChart.svelte";
@@ -49,7 +49,7 @@
       <button class="btn" type="button" onclick={cancelSearch}>중지</button>
       <div class="runbar-status"><b>{app.progress.phase}</b><span>{formatInteger(app.progress.evaluated)}개 평가</span></div>
     {:else}
-      <button class="btn" type="button" onclick={() => goPage(PAGE.rules)}>← 탐색 설정</button>
+      <button class="btn" type="button" onclick={() => goTab("rules")}>← 탐색 설정</button>
       <div class="runbar-status"><span>{app.status}</span></div>
       <span class="spacer"></span>
       <button class="btn sm" type="button" onclick={startSearch}>{app.results ? "다시 탐색" : "탐색 실행"}</button>
@@ -65,7 +65,7 @@
   <section class="card blank">
     <p>아직 탐색하지 않았습니다. 설정에서 범위를 정하고 돌리면 한 방 딜과 DPS의 균형 곡선이 여기 그려집니다.</p>
     <div class="blank-actions">
-      <button class="btn primary" type="button" onclick={() => goPage(PAGE.rules)}>탐색 설정으로 →</button>
+      <button class="btn primary" type="button" onclick={() => goTab("rules")}>탐색 설정으로 →</button>
       <button class="btn" type="button" onclick={openDrawer}>지금 빌드 보기</button>
     </div>
   </section>
@@ -80,7 +80,7 @@
       {/each}
     </div>
     <div class="blank-actions">
-      <button class="btn primary" type="button" onclick={() => goPage(PAGE.rules)}>하한 낮추러 가기 →</button>
+      <button class="btn primary" type="button" onclick={() => goTab("rules")}>하한 낮추러 가기 →</button>
       <button class="btn" type="button" onclick={openDrawer}>지금 빌드 보기</button>
     </div>
   </section>

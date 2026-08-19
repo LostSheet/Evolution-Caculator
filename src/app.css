@@ -3963,3 +3963,51 @@ td.base .c-levels li { color: var(--txt); }
 
 /* 미리보기 레일이 사라져 결과 화면은 한 칸이다. */
 .results-main { display: grid; gap: 14px; min-width: 0; }
+
+/* 얼린 칸. 누르면 내 빌드로 올라온다 — 눌릴 수 있다는 것이 보여야 한다. */
+.sb-slot.frozen { border-style: dashed; }
+.sb-slot.frozen:hover { border-style: solid; border-color: var(--cool); }
+.sb-slot:disabled { cursor: default; }
+
+/* 지표와 그 증감을 한 덩이로 묶는다. 떨어져 있으면 어느 숫자의 증감인지
+   눈으로 잇는 데 시간이 걸린다. */
+.sb-fig-pair { display: inline-flex; align-items: baseline; gap: 4px; }
+.sb-slot-nums { gap: 10px; }
+
+/* 그룹 머리의 지름길. 표는 보는 곳이고, 고치는 자리는 페이지다. */
+.c-goto {
+  margin-left: 10px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: transparent;
+  font-size: 11px;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.c-goto:hover { border-color: var(--cool); color: var(--cool); }
+
+/* 하위 탭 — 축 안의 부위.
+   상단 축 탭과 생김새를 달리한다. 같으면 어느 쪽이 큰 갈래인지 안 보인다. */
+.subtabs {
+  display: flex;
+  gap: 2px;
+  padding: 10px clamp(14px, 3vw, 26px) 0;
+  border-bottom: 1px solid var(--line);
+}
+.subtab {
+  padding: 7px 16px 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt-3);
+  cursor: pointer;
+}
+.subtab:hover { color: var(--txt-2); }
+.subtab.on { border-bottom-color: var(--cool); color: var(--cool); font-weight: 600; }
+
+/* 서랍 머리 — 탭이 없어졌으니 제목 하나다. */
+.bd-title { font-size: 13px; font-weight: 600; }

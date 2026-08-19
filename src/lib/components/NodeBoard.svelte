@@ -8,7 +8,7 @@
   import { getModeledStatKeys, isNodeImpactful } from "../core/search.js";
   import { formatInteger, formatNumber, formatSignedPercent, readNumber, clamp } from "../core/util.js";
   import {
-    app, persist, resetSection, ensureEditable,
+    app, persist, resetSection,
     isNodeLocked, clearNodeLocks, nodeLockLevel, setNodeLock, clearNodeLock,
   } from "../store.svelte.js";
   import NodeIcon from "./NodeIcon.svelte";
@@ -177,7 +177,6 @@
   function bump(node, direction, large) {
     if (excluded.has(node.id)) return;
     // 읽기 전용 슬롯을 만지면 여기서 사본이 선다. 반드시 값을 읽기 전에.
-    ensureEditable();
     const step = large ? Math.min(10, node.maxLevel) : 1;
     const ceiling = Math.min(node.maxLevel, tierHeadroom(node));
     const current = app.character.nodeLevels[node.id] || 0;
@@ -263,7 +262,7 @@
       {scoping ? "고정 " : ""}{formatInteger(used)} / {formatInteger(budget)}
     </span>
     {#if !scoping}
-      <button class="btn sm" type="button" onclick={() => { ensureEditable(); resetSection("nodes"); }}>비우기</button>
+      <button class="btn sm" type="button" onclick={() => resetSection("nodes")}>비우기</button>
     {/if}
   </div>
 

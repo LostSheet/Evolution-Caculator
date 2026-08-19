@@ -7,12 +7,11 @@
   //
   // 이 막대는 서랍 손잡이이자 비교함의 접힌 모습이다.
   //
-  // 예전에는 빌드 하나만 들었다. 그러면 슬롯을 갈아끼우며 숫자를 외워야 해서
-  // 비교가 안 됐다. 지금은 비교함에 담은 것을 열로 세운다 — 인게임이 첫 칸에
-  // 자동으로 들어가 있으므로 기준 열을 따로 못 박지 않는다.
+  // 첫 칸이 내 빌드다 — 편집 대상이자 증감의 기준. 나머지는 얼린 것이고,
+  // 누르면 내 빌드로 올라오면서 쓰던 것이 그 자리에 얼려진다(맞바꾸기).
   //
   // 열이 늘어나면 숫자가 작아진다. 여섯 칸까지는 읽히고, 그 위는 담을 때
-  // 막는다(addSlot). 글자가 뭉개지는 편보다 못 담는 편이 낫다.
+  // 막는다. 글자가 뭉개지는 편보다 못 담는 편이 낫다.
   import { formatNumber, formatSignedPercent } from "../core/util.js";
 
   // report/deltas/label — 한 빌드만 드는 옛 모습. 탐색에서 고른 후보가 쓴다.
@@ -20,7 +19,7 @@
   // action: { label, disabled, onClick } · handle: { open, onToggle }
   let {
     report = null, deltas = [], label = "", action = null, handle = null,
-    slots = null, activeId = "", onPick = null,
+    slots = null, onPick = null,
   } = $props();
 
   const figures = $derived(report ? [
@@ -41,24 +40,32 @@
   {/if}
 
   {#if slots}
-    <!-- 비교함. 칸을 누르면 그 빌드를 만지는 것으로 바뀐다 — 서랍을 열지
-         않고도 갈아끼울 수 있어야 곡선을 보다가 바로 손이 간다. -->
+    <!-- 비교함. 얼린 칸을 누르면 그것이 내 빌드로 올라오고, 쓰던 것은 그 자리에
+         얼려져 들어간다 — 맞바꾸기라 아무것도 안 사라진다. -->
     <div class="sb-slots" role="tablist" aria-label="비교함">
-      {#each slots as slot (slot.id)}
-        {@const on = slot.id === activeId}
-        <button class="sb-slot" type="button" class:on class:base={slot.isBase}
-                role="tab" aria-selected={on}
+      {#each slots as slot (slot.id ?? "mine")}
+        {@const on = slot.isBase}
+        <button class="sb-slot" type="button" class:on class:frozen={!on}
+                role="tab" aria-selected={on} disabled={on}
+                title={on ? "지금 고치고 있는 빌드" : `'${slot.name}'을 내 빌드로 — 쓰던 것은 이 자리에 얼립니다`}
                 onclick={() => onPick?.(slot.id)}>
           <span class="sb-slot-name">{slot.name}</span>
-          <!-- 증감까지 세 줄로 쌓으면 접힌 막대가 80px이 된다. 한 줄로 눕힌다. -->
+          <!-- 지표마다 제 증감을 옆에 붙인다. 하나만 적으면 두 숫자 중 어느 쪽
+               것인지 알 수 없고, 실제로 둘이 서로 다른 방향으로 움직인다. -->
           <span class="sb-slot-nums">
-            <b>{formatNumber(slot.damageIndex)}</b>
-            <i>{formatNumber(slot.dpsIndex)}</i>
-            {#if slot.delta}
-              <em class={slot.delta.value >= 0 ? "up" : "down"}>{formatSignedPercent(slot.delta.value)}</em>
-            {:else}
-              <em class="ref">기준</em>
-            {/if}
+            <span class="sb-fig-pair">
+              <b>{formatNumber(slot.damageIndex)}</b>
+              {#if slot.damageDelta}
+                <em class={slot.damageDelta.value >= 0 ? "up" : "down"}>{formatSignedPercent(slot.damageDelta.value)}</em>
+              {/if}
+            </span>
+            <span class="sb-fig-pair">
+              <i>{formatNumber(slot.dpsIndex)}</i>
+              {#if slot.dpsDelta}
+                <em class={slot.dpsDelta.value >= 0 ? "up" : "down"}>{formatSignedPercent(slot.dpsDelta.value)}</em>
+              {/if}
+            </span>
+            {#if slot.isBase}<em class="ref">기준</em>{/if}
           </span>
         </button>
       {/each}

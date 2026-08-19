@@ -5,7 +5,7 @@
   // 내린다. 자주 하는 일은 "부캐 세팅으로 바꾸기"지 "파일 고르기"가 아니다.
   import {
     app, saveSetup, loadSetup, renameSetup, deleteSetup, describeSave,
-    exportState, importState, goPage, PAGE,
+    exportState, importState, goTab,
   } from "../store.svelte.js";
 
   let open = $state(false);
@@ -31,7 +31,7 @@
     if (!loadSetup(save.id)) return;
     open = false;
     app.status = `'${save.name}' 세팅을 불러왔습니다.`;
-    goPage(PAGE.setup);
+    goTab("setup");
   }
 
   function commitRename(save) {
@@ -46,7 +46,7 @@
       await importState(file);
       app.status = "파일에서 불러왔습니다.";
       open = false;
-      goPage(PAGE.setup);
+      goTab("setup");
     } catch {
       app.status = "불러오기 파일을 읽지 못했습니다.";
     } finally {

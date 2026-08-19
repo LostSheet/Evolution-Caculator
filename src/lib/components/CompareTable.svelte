@@ -1,22 +1,27 @@
 <script>
-  // 비교함 — 슬롯을 열로 세우고 항목을 행으로 놓는다.
+  // 비교함 — 빌드를 열로 세우고 항목을 행으로 놓는다.
   //
-  // 슬롯을 행에 놓으면 열이 폭발한다. 진화 노드만 서른 개다. 열이 슬롯이면
-  // 항목을 아무리 늘려도 세로로만 길어지고, 가로는 슬롯 수로 묶인다.
+  // 빌드를 행에 놓으면 열이 폭발한다. 진화 노드만 서른 개다. 열이 빌드면
+  // 항목을 아무리 늘려도 세로로만 길어지고, 가로는 빌드 수로 묶인다.
   //
-  // 슬롯을 다루는 단추(이름 바꾸기·기준 삼기·되돌리기·지우기·담기)는 전부
-  // 열 머리에 있다. 예전에는 서랍 위에도 같은 줄이 있었는데, 아래 막대가
-  // 비교함이 되면서 같은 목록이 화면에 두 벌이 됐다.
+  // 첫 열이 내 빌드다. 언제나 편집 대상이자 증감의 기준이라 별도 표시가
+  // 필요 없다 — 예전에는 '활성'과 '기준'이 따로 다녀서 각인 하나를 만질 때마다
+  // 어느 열이 바뀌는지 확인해야 했다.
+  //
+  // 나머지 열은 얼려져 있다. 고치고 싶으면 '내 빌드로' 올린다. 그 순간 지금
+  // 내 빌드가 그 자리에 얼려져 들어가므로 아무것도 안 사라진다.
   import {
-    app, goPage, PAGE, buildState, slotBuild, selectSlot, addSlot, renameSlot, revertSlot, removeSlot, openDrawer,
-    slotDirty, slotOriginLabel,
+    app, goTab, buildState, keepBuild, makeMine, dropCompare,
+    renameCompare, renameBuild,
   } from "../store.svelte.js";
   import { calculateMetrics, getEngravingTierIndex } from "../core/metrics.js";
   import { NODE_LIBRARY, EVOLUTION_TIERS } from "../core/data.js";
   import { ENGRAVING_LIBRARY, ENGRAVING_TIERS } from "../core/engravings.js";
+  import { BRACELET_STAT_FIELDS, BRACELET_EFFECTS, BRACELET_GRADES } from "../core/bracelets.js";
+  import { CHAOS_CORES, CHAOS_CORE_SLOTS, ARK_GRID_GEM_EFFECTS } from "../core/cores.js";
+  import { ARKPASSIVE_TREE } from "../core/../data/arkpassive-tree.js";
   import { OPTIMIZER_PET_LABELS } from "../core/search.js";
-  import { formatNumber, percentDelta } from "../core/util.js";
-  import SlotStar from "./SlotStar.svelte";
+  import { formatNumber, percentDelta, readNumber } from "../core/util.js";
 
   // 서랍 안에서는 서랍을 또 열 수 없다. 무엇을 할지는 부르는 쪽이 정한다.
   let { onEdit = null } = $props();
@@ -34,13 +39,16 @@
     { key: "expertiseStat", label: "숙련" },
   ];
 
-  // 활성 슬롯은 살아 있는 빌드를 쓴다. 슬롯에 적힌 값은 마지막 저장 시점이라
-  // 방금 만진 노드가 표에 안 나타난다. 무엇이 빌드인지는 store가 정한다 —
-  // 여기서 손으로 짜다가 음식을 빠뜨려 활성 슬롯만 딜이 어긋난 적이 있다.
-  const builds = $derived(app.slots.map(slotBuild));
+  // 첫 칸은 내 빌드(산 값), 나머지는 얼린 것.
+  const columns = $derived([
+    { id: null, name: app.buildName, build: app.character, mine: true },
+    ...app.compare.map(item => ({ id: item.id, name: item.name, build: item.build, mine: false })),
+  ]);
 
+  const builds = $derived(columns.map(column => column.build));
   const metrics = $derived(builds.map(build => calculateMetrics(buildState(build))));
-  const baseAt = $derived(Math.max(0, app.slots.findIndex(slot => slot.id === app.baseSlotId)));
+  // 기준은 언제나 내 빌드다. 고를 것이 아니다.
+  const baseAt = 0;
 
   const engravingLabel = (build, item) => {
     const at = getEngravingTierIndex(build.engravings?.[item.id]);
@@ -64,7 +72,73 @@
       }), { mode: "diff" });
     });
 
-    add("펫", "펫 효과", builds.map(build => ({ text: OPTIMIZER_PET_LABELS[build.convenience?.petStat] ?? "없음" })));
+    // 아래부터는 빌드의 나머지 부위다. 슬롯이 캐릭터 전체를 들게 되면서
+    // 열마다 따로 설 수 있게 됐다 — 예전에는 장비를 공유해서 비교가 안 됐다.
+    add("장비", "무기 품질", builds.map(build => {
+      const q = readNumber(build.weapon?.quality);
+      return { text: `${q}`, num: q };
+    }), { mode: "diff", tab: "setup" });
+
+    add("장비", "아크 그리드 코어", builds.map(build => ({
+      text: CHAOS_CORE_SLOTS.map(slot => {
+        const core = build.arkGrid?.cores?.[slot.key];
+        const found = CHAOS_CORES.find(item => item.id === core?.id);
+        return found ? `${found.name} ${readNumber(core.points)}P` : "";
+      }).filter(Boolean).join(" · ") || "없음",
+    })), { tab: "setup" });
+
+    add("장비", "젬", builds.map(build => ({
+      text: ARK_GRID_GEM_EFFECTS
+        .map(effect => `${effect.label} ${readNumber(build.arkGrid?.gems?.[effect.key])}`)
+        .join(" · "),
+    })), { tab: "setup" });
+
+    add("장비", "팔찌 특성", builds.map(build => ({
+      text: BRACELET_STAT_FIELDS
+        .map(field => [field.label, readNumber(build.bracelet?.stats?.[field.key])])
+        .filter(([, value]) => value > 0)
+        .map(([label, value]) => `${label} ${value}`)
+        .join(" · ") || "없음",
+    })), { tab: "setup" });
+
+    add("장비", "팔찌 효과", builds.map(build => ({
+      text: BRACELET_EFFECTS
+        .map(effect => {
+          const grade = build.bracelet?.effects?.[effect.id];
+          const at = BRACELET_GRADES.findIndex(item => item.value === grade);
+          return at < 0 ? "" : `${effect.label} ${BRACELET_GRADES[at].label}`;
+        })
+        .filter(Boolean).join(" · ") || "없음",
+    })), { tab: "setup" });
+
+    add("깨달음", "직업", builds.map(build => ({
+      text: ARKPASSIVE_TREE[build.awakening?.job]?.name ?? "안 고름",
+    })), { tab: "awakening" });
+
+    add("깨달음", "배분", builds.map(build => ({
+      text: Object.entries(build.awakening?.nodeLevels ?? {})
+        .filter(([, level]) => readNumber(level) > 0)
+        .map(([name, level]) => `${name} ${level}`)
+        .join(" · ") || "안 찍음",
+    })), { tab: "awakening" });
+
+    add("깨달음", "자버프", builds.map(build => ({
+      text: (build.baseEffects ?? [])
+        .filter(effect => readNumber(effect.amount) !== 0 || effect.formula)
+        .map(effect => `${effect.label} ${effect.formula || readNumber(effect.amount)}`)
+        .join(" · ") || "없음",
+    })), { tab: "awakening" });
+
+    add("깨달음", "특화 묶음", builds.map(build => ({
+      text: (build.specBundles ?? [])
+        .filter(bundle => readNumber(bundle.share) > 0)
+        .map(bundle => `${bundle.name || "묶음"} ${readNumber(bundle.share)}%`)
+        .join(" · ") || "없음",
+    })), { tab: "awakening" });
+
+    add("펫 · 음식", "펫 효과", builds.map(build => ({
+      text: OPTIMIZER_PET_LABELS[build.convenience?.petStat] ?? "없음",
+    })), { tab: "nodes" });
 
     // 노드는 티어마다 한 줄이다.
     //
@@ -83,13 +157,13 @@
           .map(node => ({ id: node.id, name: node.name, level: own[node.id] }));
         return { lines, text: lines.map(line => `${line.name} ${line.level}`).join(" · "), levels: own };
       });
-      add("진화 노드", meta.label, cells, { kind: "levels", note: `최대 ${meta.maxPoints}P · ${meta.cost}P/Lv` });
+      add("진화 노드", meta.label, cells, { kind: "levels", note: `최대 ${meta.maxPoints}P · ${meta.cost}P/Lv`, tab: "nodes" });
     });
 
     ENGRAVING_LIBRARY.forEach(item => {
       const cells = builds.map(build => ({ text: engravingLabel(build, item) }));
       if (cells.every(cell => cell.text === "없음")) return;
-      add("각인", item.name, cells);
+      add("각인", item.name, cells, { tab: "nodes" });
     });
 
     return out;
@@ -113,26 +187,28 @@
     return { up: value > 0, text: `${value > 0 ? "+" : "−"}${body}` };
   }
 
-  function edit(slot) {
-    selectSlot(slot.id);
-    if (onEdit) onEdit(slot);
-    else openDrawer();
+  // 이 열을 내 빌드로 올린다. 지금 내 빌드는 그 자리에 얼려져 들어간다.
+  function lift(column) {
+    if (column.mine) return;
+    makeMine(column.id);
+    onEdit?.(column);
   }
 
-  function startRename(slot) {
-    editing = slot.id;
-    draft = slot.name;
+  function startRename(column) {
+    editing = column.id ?? "mine";
+    draft = column.name;
   }
 
   function commitRename() {
-    if (editing) renameSlot(editing, draft);
+    if (editing === "mine") renameBuild(draft);
+    else if (editing) renameCompare(editing, draft);
     editing = null;
   }
 </script>
 
 <section class="card compare">
   <div class="card-hd">
-    <h2>슬롯 비교</h2>
+    <h2>비교함</h2>
     <span class="spacer"></span>
     {#if hidden > 0}<span class="eyebrow">{hidden}줄 접힘</span>{/if}
     <label class="check">
@@ -145,18 +221,17 @@
     <table class="compare-table">
       <colgroup>
         <col class="c-head" />
-        {#each app.slots as slot (slot.id)}<col class="c-slot" />{/each}
+        {#each columns as column (column.id ?? "mine")}<col class="c-slot" />{/each}
         <col class="c-add" />
       </colgroup>
 
       <thead>
         <tr class="c-title">
           <th scope="row"></th>
-          {#each app.slots as slot, at (slot.id)}
-            <th scope="col" class:base={at === baseAt} class:live={slot.id === app.activeSlotId}>
+          {#each columns as column (column.id ?? "mine")}
+            <th scope="col" class:base={column.mine}>
               <div class="c-name">
-                <SlotStar {slot} />
-                {#if editing === slot.id}
+                {#if editing === (column.id ?? "mine")}
                   <input class="slot-name-input" type="text" bind:value={draft} autofocus
                          onblur={commitRename}
                          onkeydown={event => {
@@ -166,45 +241,44 @@
                 {:else}
                   <!-- 이름을 누르면 이름을 고친다. 제일 짐작하기 쉬운 자리다. -->
                   <button class="c-open" type="button" title="이름 바꾸기"
-                          onclick={() => startRename(slot)}>{slot.name}</button>
+                          onclick={() => startRename(column)}>{column.name}</button>
                 {/if}
               </div>
 
-              <!-- 아랫줄 하나를 둘이 나눠 쓴다: 평소엔 출처, 가리키면 잔일.
-                   겹쳐 두므로 가리켜도 줄이 안 밀린다. -->
               <div class="c-under">
                 <div class="c-meta">
-                  <span>{slot.id === app.activeSlotId ? "편집 중" : slotOriginLabel(slot)}</span>
-                  {#if slotDirty(slot)}<i class="slot-dot" title="담은 뒤로 손댔습니다"></i>{/if}
+                  <!-- 내 빌드는 지금 고치고 있는 것, 나머지는 얼린 것. 그 둘뿐이라
+                       출처를 따로 적지 않는다. -->
+                  <span>{column.mine ? "편집 중 · 기준" : "얼림"}</span>
                 </div>
                 <div class="c-acts">
-                  <button type="button" title="빌드에서 편집" aria-label="{slot.name} 편집"
-                          onclick={() => edit(slot)}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4.5 19.5h4L19 9l-4-4L4.5 15.5v4Z" /><path d="m14 6 4 4" />
-                    </svg>
-                  </button>
-                  <button type="button" title="담았을 때로" aria-label="{slot.name} 되돌리기"
-                          disabled={!slotDirty(slot)} onclick={() => revertSlot(slot.id)}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4.5 11a7.5 7.5 0 1 1 2 6" /><path d="M4.5 5.5v5.5h5.5" />
-                    </svg>
-                  </button>
-                  <button type="button" class="rm" title="지우기" aria-label="{slot.name} 지우기"
-                          disabled={app.slots.length <= 1} onclick={() => removeSlot(slot.id)}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M5 7h14M10 7V4.8h4V7" /><path d="M6.8 7 7.6 19.2h8.8L17.2 7" />
-                    </svg>
-                  </button>
+                  {#if !column.mine}
+                    <button type="button" title="이 빌드를 내 빌드로 (지금 것은 이 자리에 얼림)"
+                            aria-label="{column.name}을 내 빌드로"
+                            onclick={() => lift(column)}>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 19V5" /><path d="m6 11 6-6 6 6" />
+                      </svg>
+                    </button>
+                    <button type="button" class="rm" title="비교함에서 빼기" aria-label="{column.name} 빼기"
+                            onclick={() => dropCompare(column.id)}>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 7h14M10 7V4.8h4V7" /><path d="M6.8 7 7.6 19.2h8.8L17.2 7" />
+                      </svg>
+                    </button>
+                  {/if}
                 </div>
               </div>
             </th>
           {/each}
           <th scope="col" class="c-add-head">
-            <button class="slot-add" type="button" onclick={() => addSlot({})} disabled={app.slots.length >= 6}
-                    aria-label="지금 빌드를 새 슬롯으로 담기">
+            <!-- 팔찌를 바꿔 보기 직전에 누르는 단추. 지금 모습이 옆에 얼려지고,
+                 그다음 고치는 것은 내 빌드에만 걸린다. -->
+            <button class="slot-add" type="button" onclick={() => keepBuild()}
+                    disabled={app.compare.length >= 5}
+                    aria-label="지금 빌드를 비교함에 남기기">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" /></svg>
-              현재 세팅 저장
+              지금 빌드 남기기
             </button>
           </th>
         </tr>
@@ -213,7 +287,18 @@
       <tbody>
         {#each shown as row, i (row.group + row.label)}
           {#if i === 0 || shown[i - 1].group !== row.group}
-            <tr class="c-group"><td colspan={app.slots.length + 2}>{row.group}</td></tr>
+            <tr class="c-group">
+              <td colspan={columns.length + 2}>
+                {row.group}
+                <!-- 이 부위를 어디서 고치는지. 표는 보는 곳이라 여기서는 못
+                     고치고, 고치는 자리로 데려다만 준다. -->
+                {#if row.tab}
+                  <button type="button" class="c-goto" onclick={() => { goTab(row.tab); onEdit?.(); }}>
+                    고치기 →
+                  </button>
+                {/if}
+              </td>
+            </tr>
           {/if}
           <tr class:tall={row.kind === "levels"}>
             <th scope="row">

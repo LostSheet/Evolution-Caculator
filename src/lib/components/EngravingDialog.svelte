@@ -2,7 +2,7 @@
   import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../core/engravings.js";
   import { getEngravingTierIndex, isDirectionalConditionActive } from "../core/metrics.js";
   import {
-    app, persist, ensureEditable,
+    app, persist,
     saveEngravingSlot, applyEngravingSlot, updateEngravingSlot, removeEngravingSlot,
   } from "../store.svelte.js";
   import Dialog from "./Dialog.svelte";
@@ -25,8 +25,7 @@
   );
 
   function setTier(item, value) {
-    // 각인도 슬롯이 드는 빌드다. 읽기 전용 슬롯이면 여기서 사본이 선다.
-    ensureEditable();
+    // 각인도 슬롯이 드는 빌드다. 읽기 전용 슬롯이면 여기서 사본이 선다.
     if (value === "none") delete app.character.engravings[item.id];
     else app.character.engravings[item.id] = value;
     persist();

@@ -22,6 +22,8 @@ const SAVES_KEY = "ark-passive-saves-v1";
 // v2에서 슬롯이 드는 것이 통째로 바뀌었다 — 노드·각인·펫·음식 넷에서
 // 캐릭터 전체로. 옛 저장본은 이관하지 않고 버린다.
 const SLOTS_KEY = "ark-passive-slots-v2";
+// 어느 축의 어느 탭을 보고 있었는지. 세팅이 아니라 화면 습관이라 따로 둔다.
+const VIEW_KEY = "ark-passive-view-v1";
 const THEME_KEY = "ark-passive-theme";
 // 각인은 원정대 공유다 — 캐릭터를 갈아타도 같은 각인을 낀다. 그래서 세팅과
 // 따로 둔다. 남의 원정대를 대신 굴려 보는 동안 내 각인이 오염되면 안 되므로,
@@ -227,24 +229,53 @@ function loadSaves() {
 // 깨달음·도약이 빌드 앞에 있는 이유: 그건 캐릭터에 붙박인 스펙이라 탐색이
 // 굴리는 변수가 아니다. 불러온 것을 확인하는 자리가 진화 배분을 만지는 자리보다
 // 앞이어야 한다.
+/**
+ * 화면은 둘이다 — 고치는 곳과 굴리는 곳.
+ *
+ * 예전에는 1~5 번호가 붙은 다섯 쪽이었다. 번호는 "순서대로 하세요"라고
+ * 말하는데, 실제 사용은 1→5로 흐르지 않는다. 빌드를 만지고 탐색을 돌리고 다시
+ * 빌드로 돌아오는 왕복이라, 축이 둘인 편이 그 왕복을 그대로 담는다.
+ *
+ * 안쪽 하위 탭은 각 축의 부위다. 빌드 쪽 셋은 전부 "내 빌드를 고친다"로
+ * 성격이 같고, 탐색 쪽 둘은 "규칙을 걸고 답을 읽는다"로 같다.
+ */
 export const PAGES = [
-  { n: 1, key: "setup", label: "사전 세팅" },
-  { n: 2, key: "awakening", label: "깨달음 · 도약" },
-  // 빌드는 페이지가 아니라 물건이다 — 서랍으로 언제든 꺼낸다.
-  //
-  // 설정과 결과는 따로 선다. 한 화면에 두면 "무엇을 굴릴지 정하는 곳"과 "굴린
-  // 것을 보는 곳"이 겹쳐서, 곡선을 보다가 하한을 고치고 다시 곡선을 보는 동안
-  // 화면이 접혔다 펴졌다 한다. 설정 화면은 지금 빌드와도, 고른 후보와도 상관이
-  // 없는 자리다 — 규칙만 산다.
-  { n: 3, key: "rules", label: "탐색 설정" },
-  // 비교는 페이지가 아니라 비교함이다 — 하단 막대가 접힌 모습이고, 열면
-  // 서랍에서 나란히 선다. 페이지로 두면 담으려고 화면을 넘나들어야 했다.
-  { n: 4, key: "results", label: "탐색 결과" },
+  {
+    n: 1, key: "build", label: "빌드",
+    tabs: [
+      { key: "setup", label: "사전 세팅" },
+      { key: "awakening", label: "깨달음" },
+      { key: "nodes", label: "진화 노드" },
+    ],
+  },
+  {
+    n: 2, key: "search", label: "탐색",
+    tabs: [
+      { key: "rules", label: "설정" },
+      { key: "results", label: "결과" },
+    ],
+  },
 ];
 
-// 페이지 번호를 코드에 박아 두면 사이에 하나 끼울 때마다 여기저기가 어긋난다.
-// 열쇠로 부른다.
+/** 각 축에서 마지막으로 보던 하위 탭. 왕복할 때 자리를 기억한다. */
+export const PAGE_TABS = { build: "setup", search: "rules" };
+
 export const PAGE = Object.fromEntries(PAGES.map(page => [page.key, page.n]));
+
+/** 하위 탭 이름 → 그 탭이 속한 축. 옛 페이지 이름으로 부르는 곳이 있다. */
+export const TAB_PAGE = Object.fromEntries(
+  PAGES.flatMap(page => page.tabs.map(tab => [tab.key, page.n])),
+);
+
+/** 축과 하위 탭을 한 번에 옮긴다. 탭 이름만 줘도 축이 따라온다. */
+export function goTab(key) {
+  const n = TAB_PAGE[key];
+  if (!n) return;
+  const page = PAGES.find(item => item.n === n);
+  app.tabs[page.key] = key;
+  app.page = n;
+  persistView();
+}
 
 // 세팅을 먼저 세운다 — 탐색 규칙의 옛 스위치를 옮기려면 지금 무엇을 쓰는지
 // 알아야 한다(migrateSearch 참고).
@@ -255,7 +286,9 @@ export const app = $state({
   search: migrateSearch(load(SEARCH_KEY, {}), bootCharacter),
   // 이름 붙여 저장해 둔 세팅들. 파일 내보내기와 달리 한 번에 갈아끼운다.
   saves: loadSaves(),
-  page: PAGE.rules,
+  page: PAGE.build,
+  // 축마다 마지막으로 보던 하위 탭. 왕복할 때 자리를 기억한다.
+  tabs: { ...PAGE_TABS, ...(load(VIEW_KEY, {}).tabs ?? {}) },
   results: null,
   running: false,
   progress: { phase: "", progress: 0, evaluated: 0 },
@@ -265,10 +298,10 @@ export const app = $state({
   // 균형 곡선의 두 축. 무엇을 팔아 무엇을 사는지 직접 고른다.
   chartX: "dpsIndex",
   chartY: "damageIndex",
-  // 진화 세팅 슬롯. 비교의 단위다 — 슬롯 항목 참고.
-  slots: [],
-  activeSlotId: null,
-  baseSlotId: null,
+  // 내 빌드의 이름. 맞바꾸기를 하면 빌드와 함께 자리를 옮긴다.
+  buildName: "내 빌드",
+  // 얼려 둔 비교 대상들. 편집되지 않고 내 빌드 대비 ±%만 든다.
+  compare: [],
   // 빌드 서랍. 평소엔 숨어 있고 하단 막대가 손잡이다.
   // resultId가 있으면 탐색 결과를 읽기 전용으로 띄운 것이다.
   drawer: { open: false },
@@ -398,9 +431,32 @@ export function cycleTheme() {
   }
 }
 
+function persistView() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({ page: app.page, tabs: app.tabs }));
+  } catch {
+    // 저장이 막혀도 이번 세션은 그대로 굴러간다.
+  }
+  if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+}
+
 export function goPage(page) {
   app.page = clamp(Math.round(page), 1, PAGES.length);
-  if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  persistView();
+}
+
+/** 지금 축의 하위 탭을 옮긴다. */
+export function setTab(key) {
+  const page = PAGES.find(item => item.n === app.page);
+  if (!page?.tabs.some(tab => tab.key === key)) return;
+  app.tabs[page.key] = key;
+  persistView();
+}
+
+/** 지금 보고 있는 하위 탭 이름. */
+export function currentTab() {
+  const page = PAGES.find(item => item.n === app.page);
+  return page ? app.tabs[page.key] : "";
 }
 
 // --- 슬롯 --------------------------------------------------------------------
@@ -422,121 +478,53 @@ export function goPage(page) {
 // 지금 것을 활성 슬롯에 적어 두고 새 것을 얹는다. 저장할 때마다 적어 두므로
 // 새로고침해도 손댄 것이 남는다.
 
-const SLOT_LIMIT = 6;
-
-const SLOT_ORIGINS = {
-  ingame: "게임에서 읽음",
-  search: "곡선에서",
-  manual: "손으로 찍음",
-};
-
-export function slotOriginLabel(slot) {
-  return SLOT_ORIGINS[slot?.origin] ?? SLOT_ORIGINS.manual;
-}
+const COMPARE_LIMIT = 5;
 
 /**
- * 지금 화면이 들고 있는 빌드 — 캐릭터 통째로.
+ * 내 빌드 하나, 그 옆에 얼린 것들.
  *
- * 예전에는 노드·각인·펫·음식 넷만 들었다. 그래서 슬롯끼리 장비를 공유했고,
- * 팔찌 하나를 바꾸면 비교함의 모든 열이 같은 값으로 함께 움직였다. "팔찌 A와
- * B 중 뭐가 나은가"를 이 계산기로 물을 수가 없었다는 뜻이다.
+ * 예전에는 대등한 슬롯 여럿이 있고 그중 하나가 '활성', 다른 하나가 '기준'이었다.
+ * 화살표가 둘이라 각인 하나를 만질 때마다 "지금 뭘 고치고 있나"를 확인해야 했고,
+ * 읽기 전용 슬롯을 건드리면 사본이 튀어나왔다.
  *
- * 탐색 설정(app.search)은 안 든다. 그건 빌드가 아니라 "무엇을 굴릴지"라는
- * 규칙이고, 열마다 다르면 결과 표가 무엇의 결과인지 알 수 없어진다.
+ * 이제 중심은 하나다.
+ *
+ *   내 빌드   app.character. 페이지가 고치는 유일한 대상이자 증감의 기준.
+ *   비교 대상 app.compare. 얼려 둔 스냅숏. 편집 안 되고 ±%만 든다.
+ *
+ * 대상을 편집하려면 '내 빌드로' 올린다. 그 순간 지금 내 빌드가 그 자리에
+ * 얼려져 들어간다 — 맞바꾸기라 아무것도 안 사라진다.
  */
 export function currentBuild() {
   return cloneState(app.character);
 }
 
-/** 이 슬롯을 잴 빌드 — 활성 슬롯이면 산 값, 아니면 담아 둔 값. */
-export function slotBuild(slot) {
-  return slot.id === app.activeSlotId ? currentBuild() : slot.build;
-}
-
-// 빠진 칸은 기본값으로 채운다. 옛 꼴(넷만 든 빌드)이 들어와도 여기서
-// 캐릭터 모양이 되므로 부르는 쪽이 형태를 안 따져도 된다.
+// 빠진 칸은 기본값으로 채운다. 옛 꼴이 들어와도 여기서 캐릭터 모양이 되므로
+// 부르는 쪽이 형태를 안 따져도 된다.
 function normalizeBuild(build) {
   return migrate(mergeState(DEFAULT_STATE, build ?? {}));
 }
 
-/** 슬롯이 이미 완전한 상태다. 지금 캐릭터를 빌려 오지 않는다. */
+/** 얼린 빌드는 이미 완전한 상태다. 지금 캐릭터를 빌려 오지 않는다. */
 export function buildState(build) {
   if (!build) return null;
   return normalizeBuild(build);
 }
 
-function makeSlot(name, origin, build) {
-  const next = normalizeBuild(build);
-  return { id: makeId(), name, origin, build: next, source: cloneState(next), savedAt: new Date().toISOString() };
-}
-
-function persistSlots() {
+function persistCompare() {
   try {
-    localStorage.setItem(SLOTS_KEY, JSON.stringify({
-      slots: app.slots, activeSlotId: app.activeSlotId, baseSlotId: app.baseSlotId,
-    }));
+    localStorage.setItem(SLOTS_KEY, JSON.stringify({ name: app.buildName, compare: app.compare }));
   } catch {
     // 저장이 막혀도 이번 세션은 그대로 굴러가야 한다.
   }
 }
 
-/** 살아 있는 빌드를 활성 슬롯에 적어 둔다. 저장할 때마다 부른다. */
-function captureActive() {
-  const slot = app.slots.find(item => item.id === app.activeSlotId);
-  if (slot) slot.build = currentBuild();
-}
-
-function loadBuild(build) {
-  app.character = normalizeBuild(build);
-}
-
-function bootstrapSlots() {
-  const saved = load(SLOTS_KEY, null);
-  const slots = (saved?.slots ?? [])
-    .filter(slot => slot && slot.id)
-    .map(slot => ({
-      id: slot.id,
-      name: String(slot.name || "슬롯"),
-      origin: SLOT_ORIGINS[slot.origin] ? slot.origin : "manual",
-      build: normalizeBuild(slot.build),
-      source: normalizeBuild(slot.source ?? slot.build),
-      savedAt: slot.savedAt ?? null,
-    }));
-
-  if (slots.length === 0) {
-    const slot = makeSlot("현재", "manual", currentBuild());
-    app.slots = [slot];
-    app.activeSlotId = slot.id;
-    app.baseSlotId = slot.id;
-    return;
-  }
-
-  app.slots = slots;
-  const has = id => slots.some(slot => slot.id === id);
-  app.activeSlotId = has(saved?.activeSlotId) ? saved.activeSlotId : slots[0].id;
-  app.baseSlotId = has(saved?.baseSlotId) ? saved.baseSlotId : slots[0].id;
-  // 저장해 둔 활성 슬롯을 화면에 올린다. 안 그러면 탭은 A를 가리키는데
-  // 노드판은 B를 보여준다.
-  loadBuild(app.slots.find(slot => slot.id === app.activeSlotId).build);
-}
-
-/**
- * 원본은 안 건드린다.
- *
- * 인게임 슬롯은 "게임에 실제로 있는 것"이고 탐색 결과는 "계산기가 찾아 준 것"이다.
- * 둘 다 손대는 순간 그 사실이 사라지므로 읽기 전용으로 두고, 고치려 하면
- * 사본을 세워 편집을 그쪽으로 넘긴다. 그래야 기준이 흔들리지 않는다.
- */
-export function slotReadOnly(slot) {
-  return slot?.origin === "ingame";
-}
-
-/** 이름이 겹치지 않게 뒤에 번호를 붙인다. */
+/** 이름이 겹치지 않게 뒤에 번호를 붙인다. 내 빌드 이름도 같이 센다. */
 function freeName(base) {
-  if (!app.slots.some(slot => slot.name === base)) return base;
+  const taken = name => app.buildName === name || app.compare.some(item => item.name === name);
+  if (!taken(base)) return base;
   for (let n = 2; n < 99; n += 1) {
-    const name = `${base} ${n}`;
-    if (!app.slots.some(slot => slot.name === name)) return name;
+    if (!taken(`${base} ${n}`)) return `${base} ${n}`;
   }
   return base;
 }
@@ -545,32 +533,25 @@ function freeName(base) {
  * '탐색 N' 다음 번호.
  *
  * 개수로 세면 안 된다. 담고 빼고를 섞으면 이미 있는 이름과 부딪혀
- * freeName이 '탐색 2 2'를 만든다 — 담기와 빼기를 번갈아 눌러 실제로 봤다.
- * 지금 붙어 있는 번호 중 가장 큰 것에서 하나 올린다.
+ * freeName이 '탐색 2 2'를 만든다.
  */
+function nextKeptName() {
+  const used = app.compare
+    .map(item => /^남긴 것 (\d+)$/.exec(item.name ?? ""))
+    .filter(Boolean)
+    .map(match => Number(match[1]));
+  return `남긴 것 ${used.length > 0 ? Math.max(...used) + 1 : 1}`;
+}
+
 function nextSearchName() {
-  const used = app.slots
-    .map(slot => /^탐색 (\d+)$/.exec(slot.name))
+  const used = [app.buildName, ...app.compare.map(item => item.name)]
+    .map(name => /^탐색 (\d+)$/.exec(name ?? ""))
     .filter(Boolean)
     .map(match => Number(match[1]));
   return `탐색 ${used.length > 0 ? Math.max(...used) + 1 : 1}`;
 }
 
-/**
- * 편집할 수 있는 자리를 마련한다. 노드·각인·펫·음식을 고치기 직전에 부른다.
- *
- * 인게임 슬롯을 고치려 하면 사본을 세우고 편집을 그쪽으로 넘긴다. 이미 고칠 수
- * 있는 슬롯이면 아무 일도 안 한다 — 부르는 쪽은 매번 불러도 된다.
- */
-export function ensureEditable() {
-  const current = activeSlot();
-  if (!slotReadOnly(current)) return current;
-  const slot = addSlot({ name: freeName(`${current.name} 사본`), origin: "manual", build: cloneState(current.build) });
-  app.status = `'${current.name}'은 게임에서 읽은 그대로라 '${slot.name}'을 만들어 편집합니다.`;
-  return slot;
-}
-
-// 빌드 서랍. 페이지가 아니라 물건이라, 어느 화면에서든 꺼냈다 넣는다.
+// 빌드 서랍. 접으면 하단 막대, 펼치면 비교표 — 같은 물건의 두 상태다.
 export function openDrawer() {
   app.drawer.open = true;
 }
@@ -583,122 +564,110 @@ export function toggleDrawer() {
   app.drawer.open = !app.drawer.open;
 }
 
-export function activeSlot() {
-  return app.slots.find(slot => slot.id === app.activeSlotId) ?? null;
-}
-
-export function baseSlot() {
-  return app.slots.find(slot => slot.id === app.baseSlotId) ?? null;
-}
-
-/** 담은 뒤로 손댔는지. 되돌리기를 띄울지 여기서 정한다. */
-export function slotDirty(slot) {
-  if (!slot) return false;
-  const build = slot.id === app.activeSlotId ? currentBuild() : slot.build;
-  return JSON.stringify(normalizeBuild(build)) !== JSON.stringify(normalizeBuild(slot.source));
-}
-
-export function selectSlot(id) {
-  if (id === app.activeSlotId) return;
-  const slot = app.slots.find(item => item.id === id);
-  if (!slot) return;
-  captureActive();
-  app.activeSlotId = id;
-  loadBuild(slot.build);
-  persist();
-}
-
-export function addSlot({ name, origin = "manual", build = null, select = true } = {}) {
-  captureActive();
-  // 개수로 이름을 지으면 담고 빼기를 섞을 때 이미 있는 이름과 겹친다 —
-  // 실제로 `슬롯 2` 두 개가 나란히 선 적이 있다.
-  const slot = makeSlot(freeName(name || `슬롯 ${app.slots.length + 1}`), origin, build ?? currentBuild());
-
-  if (app.slots.length >= SLOT_LIMIT) {
-    // 조용히 지우지 않는다. 활성 슬롯 자리를 내주고 그 사실을 적는다.
-    const at = Math.max(0, app.slots.findIndex(item => item.id === app.activeSlotId));
-    app.status = `슬롯이 ${SLOT_LIMIT}개로 가득 차 '${app.slots[at].name}' 자리에 담았습니다.`;
-    if (app.baseSlotId === app.slots[at].id) app.baseSlotId = slot.id;
-    app.slots[at] = slot;
-  } else {
-    app.slots.push(slot);
+/**
+ * 지금 내 빌드를 옆에 얼려 둔다.
+ *
+ * 팔찌를 바꿔 보기 직전에 누르는 단추다. 누른 뒤에 무엇을 고치든 내 빌드만
+ * 움직이고, 얼린 것은 그 자리에 그대로 선다.
+ */
+export function keepBuild(name) {
+  if (app.compare.length >= COMPARE_LIMIT) {
+    app.status = `비교함이 ${COMPARE_LIMIT}개로 가득 찼습니다. 하나 빼고 남기세요.`;
+    return null;
   }
+  // 이름을 안 주면 '남긴 것 N'으로. 내 빌드 이름을 그대로 물려주면
+  // '내 빌드 2'가 되어 어느 쪽이 지금 것인지 헷갈린다.
+  const entry = {
+    id: makeId(),
+    name: freeName(String(name ?? "").trim() || nextKeptName()),
+    build: currentBuild(),
+    savedAt: new Date().toISOString(),
+  };
+  app.compare.push(entry);
+  app.status = `'${entry.name}'을 비교함에 남겼습니다.`;
+  persist();
+  return entry;
+}
 
-  if (select) {
-    app.activeSlotId = slot.id;
-    loadBuild(slot.build);
+/** 얼린 것을 그대로 비교함에 세운다. 탐색 결과 체크가 이 길로 들어온다. */
+export function keepSnapshot(name, build) {
+  if (app.compare.length >= COMPARE_LIMIT) {
+    app.status = `비교함이 ${COMPARE_LIMIT}개로 가득 찼습니다. 하나 빼고 담으세요.`;
+    return null;
   }
+  const entry = {
+    id: makeId(),
+    name: freeName(String(name ?? "").trim() || "빌드"),
+    build: normalizeBuild(build),
+    savedAt: new Date().toISOString(),
+  };
+  app.compare.push(entry);
   persist();
-  return slot;
-}
-
-export function renameSlot(id, name) {
-  const trimmed = String(name ?? "").trim();
-  const slot = app.slots.find(item => item.id === id);
-  if (!slot || !trimmed) return false;
-  slot.name = trimmed;
-  persist();
-  return true;
-}
-
-export function removeSlot(id) {
-  if (app.slots.length <= 1) return false;
-  const at = app.slots.findIndex(slot => slot.id === id);
-  if (at < 0) return false;
-  app.slots.splice(at, 1);
-  const fallback = app.slots[Math.min(at, app.slots.length - 1)];
-  if (app.baseSlotId === id) app.baseSlotId = fallback.id;
-  if (app.activeSlotId === id) {
-    app.activeSlotId = fallback.id;
-    loadBuild(fallback.build);
-  }
-  persist();
-  return true;
-}
-
-/** 담았을 때의 값으로. 곡선에서 가져온 것, 게임에서 읽은 것이 여기로 돌아온다. */
-export function revertSlot(id) {
-  const slot = app.slots.find(item => item.id === id);
-  if (!slot) return false;
-  slot.build = cloneState(normalizeBuild(slot.source));
-  if (slot.id === app.activeSlotId) loadBuild(slot.build);
-  persist();
-  return true;
-}
-
-export function setBaseSlot(id) {
-  if (!app.slots.some(slot => slot.id === id)) return false;
-  app.baseSlotId = id;
-  persist();
-  return true;
+  return entry;
 }
 
 /**
- * 하단 막대가 무엇과 비교할지.
+ * 맞바꾸기 — 이 대상을 내 빌드로 올리고, 지금 내 빌드를 그 자리에 얼린다.
  *
- * 보통은 ★ 슬롯이다. 그런데 지금 만지고 있는 것이 바로 ★ 슬롯이면 편집이
- * 기준까지 같이 끌고 가서 증감이 영영 0이 된다 — 그때는 그 슬롯의 원본과
- * 비교한다. 어느 쪽이든 "손댄 만큼"이 나온다.
+ * 덮어쓰기가 아니다. 덮으면 "후보 셋을 놓고 하나씩 굴려 본다"가 성립하지 않는다.
  */
-export function baselineRef() {
-  const base = baseSlot();
-  if (!base) return null;
-  const own = base.id === app.activeSlotId;
-  if (own && !slotDirty(base)) return null;
-  return { build: own ? base.source : base.build, label: own ? `${base.name} 원본` : base.name };
+export function makeMine(id) {
+  const at = app.compare.findIndex(item => item.id === id);
+  if (at < 0) return false;
+  const target = app.compare[at];
+  const mineName = app.buildName;
+  const mineBuild = currentBuild();
+
+  app.character = normalizeBuild(target.build);
+  app.buildName = target.name;
+  app.compare[at] = { ...target, name: mineName, build: mineBuild };
+
+  app.status = `'${target.name}'을 내 빌드로 올렸습니다. 쓰던 것은 '${mineName}'으로 남았습니다.`;
+  persist();
+  return true;
 }
 
-/** 기준 빌드를 지금 장비·전투 상황 위에 얹은 상태. 없으면 null. */
-export function baselineState() {
-  return buildState(baselineRef()?.build);
+export function dropCompare(id) {
+  const at = app.compare.findIndex(item => item.id === id);
+  if (at < 0) return false;
+  const [gone] = app.compare.splice(at, 1);
+  app.status = `'${gone.name}'을 비교함에서 뺐습니다.`;
+  persist();
+  return true;
 }
 
-// 슬롯이 하나도 없으면 지금 빌드로 하나 만든다. 여기서부터 손댄 만큼만
-// 증감으로 나온다 — 예전 '비교 기준'이 하던 일이 슬롯 하나가 된 것이다.
-//
-// 이 줄은 반드시 위 const들 뒤에 와야 한다. 함수 선언은 끌어올려지지만
-// SLOT_ORIGINS 같은 const는 안 그래서, app 정의 바로 밑에 두면 TDZ에 걸린다.
-bootstrapSlots();
+export function renameCompare(id, name) {
+  const trimmed = String(name ?? "").trim();
+  const entry = app.compare.find(item => item.id === id);
+  if (!entry || !trimmed) return false;
+  entry.name = trimmed;
+  persist();
+  return true;
+}
+
+export function renameBuild(name) {
+  const trimmed = String(name ?? "").trim();
+  if (!trimmed) return false;
+  app.buildName = trimmed;
+  persist();
+  return true;
+}
+
+function bootstrapCompare() {
+  const saved = load(SLOTS_KEY, null);
+  app.buildName = String(saved?.name || "내 빌드");
+  app.compare = (saved?.compare ?? [])
+    .filter(item => item && item.id)
+    .slice(0, COMPARE_LIMIT)
+    .map(item => ({
+      id: item.id,
+      name: String(item.name || "빌드"),
+      build: normalizeBuild(item.build),
+      savedAt: item.savedAt ?? null,
+    }));
+}
+
+bootstrapCompare();
 
 // --- 탐색에서 고른 후보 ------------------------------------------------------
 // 하단 막대와 3페이지가 같은 후보를 봐야 해서 여기 둔다. 양쪽이 각자 계산하면
@@ -772,12 +741,9 @@ export function resultChanges(entry) {
 }
 
 export function persist() {
-  // 살아 있는 빌드는 활성 슬롯의 것이다. 저장할 때 같이 적어 둬야
-  // 새로고침한 뒤에도 손댄 것이 남는다.
-  captureActive();
   localStorage.setItem(CHARACTER_KEY, JSON.stringify(app.character));
   localStorage.setItem(SEARCH_KEY, JSON.stringify(app.search));
-  persistSlots();
+  persistCompare();
 }
 
 // --- 캐릭터 불러오기 ---------------------------------------------------------
@@ -1117,12 +1083,10 @@ export function applyCharacter(read, picks, force) {
   resetEngravingSearch();
   app.results = null;
   app.selectedId = null;
-  // 슬롯도 새 캐릭터의 것으로 갈아엎는다. 앞 캐릭터의 배분이 남아 있으면
-  // 직업이 달라도 노드가 그대로 남아 비교표가 거짓말을 한다.
-  const slot = makeSlot("인게임", "ingame", currentBuild());
-  app.slots = [slot];
-  app.activeSlotId = slot.id;
-  app.baseSlotId = slot.id;
+  // 비교함도 비운다. 앞 캐릭터의 빌드가 남아 있으면 직업이 달라도 노드가
+  // 그대로 남아 비교표가 거짓말을 한다.
+  app.buildName = "인게임";
+  app.compare = [];
   persist();
   return { ...built, applied: true };
 }
@@ -1145,17 +1109,14 @@ export function saveSetup(name) {
   const trimmed = String(name ?? "").trim();
   if (!trimmed) return null;
 
-  // 손대는 중인 빌드를 활성 슬롯에 먼저 적어야 그것까지 같이 저장된다.
-  captureActive();
   const entry = {
     id: makeId(),
     name: trimmed,
     savedAt: new Date().toISOString(),
     character: cloneState(app.character),
     search: cloneState(app.search),
-    slots: cloneState(app.slots),
-    activeSlotId: app.activeSlotId,
-    baseSlotId: app.baseSlotId,
+    buildName: app.buildName,
+    compare: cloneState(app.compare),
   };
 
   // 같은 이름이면 덮어쓴다. 목록에 같은 이름이 둘 쌓이면 고를 수가 없다.
@@ -1174,20 +1135,9 @@ export function loadSetup(id) {
   app.search = migrateSearch(cloneState(save.search ?? {}));
   app.results = null;
   app.selectedId = null;
-  // 캐릭터를 통째로 갈아끼우므로 슬롯도 그 캐릭터의 것으로 간다.
-  // 옛 저장본에는 슬롯이 없다 — 그때는 불러온 빌드로 하나 만든다.
-  const slots = (save.slots ?? []).filter(item => item && item.id);
-  if (slots.length > 0) {
-    app.slots = cloneState(slots);
-    app.activeSlotId = app.slots.some(item => item.id === save.activeSlotId) ? save.activeSlotId : app.slots[0].id;
-    app.baseSlotId = app.slots.some(item => item.id === save.baseSlotId) ? save.baseSlotId : app.slots[0].id;
-    loadBuild(app.slots.find(item => item.id === app.activeSlotId).build);
-  } else {
-    const slot = makeSlot(save.name, "manual", currentBuild());
-    app.slots = [slot];
-    app.activeSlotId = slot.id;
-    app.baseSlotId = slot.id;
-  }
+  // 캐릭터를 통째로 갈아끼우므로 비교함도 그 저장본의 것으로 간다.
+  app.buildName = String(save.buildName || save.name || "내 빌드");
+  app.compare = (save.compare ?? []).filter(item => item && item.id).map(item => cloneState(item));
   persist();
   return true;
 }
@@ -1400,7 +1350,7 @@ export async function startSearch() {
   app.progress = { phase: "준비", progress: 0, evaluated: 0 };
   // 돌리는 순간 결과 화면으로 넘어간다. 진행 막대가 거기 있고,
   // 설정 화면에 남아 있으면 다 돌 때까지 아무 일도 안 일어난 것처럼 보인다.
-  goPage(PAGE.results);
+  goTab("results");
 
   const result = await runSearch(
     cloneState(app.character),
@@ -1448,23 +1398,15 @@ export function previewResult(entry) {
   app.selectedId = entry?.id ?? null;
 }
 
-/**
- * 곡선에서 고른 지점을 슬롯에 담는다.
- *
- * 예전에는 지금 빌드를 덮어썼다. 그러면 곡선이 찾아 준 것과 손으로 만진 것이
- * 같은 자리에 겹쳐서, 조금 만지는 순간 원래 무엇이었는지 알 수 없게 된다.
- * 새 슬롯으로 담으면 원본이 그대로 남고 되돌리기가 산다.
- */
+/** 곡선에서 고른 지점을 비교함에 담고 서랍을 연다. */
 export function confirmResult(entry) {
   if (!entry) return;
   app.selectedId = entry.id;
-  const slot = addSlot({
-    name: nextSearchName(),
-    origin: "search",
-    build: stateFromResult(entry),
-  });
-  app.status = `'${slot.name}'로 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
-  openDrawer();
+  const added = keepSnapshot(nextSearchName(), stateFromResult(entry));
+  if (added) {
+    app.status = `'${added.name}'로 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
+    openDrawer();
+  }
 }
 
 // --- 비교함 담기 ------------------------------------------------------------
@@ -1501,39 +1443,29 @@ function stateFromResult(entry) {
   return next;
 }
 
-/** 이 후보가 이미 비교함에 있나. 있으면 그 슬롯. */
+/** 이 후보가 이미 비교함에 있나. 있으면 그 항목. 내 빌드와 같아도 잡는다. */
 export function boxedSlot(entry) {
   if (!entry) return null;
   const key = resultKey(entry);
-  return app.slots.find(slot => resultKey(slot.build) === key) ?? null;
+  if (resultKey(app.character) === key) return { id: null, name: app.buildName, mine: true };
+  return app.compare.find(item => resultKey(item.build) === key) ?? null;
 }
 
-/** 체크 = 담기, 체크 해제 = 빼기. */
+/** 체크 = 담기, 체크 해제 = 빼기. 담아도 내 빌드는 안 바뀐다. */
 export function toggleBoxed(entry) {
   if (!entry) return;
   const found = boxedSlot(entry);
+  if (found?.mine) {
+    // 지금 내 빌드와 같은 것은 뺄 수도 담을 수도 없다 — 이미 기준이다.
+    app.status = "내 빌드와 같은 조합입니다.";
+    return;
+  }
   if (found) {
-    // 마지막 하나는 못 뺀다 — 비교함이 비면 하단 막대가 사라진다.
-    if (app.slots.length <= 1) {
-      app.status = "비교함에 하나는 남아야 합니다.";
-      return;
-    }
-    removeSlot(found.id);
-    app.status = `'${found.name}'을 비교함에서 뺐습니다.`;
+    dropCompare(found.id);
     return;
   }
-  if (app.slots.length >= SLOT_LIMIT) {
-    app.status = `비교함이 ${SLOT_LIMIT}개로 가득 찼습니다. 하나 빼고 담으세요.`;
-    return;
-  }
-  const slot = addSlot({
-    name: nextSearchName(),
-    origin: "search",
-    build: stateFromResult(entry),
-    // 담자마자 화면이 그 빌드로 갈아타면 곡선에서 눈이 떨어진다. 담기만 한다.
-    select: false,
-  });
-  app.status = `'${slot.name}'로 담았습니다.`;
+  const entryAdded = keepSnapshot(nextSearchName(), stateFromResult(entry));
+  if (entryAdded) app.status = `'${entryAdded.name}'로 담았습니다.`;
 }
 
 export function currentSignature() {
