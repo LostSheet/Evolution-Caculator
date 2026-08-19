@@ -134,12 +134,6 @@
       if (level > 0) cores.push(`젬 ${effect.label} Lv${level} (+${arkGridGemDamage(effect.key, level)}%)`);
     });
 
-    // 어느 줄을 더했는지 보여준다. 합만 적으면 맞는지 확인할 방법이 없다.
-    const cards = [];
-    if (read.cards?.additional > 0) cards.push(`추가 피해 ${read.cards.additional}%`);
-    if (read.cards?.dealt > 0) cards.push(`주는 피해 ${read.cards.dealt}% (곱연산)`);
-    (read.cards?.lines ?? []).forEach(line => cards.push(line.text));
-
     const bracelet = read.braceletStats
       ? [
         ...Object.entries(read.braceletStats).filter(([, value]) => value > 0).map(([key, value]) => `${STAT_LABEL[key]} ${value}`),
@@ -185,7 +179,7 @@
     if (read.karma?.["진화"]) karma.push(`진화 ${read.karma["진화"].rank}랭크`);
     if (read.karma?.["깨달음"]) karma.push(`깨달음 ${read.karma["깨달음"].level}Lv`);
 
-    return { nodes, awakening: awake, engravings, attack, specDamage: spec, accessories: grind, bracelet, arkGrid: cores, cards, weapon, jewel, karma, stats: combat };
+    return { nodes, awakening: awake, engravings, attack, specDamage: spec, accessories: grind, bracelet, arkGrid: cores, weapon, jewel, karma, stats: combat };
   });
 
   // 카드는 그룹이 문장으로 정해진다 — 이제 고를 여지가 없다.

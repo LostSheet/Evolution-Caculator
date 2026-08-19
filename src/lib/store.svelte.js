@@ -1031,22 +1031,6 @@ function buildCharacter(read, picks) {
     next.base = { ...next.base, specDamagePer100: readNumber(read.specEfficiency.best.per100) };
     changed.push(`특화 효율 ${next.base.specDamagePer100}%/100`);
   }
-  if (picks.cards && read.cards?.lines.length > 0) {
-    // 그룹은 문장이 정한다. '추가 피해'라고 적힌 것만 추피고, 나머지는 곱연산이다.
-    // 성속성 피해를 추피 칸에 넣으면 곱해야 할 것을 더하게 된다.
-    //
-    // 장기적으로는 사전 세팅에 카드 칸이 따로 있어야 한다. 지금은 직접 입력
-    // 효과에 두 줄로 둔다 — 눈에 보이고 고칠 수 있다.
-    const rows = [
-      { id: "card-additional", label: "카드 · 추가 피해", category: "damage:추가 피해", amount: read.cards.additional },
-      { id: "card-dealt", label: "카드 · 주는 피해", category: "damage:주는 피해", amount: read.cards.dealt },
-    ].filter(row => row.amount > 0);
-
-    rows.forEach(row => next.baseEffects.push({ ...row, customCategory: "", formula: "", cap: "" }));
-    if (rows.length > 0) {
-      changed.push(`카드 ${rows.map(row => `${row.label.replace("카드 · ", "")} ${row.amount}%`).join(" · ")}`);
-    }
-  }
   if (picks.jewel && read.jewel) {
     next.jewel = { ...next.jewel, cooldown: read.jewel.percent };
     changed.push(`보석 쿨감 ${read.jewel.percent}%`);

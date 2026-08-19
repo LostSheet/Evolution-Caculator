@@ -353,7 +353,7 @@
     <section class="card">
       <div class="card-hd">
         <h2>대난투</h2>
-        <span class="eyebrow">제압 · 미드닷 · 부러진 뼈 적용</span>
+        <span class="eyebrow">제압 · 부러진 뼈 적용</span>
       </div>
       <div class="card-body">
         <div class="fields">
