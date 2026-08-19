@@ -27,7 +27,10 @@ const TIER1_SPEC_NODE = "e1-spec";
 const TIER1_SPEC_LEVEL = 30;
 
 export const SEARCH_DEFAULTS = {
-  tier1Mode: "step10",
+  // 1Lv 단위가 기본이다. 10Lv 단위는 빠르지만 1T가 실제로 갈리는 자리를
+  // 건너뛴다 — 치명 27/신속 13 같은 배분이 후보에 아예 안 오른다.
+  // 조합이 커지면 mode:"auto"가 빔 탐색으로 넘긴다.
+  tier1Mode: "step1",
   tier1SpecLock: false,
   // 사용자가 직접 뺀 노드 id. 노드판에서 0인 노드를 우클릭하면 여기 들어온다.
   excludedNodes: [],
@@ -451,15 +454,22 @@ export function buildEvaluator(sourceState, searchedEngravingIds) {
   applyWeaponEffects(sourceState.weapon, baseDamage);
   applyBraceletEffects(bracelet, settings, baseStats, basePercent, baseDamage, baseFlat);
 
-  const attack = normalizeAttack(sourceState.attack);
+  // 조립한 공격력이어야 한다. normalizeAttack은 불러오기가 채운 원본 꼴이라
+  // weaponAttack·mainStat이 0이고, 그러면 평면 증가를 퍼센트로 바꿀 나눗셈의
+  // 분모가 없어 통째로 버려진다 — 평면 무기 공격력 9000이 조용히 사라졌다.
+  const attack = assembleAttack(sourceState);
   const droppedFlat = applyFlatAttackBonuses(baseFlat, attack, baseDamage);
 
+  // 어빌리티 스톤이 얹은 레벨. 돌은 하나뿐이고 탐색이 안 굴리므로 그대로 실린다.
+  // 예전에는 이 인자를 안 넘겨서 탐색 쪽 딜만 스톤 몫 없이 낮게 나왔다 —
+  // 같은 빌드인데 표와 비교함의 숫자가 달랐던 이유다.
+  const stones = sourceState.engravingStones ?? {};
   const baseEngravingSpecials = { critRateMinimum: 0, raidCaptainRate: 0 };
   ENGRAVING_LIBRARY.forEach(item => {
     if (searchedEngravingIds.has(item.id)) return;
     const tierIndex = getEngravingTierIndex(sourceState.engravings?.[item.id]);
     if (tierIndex < 0) return;
-    applyEngravingTier(item, tierIndex, basePercent, baseDamage, baseEngravingSpecials, manaShare, settings);
+    applyEngravingTier(item, tierIndex, basePercent, baseDamage, baseEngravingSpecials, manaShare, settings, readNumber(stones[item.id]));
   });
 
   const contributions = new Map();
@@ -510,7 +520,7 @@ export function buildEvaluator(sourceState, searchedEngravingIds) {
       if (pick.kind === "engravingSet") {
         for (let j = 0; j < pick.active.length; j += 1) {
           const entry = pick.active[j];
-          applyEngravingTier(entry.item, entry.tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings);
+          applyEngravingTier(entry.item, entry.tierIndex, percentBonuses, damageGroups, engravingSpecials, manaShare, settings, readNumber(stones[entry.item.id]));
         }
         continue;
       }

@@ -11,7 +11,7 @@
     "build:arkpassive": "node scripts/build-arkpassive.mjs",
     "awakening:sheet": "node scripts/awakening-sheet.mjs",
     "awakening:audit": "node scripts/awakening-audit.mjs",
-    "test": "npm run test:pareto && npm run test:runner && npm run test:explain && npm run test:gamma && npm run test:mana && npm run test:recommend && npm run test:ceiling && npm run test:directional && npm run test:conversion && npm run test:floors && npm run test:critonly && npm run test:speclock && npm run test:attack && npm run test:awakening && npm run test:synergy && npm run test:stagger && npm run test:nodelock && npm run test:specbundle && npm run test:lostark && npm run test:awakening-audit && npm run test:legacy",
+    "test": "npm run test:pareto && npm run test:runner && npm run test:explain && npm run test:gamma && npm run test:mana && npm run test:recommend && npm run test:ceiling && npm run test:directional && npm run test:conversion && npm run test:floors && npm run test:critonly && npm run test:speclock && npm run test:attack && npm run test:awakening && npm run test:synergy && npm run test:stagger && npm run test:nodelock && npm run test:specbundle && npm run test:evaluator && npm run test:lostark && npm run test:awakening-audit && npm run test:legacy",
     "test:pareto": "node scripts/pareto.test.mjs",
     "test:runner": "node scripts/runner.test.mjs",
     "test:explain": "node scripts/explain.test.mjs",
@@ -34,7 +34,8 @@
     "test:awakening-audit": "node scripts/awakening-audit.mjs",
     "test:legacy": "node scripts/diff-legacy.mjs",
     "tool": "vite --config vite.tool.config.js",
-    "deploy": "vite build"
+    "deploy": "vite build",
+    "test:evaluator": "node scripts/evaluator.test.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.1.2",

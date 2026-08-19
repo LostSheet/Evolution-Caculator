@@ -20,7 +20,6 @@
   let { plan, onRun, report, budget } = $props();
 
   const TIER_OPTIONS = ENGRAVING_TIERS.map(tier => ({ value: tier.value, label: tier.label }));
-  const SLOT_OPTIONS = [0, 1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `${n}개` }));
   const TIER1_OPTIONS = [
     { value: "step10", label: "10Lv 단위", hint: "빠름" },
     { value: "step5", label: "5Lv 단위" },
@@ -322,11 +321,7 @@
       </div>
       <div class="card-body">
         <div class="fields">
-          <div class="field">
-            <span>각인 개수</span>
-            <Select label="각인 개수" options={SLOT_OPTIONS}
-                    bind:value={app.search.engravingSlots} onchange={persist} />
-          </div>
+          <!-- 각인 슬롯은 게임이 5개로 못 박아 둔다. 고를 것이 아니었다. -->
           <div class="field">
             <span>1T 배분</span>
             <Select label="1T 배분" options={TIER1_OPTIONS}

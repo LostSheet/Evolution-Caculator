@@ -192,6 +192,9 @@ function migrateAwakening(awakening) {
 // 조합이 하나뿐이라 예전의 고정 모드와 같은 결과가 나온다.
 function migrateSearch(search, character) {
   const merged = { ...SEARCH_DEFAULTS, ...search };
+  // 각인 슬롯은 게임이 5로 못 박는다 — 고를 것이 아니었다. 옛 저장본에 3이나
+  // "fixed"가 남아 있으면 탐색이 조용히 각인을 덜 끼운 채로 돈다.
+  merged.engravingSlots = "5";
   // 펫·음식이 켬/끔 스위치에서 고정·후보·제외로 바뀌었다. 꺼 둔 상태는
   // "지금 쓰는 것 하나로"라는 뜻이었으므로 그것을 고정으로 옮긴다.
   if (merged.petSearch === false && !search?.petRoles) {
