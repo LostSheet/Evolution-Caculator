@@ -1234,7 +1234,9 @@ table.results td.tier1 { color: var(--txt-3); white-space: nowrap; }
 
 table.results {
   width: 100%;
-  min-width: 700px;
+  /* 열이 열둘이다. 700px에 욱여넣으면 안 넘치는 대신 칸마다 글자가 세로로
+     쪼개져 한 줄이 150px이 된다 — 넘쳐서 가로로 흐르는 편이 읽힌다. */
+  min-width: 1020px;
   border-collapse: collapse;
   font-size: 12.5px;
 }
@@ -4011,3 +4013,27 @@ td.base .c-levels li { color: var(--txt); }
 
 /* 서랍 머리 — 탭이 없어졌으니 제목 하나다. */
 .bd-title { font-size: 13px; font-weight: 600; }
+
+/* 1T 배분은 '치명 30 · 신속 10'처럼 짧은 한 줄이다. 좁아지면 글자마다
+   줄바꿈이 나서 세로로 다섯 줄이 되는데, 그러면 표가 아니라 벽이 된다. */
+.results td.tier1, .results th.left { white-space: nowrap; }
+.results td.left { min-width: 0; }
+
+/* 표만 가로로 흐르고 페이지는 안 흐른다.
+   격자 자식은 min-width가 auto라 안 줄어든다 — 그러면 카드가 통째로 넓어져서
+   스크롤이 표가 아니라 화면에 걸린다.
+   :has()와 한 줄에 묶지 않는다. 브라우저가 :has()를 못 읽으면 셀렉터 목록
+   전체가 버려져서 옆 규칙까지 같이 죽는다. */
+.card { min-width: 0; }
+.results-main > .card { min-width: 0; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+
+/* 고른 줄을 잠깐 세운 것. 담은 것과 눈으로 갈려야 한다 — 담기 전에는
+   화면을 떠나면 사라진다. */
+.sb-slot.preview {
+  border-style: dashed;
+  border-color: var(--cool-dim);
+  opacity: 0.9;
+}
+.sb-slot.preview .sb-slot-name { color: var(--cool-dim); }
+.sb-slot.preview:hover { border-style: solid; border-color: var(--cool); opacity: 1; }

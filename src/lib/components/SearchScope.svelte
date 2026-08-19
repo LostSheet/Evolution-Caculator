@@ -203,6 +203,11 @@
     <section class="card">
       <div class="card-hd">
         <h2>각인 후보</h2>
+        <!-- 캐릭터마다 따로 기억한다. 직업이 다르면 낄 수 없는 각인이라
+             앞 캐릭터의 후보가 그대로 남으면 안 된다. -->
+        {#if app.characterName}
+          <span class="eyebrow">{app.characterName} 것으로 저장됨</span>
+        {/if}
         <span class="spacer"></span>
         <span class="eyebrow">{items.length}종</span>
       </div>

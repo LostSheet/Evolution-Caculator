@@ -1,6 +1,7 @@
 <script>
   import {
     app, PAGES, PAGE, goPage, goTab, setTab, currentTab,
+    selectedResult, resultState, boxedSlot, toggleBoxed,
     startSearch, cancelSearch, cycleTheme,
     toggleDrawer, buildState, makeMine,
   } from "./lib/store.svelte.js";
@@ -55,10 +56,25 @@
    * 첫 칸이 내 빌드다. 언제나 편집 대상이자 증감의 기준이라 고를 것이 없다.
    * 나머지는 얼린 것이고, 누르면 내 빌드로 올라온다(맞바꾸기).
    */
+  /**
+   * 결과 표에서 고른 줄.
+   *
+   * 고르기만 해서는 비교가 안 됐다 — 하이라이트만 되고 숫자는 안 서서, 견주려면
+   * 반드시 담아야 했다. 담기 전에 "이게 내 빌드보다 나은가"를 먼저 보는 게
+   * 순서라, 고른 줄을 임시 열로 세운다. 담으면 그때 영구 열이 된다.
+   */
+  const previewed = $derived.by(() => {
+    if (app.page !== PAGE.search || currentTab() !== "results") return null;
+    const entry = selectedResult();
+    if (!entry || boxedSlot(entry)) return null;
+    return { entry, build: resultState(entry) };
+  });
+
   const boxSlots = $derived.by(() => {
     const columns = [
       { id: null, name: app.buildName, mine: true },
       ...app.compare.map(item => ({ id: item.id, name: item.name, build: item.build, mine: false })),
+      ...(previewed ? [{ id: "preview", name: "고른 후보", build: previewed.build, mine: false, preview: true }] : []),
     ];
     const scores = columns.map(column => calculateMetrics(
       column.mine ? app.character : buildState(column.build),
@@ -74,6 +90,7 @@
       id: column.id,
       name: column.name,
       isBase: column.mine,
+      preview: Boolean(column.preview),
       damageIndex: scores[at].damageIndex,
       dpsIndex: scores[at].dpsIndex,
       damageDelta: column.mine ? null : rel(scores[at].damageIndex, scores[0]?.damageIndex),
@@ -225,7 +242,8 @@
 <!-- 답이 놓이는 자리. 어느 화면에 있든 늘 보인다. 이름표가 서랍 손잡이다. -->
 <StatusBar report={bar.report} deltas={bar.deltas} label={bar.label}
            action={bar.action} handle={bar.handle}
-           slots={bar.slots ?? null} onPick={makeMine} />
+           slots={bar.slots ?? null}
+           onPick={id => (id === "preview" ? toggleBoxed(previewed?.entry) : makeMine(id))} />
 
 <EngravingDialog bind:open={engravingsOpen} />
 <BraceletDialog bind:open={braceletOpen} />

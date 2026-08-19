@@ -45,9 +45,14 @@
     <div class="sb-slots" role="tablist" aria-label="비교함">
       {#each slots as slot (slot.id ?? "mine")}
         {@const on = slot.isBase}
-        <button class="sb-slot" type="button" class:on class:frozen={!on}
+        <button class="sb-slot" type="button" class:on class:frozen={!on && !slot.preview}
+                class:preview={slot.preview}
                 role="tab" aria-selected={on} disabled={on}
-                title={on ? "지금 고치고 있는 빌드" : `'${slot.name}'을 내 빌드로 — 쓰던 것은 이 자리에 얼립니다`}
+                title={on
+                  ? "지금 고치고 있는 빌드"
+                  : slot.preview
+                    ? "눌러서 비교함에 담기 — 지금은 고른 줄을 잠깐 세워 둔 것입니다"
+                    : `'${slot.name}'을 내 빌드로 — 쓰던 것은 이 자리에 얼립니다`}
                 onclick={() => onPick?.(slot.id)}>
           <span class="sb-slot-name">{slot.name}</span>
           <!-- 지표마다 제 증감을 옆에 붙인다. 하나만 적으면 두 숫자 중 어느 쪽

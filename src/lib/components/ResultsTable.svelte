@@ -82,9 +82,6 @@
       <table class="results">
         <thead>
           <tr>
-            <!-- 체크가 곧 담기다. 고르기와 담기를 갈라 두면 여럿을 견주려고
-                 골랐다 담았다를 번갈아야 한다. -->
-            <th class="pick-col" title="비교함에 담기"><span class="sr-only">담기</span></th>
             <th class="left">#</th>
             <th>한 방</th>
             <th class="loss-col">손실</th>
@@ -113,7 +110,10 @@
             {/if}
             <th class="left">1T</th>
             <th class="left">주요 노드</th>
+            <!-- 손이 오가는 두 자리를 붙여 둔다. 예전에는 담기가 왼쪽 끝,
+                 자세히가 오른쪽 끝이라 표를 가로질러야 했다. -->
             <th class="pick-col"><span class="sr-only">자세히</span></th>
+            <th class="pick-col" title="비교함에 담기">담기</th>
           </tr>
         </thead>
         <tbody>
@@ -126,14 +126,6 @@
                 class:boxed={Boolean(boxed)}
                 class:champ={entry.id === sweep.championId}
                 onclick={() => (app.selectedId = entry.id)}>
-              <td class="pick-col">
-                <!-- 줄 클릭은 '고르기'다. 체크는 '담기'라 줄로 안 번진다. -->
-                <input type="checkbox" checked={Boolean(boxed)}
-                       aria-label="{index + 1}번 후보를 비교함에 담기"
-                       title={boxed ? `비교함에서 빼기 (${boxed.name})` : "비교함에 담기"}
-                       onclick={event => event.stopPropagation()}
-                       onchange={() => toggleBoxed(entry)} />
-              </td>
               <td class="left rank">
                 <span class="swatch" style:--ramp={cdrColor(entry.cooldownReduction)}></span>{index + 1}
               </td>
@@ -166,12 +158,24 @@
               </td>
               <td class="pick-col">
                 <!-- 담기 전에 무엇이 들었는지 본다. 표에는 주요 노드 넷까지만
-                     적히므로 나머지는 여기서 편다. -->
+                     적히므로 나머지는 여기서 편다.
+                     화살표였는데 체크박스 안쪽에 놓이니 '다음으로 넘어감'처럼
+                     읽혔다 — 하는 일이 들여다보기라 돋보기로 바꾼다. -->
                 <button class="row-more" type="button" aria-label="{index + 1}번 후보 자세히"
                         title="자세히 보기"
                         onclick={event => { event.stopPropagation(); app.selectedId = entry.id; onInspect?.(entry); }}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6" /><path d="m15.5 15.5 4 4" />
+                  </svg>
                 </button>
+              </td>
+              <td class="pick-col">
+                <!-- 줄 클릭은 '고르기'다. 체크는 '담기'라 줄로 안 번진다. -->
+                <input type="checkbox" checked={Boolean(boxed)}
+                       aria-label="{index + 1}번 후보를 비교함에 담기"
+                       title={boxed ? `비교함에서 빼기 (${boxed.name})` : "비교함에 담기"}
+                       onclick={event => event.stopPropagation()}
+                       onchange={() => toggleBoxed(entry)} />
               </td>
             </tr>
           {/each}

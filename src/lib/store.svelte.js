@@ -24,6 +24,13 @@ const SAVES_KEY = "ark-passive-saves-v1";
 const SLOTS_KEY = "ark-passive-slots-v2";
 // 어느 축의 어느 탭을 보고 있었는지. 세팅이 아니라 화면 습관이라 따로 둔다.
 const VIEW_KEY = "ark-passive-view-v1";
+// 각인 후보(고정·후보·제외와 단계)를 캐릭터별로 기억한다.
+//
+// 이건 빌드가 아니라 탐색 규칙이라 app.character에 못 넣는다 — 넣으면 빌드를
+// 맞바꿀 때마다 규칙이 같이 뒤집힌다. 그렇다고 하나로 두면 캐릭터를 갈아탈
+// 때마다 앞 캐릭터의 후보가 그대로 남는데, 직업이 다르면 낄 수 없는 각인이다.
+// 그래서 캐릭터 이름으로 색인한 별도 저장소를 둔다.
+const ENGRAVING_SCOPE_KEY = "ark-passive-engraving-scope-v1";
 const THEME_KEY = "ark-passive-theme";
 // 각인은 원정대 공유다 — 캐릭터를 갈아타도 같은 각인을 낀다. 그래서 세팅과
 // 따로 둔다. 남의 원정대를 대신 굴려 보는 동안 내 각인이 오염되면 안 되므로,
@@ -300,6 +307,8 @@ export const app = $state({
   chartY: "damageIndex",
   // 내 빌드의 이름. 맞바꾸기를 하면 빌드와 함께 자리를 옮긴다.
   buildName: "내 빌드",
+  // 지금 보고 있는 캐릭터. 각인 후보를 이 이름으로 색인한다.
+  characterName: "",
   // 얼려 둔 비교 대상들. 편집되지 않고 내 빌드 대비 ±%만 든다.
   compare: [],
   // 빌드 서랍. 평소엔 숨어 있고 하단 막대가 손잡이다.
@@ -669,6 +678,13 @@ function bootstrapCompare() {
 
 bootstrapCompare();
 
+// 마지막으로 보던 캐릭터의 각인 후보를 되살린다. 새로고침해도 그대로여야 한다.
+{
+  const scope = loadEngravingScope();
+  app.characterName = scope.current;
+  if (scope.current && scope.byName[scope.current]) loadEngravingsFor(scope.current);
+}
+
 // --- 탐색에서 고른 후보 ------------------------------------------------------
 // 하단 막대와 3페이지가 같은 후보를 봐야 해서 여기 둔다. 양쪽이 각자 계산하면
 // 언젠가 서로 다른 빌드를 가리킨다.
@@ -704,7 +720,9 @@ export function selectedResult() {
 /** 후보를 지금 장비·전투 상황 위에 얹은 상태. 슬롯을 재는 방식과 같다. */
 export function resultState(entry) {
   if (!entry) return null;
-  return buildState({ nodeLevels: entry.nodeLevels, engravings: entry.engravings, pet: entry.pet, food: entry.food });
+  // 결과가 정하는 것은 노드·각인·펫·음식뿐이고 나머지는 지금 캐릭터 것이다.
+  // 납작한 꼴을 그대로 넘기면 buildState가 장비 없는 빈 캐릭터를 만든다.
+  return stateFromResult(entry);
 }
 
 /** 확정하면 무엇이 바뀌는지 — 노드 · 각인 · 펫의 차이만. */
@@ -744,6 +762,7 @@ export function persist() {
   localStorage.setItem(CHARACTER_KEY, JSON.stringify(app.character));
   localStorage.setItem(SEARCH_KEY, JSON.stringify(app.search));
   persistCompare();
+  persistEngravingScope();
 }
 
 // --- 캐릭터 불러오기 ---------------------------------------------------------
@@ -1050,9 +1069,42 @@ function staleStats(statLines) {
 }
 
 /** 각인 탐색 설정을 기본값으로. 역할은 레이드 기본, 단계는 전부 유물이다. */
-function resetEngravingSearch() {
-  app.search.engravingRoles = {};
-  app.search.engravingTiers = {};
+function loadEngravingScope() {
+  const saved = load(ENGRAVING_SCOPE_KEY, {});
+  return {
+    current: String(saved?.current ?? ""),
+    byName: saved?.byName && typeof saved.byName === "object" ? saved.byName : {},
+  };
+}
+
+/** 지금 캐릭터의 각인 후보를 적어 둔다. 이름이 없으면 안 적는다. */
+function persistEngravingScope() {
+  const name = app.characterName;
+  try {
+    const scope = loadEngravingScope();
+    scope.current = name;
+    if (name) {
+      scope.byName[name] = {
+        engravingRoles: { ...app.search.engravingRoles },
+        engravingTiers: { ...app.search.engravingTiers },
+      };
+    }
+    localStorage.setItem(ENGRAVING_SCOPE_KEY, JSON.stringify(scope));
+  } catch {
+    // 저장이 막혀도 이번 세션은 그대로 굴러간다.
+  }
+}
+
+/**
+ * 그 캐릭터의 각인 후보를 꺼내 온다. 없으면 비운다.
+ *
+ * 비우면 getEngravingRole의 기본값(레이드 기본 + 돌 낀 것은 고정)이 서는데,
+ * 새 캐릭터에는 그게 맞는 출발점이다.
+ */
+function loadEngravingsFor(name) {
+  const saved = loadEngravingScope().byName[name];
+  app.search.engravingRoles = { ...(saved?.engravingRoles ?? {}) };
+  app.search.engravingTiers = { ...(saved?.engravingTiers ?? {}) };
 }
 
 /** 적용하지 않고 결과만 본다. 불러오기 화면이 막을지 말지 여기서 정한다. */
@@ -1080,7 +1132,11 @@ export function applyCharacter(read, picks, force) {
   }
   // 불러온 캐릭터도 갈래를 이미 타고 있다. 백헤드·특화 기본값을 같이 얹는다.
   applyBranchDefaults(app.character.awakening?.job ?? 0, app.character.awakening?.nodeLevels ?? {});
-  resetEngravingSearch();
+  // 캐릭터가 바뀐다. 쓰던 각인 후보는 앞 캐릭터 이름으로 적어 두고,
+  // 새 캐릭터의 것을 꺼내 온다 — 처음 보는 캐릭터면 비운 채로 시작한다.
+  persistEngravingScope();
+  app.characterName = String(read?.profile?.name ?? "").trim();
+  loadEngravingsFor(app.characterName);
   app.results = null;
   app.selectedId = null;
   // 비교함도 비운다. 앞 캐릭터의 빌드가 남아 있으면 직업이 달라도 노드가
