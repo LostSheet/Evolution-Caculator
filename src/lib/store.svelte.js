@@ -19,7 +19,9 @@ import { cloneState, makeId, clamp, readNumber } from "./core/util.js";
 const CHARACTER_KEY = "ark-passive-character-v5";
 const SEARCH_KEY = "ark-passive-search-v2";
 const SAVES_KEY = "ark-passive-saves-v1";
-const SLOTS_KEY = "ark-passive-slots-v1";
+// v2에서 슬롯이 드는 것이 통째로 바뀌었다 — 노드·각인·펫·음식 넷에서
+// 캐릭터 전체로. 옛 저장본은 이관하지 않고 버린다.
+const SLOTS_KEY = "ark-passive-slots-v2";
 const THEME_KEY = "ark-passive-theme";
 // 각인은 원정대 공유다 — 캐릭터를 갈아타도 같은 각인을 낀다. 그래서 세팅과
 // 따로 둔다. 남의 원정대를 대신 굴려 보는 동안 내 각인이 오염되면 안 되므로,
@@ -432,23 +434,18 @@ export function slotOriginLabel(slot) {
   return SLOT_ORIGINS[slot?.origin] ?? SLOT_ORIGINS.manual;
 }
 
-/** 슬롯이 드는 세 가지. 상한 밖 값은 여기서 깎는다 — 슬롯마다 다르게 깎이면
- *  비교표가 실제로 존재할 수 없는 차이를 보여준다. */
 /**
- * 지금 화면이 들고 있는 빌드.
+ * 지금 화면이 들고 있는 빌드 — 캐릭터 통째로.
  *
- * export한다. 화면 여러 곳이 "활성 슬롯은 저장된 값 말고 산 값으로 재야 한다"를
- * 각자 손으로 짜고 있었는데, 그러다 음식을 빠뜨려서 활성 슬롯만 음식 없이
- * 계산됐다 — 같은 세팅인데 어느 칸을 고르느냐에 따라 딜이 갈렸다.
- * 빌드가 무엇으로 이루어지는지는 한 군데서만 정한다.
+ * 예전에는 노드·각인·펫·음식 넷만 들었다. 그래서 슬롯끼리 장비를 공유했고,
+ * 팔찌 하나를 바꾸면 비교함의 모든 열이 같은 값으로 함께 움직였다. "팔찌 A와
+ * B 중 뭐가 나은가"를 이 계산기로 물을 수가 없었다는 뜻이다.
+ *
+ * 탐색 설정(app.search)은 안 든다. 그건 빌드가 아니라 "무엇을 굴릴지"라는
+ * 규칙이고, 열마다 다르면 결과 표가 무엇의 결과인지 알 수 없어진다.
  */
 export function currentBuild() {
-  return normalizeBuild({
-    nodeLevels: app.character.nodeLevels,
-    engravings: app.character.engravings || {},
-    pet: app.character.convenience.petStat,
-    food: app.character.convenience.food,
-  });
+  return cloneState(app.character);
 }
 
 /** 이 슬롯을 잴 빌드 — 활성 슬롯이면 산 값, 아니면 담아 둔 값. */
@@ -456,25 +453,16 @@ export function slotBuild(slot) {
   return slot.id === app.activeSlotId ? currentBuild() : slot.build;
 }
 
+// 빠진 칸은 기본값으로 채운다. 옛 꼴(넷만 든 빌드)이 들어와도 여기서
+// 캐릭터 모양이 되므로 부르는 쪽이 형태를 안 따져도 된다.
 function normalizeBuild(build) {
-  return {
-    nodeLevels: normalizeNodeLevels(build?.nodeLevels),
-    engravings: { ...(build?.engravings ?? {}) },
-    pet: build?.pet || "none",
-    food: build?.food || "none",
-  };
+  return migrate(mergeState(DEFAULT_STATE, build ?? {}));
 }
 
-/** 빌드를 지금 장비·전투 상황 위에 얹은 상태. 슬롯끼리는 이 차이만 남는다. */
+/** 슬롯이 이미 완전한 상태다. 지금 캐릭터를 빌려 오지 않는다. */
 export function buildState(build) {
   if (!build) return null;
-  const next = normalizeBuild(build);
-  return {
-    ...app.character,
-    nodeLevels: next.nodeLevels,
-    engravings: next.engravings,
-    convenience: { ...app.character.convenience, petStat: next.pet, food: next.food },
-  };
+  return normalizeBuild(build);
 }
 
 function makeSlot(name, origin, build) {
@@ -499,11 +487,7 @@ function captureActive() {
 }
 
 function loadBuild(build) {
-  const next = normalizeBuild(build);
-  app.character.nodeLevels = next.nodeLevels;
-  app.character.engravings = next.engravings;
-  app.character.convenience.petStat = next.pet;
-  app.character.convenience.food = next.food;
+  app.character = normalizeBuild(build);
 }
 
 function bootstrapSlots() {
@@ -626,7 +610,9 @@ export function selectSlot(id) {
 
 export function addSlot({ name, origin = "manual", build = null, select = true } = {}) {
   captureActive();
-  const slot = makeSlot(name || `슬롯 ${app.slots.length + 1}`, origin, build ?? currentBuild());
+  // 개수로 이름을 지으면 담고 빼기를 섞을 때 이미 있는 이름과 겹친다 —
+  // 실제로 `슬롯 2` 두 개가 나란히 선 적이 있다.
+  const slot = makeSlot(freeName(name || `슬롯 ${app.slots.length + 1}`), origin, build ?? currentBuild());
 
   if (app.slots.length >= SLOT_LIMIT) {
     // 조용히 지우지 않는다. 활성 슬롯 자리를 내주고 그 사실을 적는다.
@@ -1475,7 +1461,7 @@ export function confirmResult(entry) {
   const slot = addSlot({
     name: nextSearchName(),
     origin: "search",
-    build: { nodeLevels: entry.nodeLevels, engravings: entry.engravings, pet: entry.pet, food: entry.food },
+    build: stateFromResult(entry),
   });
   app.status = `'${slot.name}'로 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
   openDrawer();
@@ -1490,12 +1476,29 @@ export function confirmResult(entry) {
 // 같은 빌드가 두 번 담기면 안 된다. 이름이 아니라 배분으로 견준다 — 이름은
 // 유저가 바꾸고, 탐색 결과는 이름을 안 들고 있다.
 function resultKey(build) {
+  // 탐색 결과는 pet·food가 납작하게 붙어 있고, 슬롯은 convenience 안에 있다.
+  const pet = build?.pet ?? build?.convenience?.petStat ?? "none";
+  const food = build?.food ?? build?.convenience?.food ?? "none";
   return [
     Object.entries(normalizeNodeLevels(build?.nodeLevels ?? {})).map(([, v]) => v).join(","),
-    build?.pet || "none",
-    build?.food || "none",
+    pet || "none",
+    food || "none",
     Object.entries(build?.engravings ?? {}).sort().map(([k, v]) => `${k}:${v}`).join(","),
   ].join("|");
+}
+
+/**
+ * 탐색 결과 하나를 슬롯이 들 수 있는 꼴로.
+ *
+ * 결과가 정하는 것은 노드·각인·펫·음식뿐이다. 나머지(장비·팔찌·깨달음·자버프)는
+ * 지금 캐릭터 것을 그대로 얹는다 — 탐색이 그 위에서 돌았으므로 그게 맞는 짝이다.
+ */
+function stateFromResult(entry) {
+  const next = cloneState(app.character);
+  next.nodeLevels = { ...entry.nodeLevels };
+  next.engravings = { ...entry.engravings };
+  next.convenience = { ...next.convenience, petStat: entry.pet || "none", food: entry.food || "none" };
+  return next;
 }
 
 /** 이 후보가 이미 비교함에 있나. 있으면 그 슬롯. */
@@ -1526,7 +1529,7 @@ export function toggleBoxed(entry) {
   const slot = addSlot({
     name: nextSearchName(),
     origin: "search",
-    build: { nodeLevels: entry.nodeLevels, engravings: entry.engravings, pet: entry.pet, food: entry.food },
+    build: stateFromResult(entry),
     // 담자마자 화면이 그 빌드로 갈아타면 곡선에서 눈이 떨어진다. 담기만 한다.
     select: false,
   });

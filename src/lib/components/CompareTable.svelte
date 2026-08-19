@@ -64,7 +64,7 @@
       }), { mode: "diff" });
     });
 
-    add("펫", "펫 효과", builds.map(build => ({ text: OPTIMIZER_PET_LABELS[build.pet] ?? "없음" })));
+    add("펫", "펫 효과", builds.map(build => ({ text: OPTIMIZER_PET_LABELS[build.convenience?.petStat] ?? "없음" })));
 
     // 노드는 티어마다 한 줄이다.
     //
