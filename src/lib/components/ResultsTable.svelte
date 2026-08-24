@@ -1,8 +1,7 @@
 <script>
   import { NODE_LIBRARY } from "../core/data.js";
-  import { ENGRAVING_LIBRARY } from "../core/engravings.js";
-  import { calculateMetrics, getEngravingTierIndex } from "../core/metrics.js";
-  import { formatNumber, formatSignedPercent, percentDelta, readNumber } from "../core/util.js";
+  import { calculateMetrics } from "../core/metrics.js";
+  import { formatNumber, formatSignedPercent, percentDelta } from "../core/util.js";
   import { analyseFront } from "../core/recommend.js";
   import { sweepCeiling, ceilingLabel } from "../core/ceiling.js";
   import { cooldownRange, cooldownColor } from "../ramp.js";
@@ -29,8 +28,6 @@
    * 크기가 궁금할 때 잠깐 켜는 것.
    */
   let relative = $state(true);
-  // 초점과 다른 데만 적을지, 구성을 통째로 적을지.
-  let diffOnly = $state(true);
 
   const list = $derived(
     app.results
@@ -77,48 +74,6 @@
     .slice(0, 4)
     .map(node => `${node.name} ${levels[node.id]}`)
     .join(" · ");
-
-  // 지금 초점인 줄. 다른 줄들은 이것과 다른 데만 적는다.
-  const focusEntry = $derived(
-    app.focus?.kind === "result"
-      ? (list.find(item => item.id === app.focus.id) ?? null)
-      : null,
-  );
-
-  const engravingName = Object.fromEntries(ENGRAVING_LIBRARY.map(item => [item.id, item.name]));
-  const wornIds = state => ENGRAVING_LIBRARY
-    .filter(item => getEngravingTierIndex(state?.[item.id]) >= 0)
-    .map(item => item.id);
-
-  /**
-   * 초점과의 차이만.
-   *
-   * 97줄이 서로 뭐가 다른지가 표에서 완전히 투명했다. 공통부를 지우면
-   * "각인 한 자리를 헌납하고 노드를 쿨감에 몰았다" 같은 체제 전환이 눈에 띈다.
-   */
-  function diffOf(entry) {
-    if (!focusEntry || focusEntry.id === entry.id) return null;
-    const parts = [];
-
-    NODE_LIBRARY.forEach(node => {
-      const was = focusEntry.nodeLevels[node.id] || 0;
-      const now = entry.nodeLevels[node.id] || 0;
-      if (was === now) return;
-      if (was === 0) parts.push({ kind: "add", text: `+${node.name} ${now}` });
-      else if (now === 0) parts.push({ kind: "drop", text: `−${node.name}` });
-      else parts.push({ kind: "move", text: `${node.name} ${was}→${now}` });
-    });
-
-    const wasEng = new Set(wornIds(focusEntry.engravings));
-    const nowEng = new Set(wornIds(entry.engravings));
-    nowEng.forEach(id => { if (!wasEng.has(id)) parts.push({ kind: "add", text: `+${engravingName[id] ?? id}` }); });
-    wasEng.forEach(id => { if (!nowEng.has(id)) parts.push({ kind: "drop", text: `−${engravingName[id] ?? id}` }); });
-
-    if ((entry.pet || "none") !== (focusEntry.pet || "none")) {
-      parts.push({ kind: "move", text: `펫 ${focusEntry.pet || "없음"}→${entry.pet || "없음"}` });
-    }
-    return parts;
-  }
 </script>
 
 <section class="card">
@@ -143,10 +98,6 @@
     <div class="table-modes">
       <button type="button" class="mode-btn" class:on={relative} onclick={() => (relative = !relative)}>
         {relative ? "내 세팅 대비" : "절대값"}
-      </button>
-      <button type="button" class="mode-btn" class:on={diffOnly} onclick={() => (diffOnly = !diffOnly)}
-              disabled={!focusEntry}>
-        {diffOnly ? "차이만" : "전체 구성"}
       </button>
       <span class="mode-note">↑ ↓ 로 줄 이동</span>
     </div>
@@ -182,7 +133,7 @@
               </th>
             {/if}
             <th class="left tier1-col">1T</th>
-            <th class="left nodes-col">{diffOnly && focusEntry ? "초점과의 차이" : "주요 노드"}</th>
+            <th class="left nodes-col">주요 노드</th>
             <!-- 손이 오가는 두 자리를 붙여 둔다. 예전에는 담기가 왼쪽 끝,
                  자세히가 오른쪽 끝이라 표를 가로질러야 했다. -->
             <th class="pick-col"><span class="sr-only">자세히</span></th>
@@ -215,7 +166,6 @@
             <!-- 상한에 눌리기 전 합산 치적. 옛 결과에는 없으므로 적용값으로 돌아간다. -->
             {@const raw = entry.critRateRaw ?? entry.critRateCapped}
             {@const boxed = boxedSlot(entry)}
-            {@const parts = diffOnly ? diffOf(entry) : null}
             {@const dmgRel = rel(entry.damageIndex, anchor.metrics.damageIndex)}
             {@const dpsRel = rel(entry.dpsIndex, anchor.metrics.dpsIndex)}
             <tr class:selected={entry.id === app.selectedId}
@@ -265,15 +215,7 @@
               {/if}
               <td class="left tier1">{highlight(entry.nodeLevels)}</td>
               <td class="left nodes-col">
-                {#if parts}
-                  {#if parts.length === 0}
-                    <span class="diff-same">같음</span>
-                  {:else}
-                    {#each parts as part}<span class="diff {part.kind}">{part.text}</span>{/each}
-                  {/if}
-                {:else}
-                  {highlightRest(entry.nodeLevels)}
-                {/if}
+                {highlightRest(entry.nodeLevels)}
                 {#if entry.signature === signature}<span class="chip" style="margin-left:6px">적용 중</span>{/if}
               </td>
               <td class="pick-col">

@@ -4288,10 +4288,9 @@ table.results td.tier1, table.results th.left { white-space: nowrap; }
 .results td.left { min-width: 0; }
 
 /* 열 폭을 못 박는다.
-   줄을 고르면 마지막 칸이 구성 전체에서 차이 몇 개로 바뀐다. 폭을 브라우저가
-   내용에서 재게 두면 그때마다 열이 통째로 움직여서, 고른 줄을 보려던 눈이
-   표를 다시 찾아야 한다(실측 56px → 95px, 1T 열 101px → 61px). 세로도
-   같은 이유로 한 줄에 묶는다. */
+   폭을 브라우저가 내용에서 재게 두면 줄마다 다른 길이가 열을 밀어서, 탭을
+   옮기거나 결과가 바뀔 때마다 표가 통째로 움직인다. 세로도 한 줄에 묶는다 —
+   행 높이가 들쭉날쭉하면 훑는 눈이 매번 멈춘다. */
 table.results td.tier1, table.results th.tier1-col { width: 112px; }
 table.results td.nodes-col, table.results th.nodes-col { width: 40%; max-width: 0; }
 table.results td.nodes-col {
@@ -4343,21 +4342,6 @@ table.results tbody tr.anchor-row td.rank { font-family: var(--sans); font-size:
 table.results td em.rel { font-style: normal; font-weight: 640; }
 table.results td em.rel.up { color: var(--good); }
 table.results td em.rel.down { color: var(--bad); }
-
-/* 초점과의 차이. 든 것·뺀 것·옮긴 것이 한눈에 갈리게. */
-.diff {
-  display: inline-block;
-  margin: 1px 4px 1px 0;
-  padding: 1px 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 11.5px;
-  white-space: nowrap;
-}
-.diff.add { border-color: var(--cool-ink); color: var(--cool); }
-.diff.drop { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); color: var(--bad); }
-.diff.move { color: var(--txt-2); }
-.diff-same { font-size: 11.5px; color: var(--txt-3); }
 
 /* border-collapse에서는 붙박이 th의 밑금이 같이 굴러가 버린다. 그림자로 긋는다. */
 .results-main table.results thead th {
