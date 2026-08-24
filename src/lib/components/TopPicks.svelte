@@ -83,6 +83,25 @@
 </script>
 
 {#if cards.length > 0}
+  <!--
+    쿨감 한계를 묻는 자리.
+
+    카드 안에 뒀더니 그 카드가 다른 카드와 합쳐질 때마다 칸이 이 장 저 장으로
+    옮겨 다녔다 — 있다가 없어지는 것처럼 보인다. 카드 밖 붙박이 자리에 둔다.
+  -->
+  <div class="picks-bar">
+    <span class="picks-title">대표 세팅</span>
+    <span class="spacer"></span>
+    <label class="pick-limit">
+      <span>내 쿨감 한계</span>
+      <input type="number" min="0" max="100" step="1" placeholder="자동"
+             value={app.search.ceilingGuess ?? ""}
+             oninput={event => setLimit(event.currentTarget.value)} />
+      <i>%</i>
+      <em>{ceilingNote}</em>
+    </label>
+  </div>
+
   <div class="picks-row">
     {#each cards as card (card.id)}
       {@const boxed = boxedSlot(card.entry)}
@@ -127,19 +146,6 @@
 
           <div class="pick-1t">{tier1(card.entry)}</div>
         </button>
-
-        <!-- 쿨감 한계는 사람마다 다르다. 그 값을 묻는 자리는 그 값이 답을
-             바꾸는 카드 안이어야 한다 — 밖에 두면 빈 상자 하나가 더 서 있다. -->
-        {#if card.labels.includes("쿨감 한계 최강")}
-          <label class="pick-limit">
-            <span>내 한계</span>
-            <input type="number" min="0" max="100" step="1" placeholder="자동"
-                   value={app.search.ceilingGuess ?? ""}
-                   oninput={event => setLimit(event.currentTarget.value)} />
-            <i>%</i>
-            <em>{card.note}</em>
-          </label>
-        {/if}
 
         <div class="pick-acts">
           <button class="btn sm" type="button" onclick={() => toggleBoxed(card.entry)}>

@@ -181,8 +181,8 @@
                 </span>
               </th>
             {/if}
-            <th class="left">1T</th>
-            <th class="left">{diffOnly && focusEntry ? "초점과의 차이" : "주요 노드"}</th>
+            <th class="left tier1-col">1T</th>
+            <th class="left nodes-col">{diffOnly && focusEntry ? "초점과의 차이" : "주요 노드"}</th>
             <!-- 손이 오가는 두 자리를 붙여 둔다. 예전에는 담기가 왼쪽 끝,
                  자세히가 오른쪽 끝이라 표를 가로질러야 했다. -->
             <th class="pick-col"><span class="sr-only">자세히</span></th>
@@ -202,7 +202,7 @@
             <td>{formatNumber(anchor.metrics.critRateRaw)}%</td>
             {#if app.view === "pareto"}<td>—</td>{/if}
             <td class="left tier1">{highlight(anchor.state.nodeLevels)}</td>
-            <td class="left">
+            <td class="left nodes-col">
               {highlightRest(anchor.state.nodeLevels)}
               {#if anchor.premise}<span class="chip" style="margin-left:6px">전제 적용</span>{/if}
             </td>
@@ -264,7 +264,7 @@
                 <td class:champ-span={entry.id === sweep.championId}>{ceilingLabel(sweep, entry.id) || "—"}</td>
               {/if}
               <td class="left tier1">{highlight(entry.nodeLevels)}</td>
-              <td class="left">
+              <td class="left nodes-col">
                 {#if parts}
                   {#if parts.length === 0}
                     <span class="diff-same">같음</span>
