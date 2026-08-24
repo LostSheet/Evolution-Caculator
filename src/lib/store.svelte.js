@@ -778,13 +778,6 @@ export function focusResult(entry) {
   app.focus = id ? { kind: "result", id } : null;
 }
 
-/** 담아 둔 타일을 골랐다. 내 빌드는 안 건드린다 — 보기만 바꾼다. */
-export function focusTile(id) {
-  app.focus = app.focus?.kind === "tile" && app.focus.id === id
-    ? null
-    : { kind: "tile", id };
-}
-
 /**
  * 지금 초점이 무엇인가 — 이름·상태·임시 여부.
  *
@@ -1756,8 +1749,8 @@ export function toggleBoxed(entry) {
   const entryAdded = keepSnapshot(nextSearchName(), stateFromResult(entry));
   if (entryAdded) {
     app.status = `'${entryAdded.name}'${ro(entryAdded.name)} 담았습니다.`;
-    // 방금 담은 것이 곧 보고 있던 것이다. 초점을 임시에서 타일로 넘긴다 —
-    // 안 그러면 같은 조합이 초점과 타일 두 자리에 서서 어느 쪽인지 흐려진다.
+    // 방금 담은 것이 곧 보고 있던 것이다. 초점을 담긴 쪽으로 넘긴다 —
+    // 이름이 '고른 후보'에서 제 이름으로 바뀌고 담기 단추가 물러난다.
     if (app.focus?.kind === "result" && app.focus.id === entry.id) {
       app.focus = { kind: "tile", id: entryAdded.id };
     }

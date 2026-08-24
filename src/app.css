@@ -527,55 +527,6 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
   max-width: 160px;
 }
 
-.sb-tiles {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-  min-width: 0;
-  margin-left: auto;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-.sb-tile {
-  flex: none;
-  display: grid;
-  gap: 1px;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.sb-tile:hover { border-color: var(--line-lift); }
-.sb-tile.on { border-color: var(--cool); background: color-mix(in srgb, var(--cool) 10%, transparent); }
-.sb-tile-name {
-  font-size: 10.5px;
-  color: var(--txt-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 110px;
-}
-.sb-tile.on .sb-tile-name { color: var(--cool); }
-.sb-tile-nums {
-  display: flex;
-  gap: 7px;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  line-height: 1.15;
-}
-.sb-tile-nums em { font-style: normal; }
-.sb-tile-nums em.up { color: var(--good); }
-.sb-tile-nums em.down { color: var(--bad); }
-/* 무엇의 증감인지. 라벨 없이 숫자 둘만 있으면 어느 쪽이 한 방인지 매번 센다. */
-.sb-tile-nums u {
-  font-family: var(--sans);
-  font-size: 9.5px;
-  text-decoration: none;
-  color: var(--txt-3);
-}
 
 /* 서랍을 펼치면 막대는 손잡이만 남는다 — 같은 숫자를 표와 막대가 겹쳐 들지 않게. */
 .statusbar.folded { gap: 10px; }

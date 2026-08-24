@@ -4,7 +4,7 @@
     selectedResult, resultState, boxedSlot, toggleBoxed,
     startSearch, cancelSearch, cycleTheme,
     toggleDrawer, buildState, makeMine,
-    anchorState, premiseExceeded, focusView, focusTile, focusResult, resultPool,
+    anchorState, premiseExceeded, focusView, focusResult, resultPool,
   } from "./lib/store.svelte.js";
   import { explainMetrics } from "./lib/core/explain.js";
   import { calculateMetrics } from "./lib/core/metrics.js";
@@ -84,18 +84,6 @@
       dpsDelta: percentDelta(scores.dpsIndex, anchor.dpsIndex),
     };
   });
-
-  /** 담아 둔 것들. 작아도 숫자를 잃지 않는다. */
-  const tiles = $derived.by(() => app.compare.map(item => {
-    const scores = calculateMetrics(buildState(item.build));
-    return {
-      id: item.id,
-      name: item.name,
-      focused: app.focus?.kind === "tile" && app.focus.id === item.id,
-      damageDelta: percentDelta(scores.damageIndex, anchor.damageIndex),
-      dpsDelta: percentDelta(scores.dpsIndex, anchor.dpsIndex),
-    };
-  }));
 
   /**
    * ↑/↓로 줄을 옮긴다.
@@ -270,9 +258,9 @@
 <BuildDrawer {report} {budget} onOpenEngravings={() => (engravingsOpen = true)} />
 
 <!-- 답이 놓이는 자리. 어느 화면에 있든 늘 보인다. 이름표가 서랍 손잡이다. -->
-<StatusBar {anchor} focus={focused} {tiles} status={toast} label="비교함"
+<StatusBar {anchor} focus={focused} count={app.compare.length} status={toast} label="비교함"
            handle={{ open: app.drawer.open, onToggle: toggleDrawer }}
-           onFocusTile={focusTile} onKeep={keepFocused} />
+           onKeep={keepFocused} />
 
 <EngravingDialog bind:open={engravingsOpen} />
 <BraceletDialog bind:open={braceletOpen} />
