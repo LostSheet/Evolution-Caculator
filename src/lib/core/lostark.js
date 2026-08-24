@@ -257,6 +257,9 @@ export function parseProfile(payload) {
  * 부위마다 '기본 효과' 상자를 보고, 무기에서 무공을, 나머지에서 힘민지를 더한다.
  * 스탯 창 값과는 다를 수 있다 — 카르마·각인·영지 몫이 여기 안 들어오기 때문이다.
  */
+// 무공을 '연마 효과'로 주는 부위들. 기본 효과에서 또 세면 두 번이 된다.
+const ACCESSORY_SLOTS = new Set(["목걸이", "귀걸이", "반지", "어빌리티 스톤", "팔찌"]);
+
 export function parseEquipmentAttack(payload) {
   const equipment = Array.isArray(payload?.ArmoryEquipment) ? payload.ArmoryEquipment : [];
   const mainStatType = detectMainStatType(equipment);
@@ -282,7 +285,15 @@ export function parseEquipmentAttack(payload) {
       return;
     }
     if (basic) {
-      if (type === "무기") weaponAttack += sumMatches(basic, /^\s*무기\s*공격력\s*\+\s*([\d,]+)\s*$/gm) ?? 0;
+      // 무공을 무기만 준다고 봤었다. 특수 장비(완갑)도 준다 —
+      // '+8 운명의 전율 완갑'이 무기 공격력 +10,969을 얹는데 그게 통째로
+      // 빠져서 무공이 11% 낮게 잡혔다(게임 242,862 vs 계산기 216,229).
+      //
+      // 악세·팔찌·스톤은 뺀다. 그쪽 무공은 연마 효과 상자에 있고 아래에서
+      // 따로 세므로, 여기서 또 세면 두 번이 된다.
+      if (!ACCESSORY_SLOTS.has(type)) {
+        weaponAttack += sumMatches(basic, /^\s*무기\s*공격력\s*\+\s*([\d,]+)\s*$/gm) ?? 0;
+      }
       // 주스탯 하나만 더한다. 악세서리가 셋을 다 적어 오므로 안 가르면 세 배가 된다.
       if (mainStatType) {
         mainStat += sumMatches(basic, new RegExp(`^\\s*${mainStatType}\\s*\\+\\s*([\\d,]+)\\s*$`, "gm")) ?? 0;
