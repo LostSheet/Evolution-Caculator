@@ -5,7 +5,7 @@ import { getAwakeningNodes, awakeningHeadroom, awakeningDependents } from "./cor
 import {
   SYNERGY_UPTIME_FULL, SYNERGY_OWN_ID, SYNERGY_JOBS,
   getSynergyJob, findSynergyChoice, defaultSynergyNodes,
-  takenBranch, jobBranches,
+  takenBranch, jobBranches, isGenericSynergyJob,
 } from "./core/synergy.js";
 import {
   DEFAULT_STATE, mergeState, normalizeNodeLevels, calculateMetrics, emptyNodeLevels,
@@ -334,8 +334,15 @@ export const app = $state({
 
 /** auto → light → dark → auto. 한 단추로 도는 게 세 갈래 메뉴보다 빠르다. */
 /** 이 카드가 펴져 있나. 처음 보는 카드는 펴 둔다. */
-export function isOpen(key) {
-  return app.folds[key] !== false;
+/**
+ * 이 카드가 펴져 있나.
+ *
+ * 기본값은 카드마다 다르다 — 1페이지는 전부 펴 두고 시작하지만, 탐색 설정의
+ * 아래층은 접혀 있어야 위층 다섯 줄만 훑는 것이 성립한다.
+ */
+export function isOpen(key, fallback = true) {
+  const at = app.folds[key];
+  return at === undefined ? fallback : at !== false;
 }
 
 export function setFold(key, open) {
@@ -826,7 +833,7 @@ bootstrapCompare();
 // 목록을 손으로 늘어놓으면 새 목록이 생길 때마다 빠뜨린다. 실제로 쿨감 곡선과
 // 쿨감 순위를 넣었을 때 여기가 안 따라와서, 곡선에서 쿨감 49%짜리를 눌러도
 // 상세는 엉뚱한 빌드를 보여줬다 — find가 실패하고 첫 지점으로 떨어졌다.
-export const RESULT_LISTS = ["pareto", "cooldownPareto", "damage", "dps", "cooldown"];
+export const RESULT_LISTS = ["pareto", "cooldownPareto", "damage", "dps", "stagger", "cooldown"];
 
 /** 중복 없이 하나로. 곡선도 상세도 이 목록만 본다. */
 export function resultPool() {
@@ -945,6 +952,13 @@ function writeSynergy(next) {
 
 /** 줄을 하나 더한다. 흔한 갈래가 미리 켜진 채로 들어온다. */
 export function addSynergyRow(job) {
+  // 직업 없는 줄은 갈래가 없다. 종류 이름이 곧 직업 자리에 들어간다.
+  if (isGenericSynergyJob(job)) {
+    const synergy = readSynergy();
+    synergy.rows.push({ id: makeId(), job, nodes: [], uptime: {} });
+    writeSynergy(synergy);
+    return;
+  }
   const entry = getSynergyJob(job) ?? SYNERGY_JOBS[0];
   const synergy = readSynergy();
   synergy.rows.push({
@@ -952,6 +966,32 @@ export function addSynergyRow(job) {
     nodes: defaultSynergyNodes(entry.job),
     uptime: {},
   });
+  writeSynergy(synergy);
+}
+
+/** 그 종류의 일반 줄이 몇이나 있나. 스테퍼가 세는 것은 이것뿐이다. */
+export function genericSynergyCount(job) {
+  return (app.character.synergy?.rows ?? []).filter(row => row?.job === job).length;
+}
+
+/**
+ * 스테퍼. +1이 일반 줄 하나를 더하고, −1이 그 종류의 마지막 것을 뺀다.
+ *
+ * 직업 줄은 세지도 건드리지도 않는다 — 그쪽은 상세 패널의 일이다.
+ */
+export function setGenericSynergyCount(job, next) {
+  const want = clamp(Math.round(readNumber(next)), 0, 3);
+  const synergy = readSynergy();
+  const mine = synergy.rows.filter(row => row?.job === job);
+  if (mine.length === want) return;
+  if (mine.length > want) {
+    const drop = new Set(mine.slice(want).map(row => row.id));
+    synergy.rows = synergy.rows.filter(row => !drop.has(row.id));
+  } else {
+    for (let i = mine.length; i < want; i += 1) {
+      synergy.rows.push({ id: makeId(), job, nodes: [], uptime: {} });
+    }
+  }
   writeSynergy(synergy);
 }
 

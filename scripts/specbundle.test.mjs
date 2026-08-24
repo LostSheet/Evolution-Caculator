@@ -134,8 +134,13 @@ const statsAt = spec => ({ specStat: spec });
       worst = Math.max(worst, Math.abs(fast.dpsIndex - slow.dpsIndex) / Math.max(1, slow.dpsIndex));
       return;
     }
+    // 차원마다 셋만 훑되 앞에서 셋이 아니라 고루 집는다. 앞 셋만 보면
+    // 1T 갈래가 늘었을 때 특화가 안 움직이는 자리만 골라 보게 된다.
     const options = plan.dimensions[index].options;
-    for (let i = 0; i < Math.min(options.length, 3); i += 1) { picks[index] = i; walk(index + 1); }
+    const at = options.length <= 3
+      ? options.map((_, i) => i)
+      : [0, Math.floor((options.length - 1) / 2), options.length - 1];
+    for (const i of at) { picks[index] = i; walk(index + 1); }
   };
   walk(0);
 

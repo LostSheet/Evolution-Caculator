@@ -62,9 +62,13 @@ function getModeledStatKeys(sourceState) {
     readNumber(bundle?.share) > 0 && (bundle?.rows || []).length > 0)) {
     keys.add("specStat");
   }
-  // 대난투 딜 비중을 적었으면 제압이 실제 피해가 된다. 안 적었으면 아무 값도
-  // 안 내므로 후보에서 빼는 편이 맞다 — 넣으면 탐색이 헛돈다.
-  if (readNumber(sourceState.convenience?.staggerShare) > 0) keys.add("dominationStat");
+  // 제압은 언제나 후보다.
+  //
+  // 예전에는 대난투 딜 비중을 적었을 때만 넣었다. 비중이 0이면 제압이 한 방
+  // 딜에 아무 값도 안 내니 탐색이 헛돈다고 봤기 때문이다. 그런데 지금은 무력화
+  // 가중 100%로 재는 대난투 순위가 따로 있다. 제압을 후보에서 빼면 그 순위가
+  // 제압을 안 찍은 것들 중 1위가 된다 — 물어본 것과 다른 답이다.
+  keys.add("dominationStat");
   return keys;
 }
 
@@ -251,8 +255,11 @@ function createChunkClock() {
   };
 }
 
-function selectBeam(candidates, beamWidth) {
-  const half = Math.max(1, Math.floor(beamWidth / 2));
+const BEAM_METRICS = ["damageIndex", "dpsIndex", "staggerIndex"];
+
+function selectBeam(candidates, beamWidth, metrics = BEAM_METRICS) {
+  const keys = metrics.length > 0 ? metrics : BEAM_METRICS;
+  const share = Math.max(1, Math.floor(beamWidth / keys.length));
   // 하한 조건이 걸린 탐색에서는 조건을 채운 후보가 먼저다. 빔은 앞 차원에서
   // 자른 것을 뒤에서 되돌리지 못하므로, 여기서 지표만 보고 고르면 마지막에
   // 조건을 통과하는 빌드가 하나도 안 남는 일이 생긴다. 채운 후보가 빔을 다
@@ -265,14 +272,14 @@ function selectBeam(candidates, beamWidth) {
     : candidates.filter(item => item.shortfall > 0).sort((a, b) => a.shortfall - b.shortfall);
 
   const take = key => {
-    const best = ok.slice().sort((a, b) => b[key] - a[key]).slice(0, half);
-    return best.length >= half ? best : best.concat(short.slice(0, half - best.length));
+    const best = ok.slice().sort((a, b) => b[key] - a[key]).slice(0, share);
+    return best.length >= share ? best : best.concat(short.slice(0, share - best.length));
   };
 
   const merged = [];
   const seen = new Set();
 
-  [...take("damageIndex"), ...take("dpsIndex")].forEach(item => {
+  keys.flatMap(key => take(key)).forEach(item => {
     const key = item.indexes.join(",");
     if (seen.has(key)) return;
     seen.add(key);
@@ -308,5 +315,6 @@ export {
   createTopList,
   createParetoFront,
   createChunkClock,
+  BEAM_METRICS,
   selectBeam,
 };

@@ -11,13 +11,24 @@
     getEngravingRole, getEngravingSearchTierIndex, getPickRole,
     SEARCH_FLOOR_FIELDS, capApplies, hasSearchBound,
   } from "../core/runner.js";
-  import { app, persist, resetSection, basisSummary } from "../store.svelte.js";
+  import {
+    app, persist, resetSection, basisSummary, isOpen, setFold, goTab,
+  } from "../store.svelte.js";
   import Select from "./Select.svelte";
   import NodeBoard from "./NodeBoard.svelte";
   import SynergyPanel from "./SynergyPanel.svelte";
+  import SynergyBrief from "./SynergyBrief.svelte";
   import Hint from "./Hint.svelte";
 
   let { plan, report, budget } = $props();
+
+  // 자버프는 여기서 안 고친다. 무엇이 걸려 있는지만 적고 깨달음으로 보낸다.
+  const buffSummary = $derived.by(() => {
+    const rows = app.character.baseEffects ?? [];
+    if (rows.length === 0) return "없음";
+    const bundles = (app.character.specBundles ?? []).length;
+    return bundles > 0 ? `${rows.length}줄 · 특화 묶음 ${bundles}` : `${rows.length}줄`;
+  });
 
   const TIER_OPTIONS = ENGRAVING_TIERS.map(tier => ({ value: tier.value, label: tier.label }));
   const TIER1_OPTIONS = [
@@ -153,6 +164,13 @@
 <div class="engraving-layout">
   <div class="split-main">
     <!--
+      위층 — 확인하는 것.
+
+      카드 일곱 장이 전부 펼쳐진 벽이었다. 무엇이 걸려 있는지 훑으려면 전부
+      읽어야 했고, 그러느니 안 읽게 된다. 자주 만지는 것만 펴 두고 나머지는
+      접는다 — 접힌 줄의 요약이 곧 지금 걸린 조건이다.
+    -->
+    <!--
       기준 — 탐색이 깔고 앉는 것들.
 
       "지금 돌리면 무엇을 기준으로 도는가"가 화면 어디에도 없었다. 그래서 빌드를
@@ -170,46 +188,6 @@
         <div class="summary-line">
           {#each basisSummary() as item (item.label)}
             <span class="summary-chip">{item.label} <b>{item.value}</b></span>
-          {/each}
-        </div>
-      </div>
-    </section>
-
-    <!-- 빈 판이다. 지금 빌드를 안 읽고 고정한 칸만 채운다. -->
-    <NodeBoard {report} {budget} mode="scope" />
-
-    <!--
-      펫과 음식. 갈래가 하나뿐인 차원이라 '고정 · 후보 · 제외' 세 갈래가 필요 없다.
-
-      켠 것이 후보고, 하나만 켜면 그게 곧 고정이다. 줄마다 단추 셋을 두었더니
-      여덟 줄에 스물넷이 늘어서서, 정작 "무엇을 켰나"는 한눈에 안 들어왔다.
-      켜고 끄는 칩 한 줄이면 그 질문에 바로 답한다.
-    -->
-    <section class="card">
-      <div class="card-hd">
-        <h2>펫 · 음식</h2>
-        <span class="eyebrow">켠 것 중에서 고릅니다 · 하나만 켜면 그것으로 고정</span>
-      </div>
-      <div class="card-body">
-        <div class="picks">
-          {#each PICK_GROUPS as group (group.key)}
-            {@const on = group.rows.filter(row => getPickRole(app.search[group.key], row.id) !== "excluded")}
-            <div class="pick-row">
-              <b>{group.title}</b>
-              <div class="pick-chips">
-                {#each group.rows as row (row.id)}
-                  {@const active = getPickRole(app.search[group.key], row.id) !== "excluded"}
-                  <button type="button" class="pick-chip" class:on={active}
-                          aria-pressed={active}
-                          title={row.note}
-                          onclick={() => togglePick(group.key, row.id)}>
-                    {row.name}
-                    {#if row.note}<em>{row.note}</em>{/if}
-                  </button>
-                {/each}
-              </div>
-              <span class="pick-count">{on.length === 1 ? "고정" : `${on.length}가지`}</span>
-            </div>
           {/each}
         </div>
       </div>
@@ -280,64 +258,10 @@
       </div>
     </section>
 
-    <!-- 파티가 무엇을 깔아 주느냐가 찍을 노드를 바꾼다 — 치적을 받쳐 주면
-         치명 노드가 덜 급하다. 그래서 이것도 탐색이 딛고 서는 판이다. -->
-    <section class="card">
-      <div class="card-hd">
-        <h2>파티 시너지</h2>
-        <Hint label="헷갈리는 둘">
-          <p><b>치명타 시 피해 증가</b>는 치명타 피해가 아닙니다. 회심과 곱해집니다.</p>
-          <p><b>백 · 헤드어택 피해 증가</b>는 전투 상황을 켜야 9%가 됩니다.</p>
-        </Hint>
-        <span class="spacer"></span>
-        <button class="reset" type="button" aria-label="파티 시너지 초기화" title="파티 시너지 초기화"
-                onclick={() => resetSection("synergy")}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
-        </button>
-      </div>
-      <div class="card-body">
-        <!-- 셋 다 파티가 깔아 주는 것이다. 하나만 드롭다운이면 같은 성격인 줄
-             셋이 서로 다른 물건처럼 보인다 — 켜고 끄는 칩으로 맞춘다. -->
-        <div class="picks">
-          <div class="pick-row">
-            <b>파티 버프</b>
-            <div class="pick-chips">
-              <button type="button" class="pick-chip" class:on={app.character.convenience.goddessBlessing}
-                      aria-pressed={app.character.convenience.goddessBlessing}
-                      onclick={() => { app.character.convenience.goddessBlessing = !app.character.convenience.goddessBlessing; persist(); }}>
-                축복의 여신<em>공속 +9%</em>
-              </button>
-              <button type="button" class="pick-chip" class:on={app.character.convenience.feast}
-                      aria-pressed={app.character.convenience.feast}
-                      onclick={() => { app.character.convenience.feast = !app.character.convenience.feast; persist(); }}>
-                만찬<em>공속 +5%</em>
-              </button>
-            </div>
-            <span class="pick-count"></span>
-          </div>
-          <div class="pick-row">
-            <b>정열의 춤사위</b>
-            <div class="pick-chips">
-              {#each PASSION_DANCE_GRADES as grade (grade.value)}
-                {@const on = (app.character.convenience.passionDance ?? 0) === grade.value}
-                <button type="button" class="pick-chip" class:on
-                        aria-pressed={on}
-                        onclick={() => { app.character.convenience.passionDance = grade.value; app.character.convenience.passionDanceSet = true; persist(); }}>
-                  {grade.label}{#if grade.amount > 0}<em>진화형 +{grade.amount}%</em>{/if}
-                </button>
-              {/each}
-            </div>
-            <span class="pick-count"></span>
-          </div>
-        </div>
-      </div>
-      <div class="card-body ruled">
-        <SynergyPanel />
-      </div>
-    </section>
-  </div>
+    <!-- 고정 노드. 빈 판이라 지금 빌드를 안 읽고 고정한 칸만 채운다. -->
+    <!-- 빈 판이다. 지금 빌드를 안 읽고 고정한 칸만 채운다. -->
+    <NodeBoard {report} {budget} mode="scope" />
 
-  <aside class="scope-rail">
     <section class="card">
       <div class="card-hd">
         <h2>탐색 범위</h2>
@@ -374,35 +298,96 @@
       </div>
     </section>
 
-    <!--
-      하한 조건. 실전 세팅은 DPS 하나로 정해지지 않는다 — 치명타는 일정
-      수준을 깔고 시작하는 게 먼저고, 그 밑은 아예 후보가 아니다.
-    -->
+    <!-- 파티가 무엇을 깔아 주느냐가 찍을 노드를 바꾼다 — 치적을 받쳐 주면
+         치명 노드가 덜 급하다. 그래서 이것도 탐색이 딛고 서는 판이다. -->
     <section class="card">
       <div class="card-hd">
-        <h2>대난투</h2>
-        <span class="eyebrow">제압 · 부러진 뼈 적용</span>
+        <h2>파티 시너지</h2>
+        <Hint label="헷갈리는 둘">
+          <p><b>치명타 시 피해 증가</b>는 치명타 피해가 아닙니다. 회심과 곱해집니다.</p>
+          <p><b>백 · 헤드어택 피해 증가</b>는 전투 상황을 켜야 9%가 됩니다.</p>
+        </Hint>
+        <span class="spacer"></span>
+        <button class="reset" type="button" aria-label="파티 시너지 초기화" title="파티 시너지 초기화"
+                onclick={() => resetSection("synergy")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+        </button>
       </div>
       <div class="card-body">
-        <div class="fields">
-          <div class="field">
-            <label for="s-stagger">딜 비중 %</label>
-            <input class="boxed" id="s-stagger" type="number" step="5" min="0" max="100"
-                   bind:value={app.character.convenience.staggerShare} onchange={persist} />
+        <SynergyBrief />
+        <!-- 셋 다 파티가 깔아 주는 것이다. 하나만 드롭다운이면 같은 성격인 줄
+             셋이 서로 다른 물건처럼 보인다 — 켜고 끄는 칩으로 맞춘다. -->
+        <div class="picks">
+          <div class="pick-row">
+            <b>파티 버프</b>
+            <div class="pick-chips">
+              <button type="button" class="pick-chip" class:on={app.character.convenience.goddessBlessing}
+                      aria-pressed={app.character.convenience.goddessBlessing}
+                      onclick={() => { app.character.convenience.goddessBlessing = !app.character.convenience.goddessBlessing; persist(); }}>
+                축복의 여신<em>공속 +9%</em>
+              </button>
+              <button type="button" class="pick-chip" class:on={app.character.convenience.feast}
+                      aria-pressed={app.character.convenience.feast}
+                      onclick={() => { app.character.convenience.feast = !app.character.convenience.feast; persist(); }}>
+                만찬<em>공속 +5%</em>
+              </button>
+            </div>
+            <span class="pick-count"></span>
+          </div>
+          <div class="pick-row">
+            <b>정열의 춤사위</b>
+            <div class="pick-chips">
+              {#each PASSION_DANCE_GRADES as grade (grade.value)}
+                {@const on = (app.character.convenience.passionDance ?? 0) === grade.value}
+                <button type="button" class="pick-chip" class:on
+                        aria-pressed={on}
+                        onclick={() => { app.character.convenience.passionDance = grade.value; app.character.convenience.passionDanceSet = true; persist(); }}>
+                  {grade.label}{#if grade.amount > 0}<em>진화형 +{grade.amount}%</em>{/if}
+                </button>
+              {/each}
+            </div>
+            <span class="pick-count"></span>
           </div>
         </div>
       </div>
     </section>
 
+    <!--
+      자버프는 여기서 안 고친다 — 편집 자리는 깨달음 페이지 하나다.
+      두 군데서 고칠 수 있으면 어느 쪽이 진짜인지 매번 확인하게 된다.
+    -->
     <section class="card">
       <div class="card-hd">
+        <h2>자버프</h2>
+        <span class="fold-note">{buffSummary}</span>
+        <span class="spacer"></span>
+        <button class="btn sm" type="button" onclick={() => goTab("awakening")}>깨달음으로 →</button>
+      </div>
+    </section>
+
+    <!--
+      아래층 — 파고드는 것. 처음에는 전부 접혀 있다.
+    -->
+    <div class="scope-deep">
+    <details class="card card-fold" open={isOpen("synergyDeep", false)} ontoggle={e => setFold("synergyDeep", e.currentTarget.open)}>
+      <summary>
+        <h2>파티 시너지 상세</h2>
+        <span class="fold-note">직업별 갈래와 가동율</span>
+      </summary>
+      <div class="card-body ruled">
+        <SynergyPanel />
+      </div>
+    </details>
+
+    <details class="card card-fold" open={isOpen("bounds", false)} ontoggle={e => setFold("bounds", e.currentTarget.open)}>
+      <summary>
         <h2>하한 · 상한</h2>
         <span class="spacer"></span>
         <button class="reset" type="button" aria-label="하한 · 상한 초기화" title="하한 · 상한 초기화"
                 onclick={() => SEARCH_FLOOR_FIELDS.forEach(field => { setFloor(field, 0); setCeiling(field, 0); })}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
         </button>
-      </div>
+      </summary>
       <div class="card-body">
         <div class="bounds">
           <div class="bounds-hd"><span></span><span>이상</span><span>이하</span></div>
@@ -436,8 +421,68 @@
         </div>
         <p class="hint">0이면 안 겁니다 · 치적 상한은 뭉가 유무로 갈립니다</p>
       </div>
-    </section>
+    </details>
 
+    <!--
+      하한 조건. 실전 세팅은 DPS 하나로 정해지지 않는다 — 치명타는 일정
+      수준을 깔고 시작하는 게 먼저고, 그 밑은 아예 후보가 아니다.
+    -->
+    <details class="card card-fold" open={isOpen("stagger", false)} ontoggle={e => setFold("stagger", e.currentTarget.open)}>
+      <summary>
+        <h2>대난투</h2>
+        <span class="eyebrow">제압 · 부러진 뼈 적용</span>
+      </summary>
+      <div class="card-body">
+        <div class="fields">
+          <div class="field">
+            <label for="s-stagger">딜 비중 %</label>
+            <input class="boxed" id="s-stagger" type="number" step="5" min="0" max="100"
+                   bind:value={app.character.convenience.staggerShare} onchange={persist} />
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!--
+      펫과 음식. 갈래가 하나뿐인 차원이라 '고정 · 후보 · 제외' 세 갈래가 필요 없다.
+
+      켠 것이 후보고, 하나만 켜면 그게 곧 고정이다. 줄마다 단추 셋을 두었더니
+      여덟 줄에 스물넷이 늘어서서, 정작 "무엇을 켰나"는 한눈에 안 들어왔다.
+      켜고 끄는 칩 한 줄이면 그 질문에 바로 답한다.
+    -->
+    <details class="card card-fold" open={isOpen("petsFood", false)} ontoggle={e => setFold("petsFood", e.currentTarget.open)}>
+      <summary>
+        <h2>펫 · 음식</h2>
+        <span class="eyebrow">켠 것 중에서 고릅니다 · 하나만 켜면 그것으로 고정</span>
+      </summary>
+      <div class="card-body">
+        <div class="picks">
+          {#each PICK_GROUPS as group (group.key)}
+            {@const on = group.rows.filter(row => getPickRole(app.search[group.key], row.id) !== "excluded")}
+            <div class="pick-row">
+              <b>{group.title}</b>
+              <div class="pick-chips">
+                {#each group.rows as row (row.id)}
+                  {@const active = getPickRole(app.search[group.key], row.id) !== "excluded"}
+                  <button type="button" class="pick-chip" class:on={active}
+                          aria-pressed={active}
+                          title={row.note}
+                          onclick={() => togglePick(group.key, row.id)}>
+                    {row.name}
+                    {#if row.note}<em>{row.note}</em>{/if}
+                  </button>
+                {/each}
+              </div>
+              <span class="pick-count">{on.length === 1 ? "고정" : `${on.length}가지`}</span>
+            </div>
+          {/each}
+        </div>
+      </div>
+    </details>
+    </div>
+  </div>
+
+  <aside class="scope-rail">
     <section class="card">
       <div class="card-hd"><h2>이번 탐색</h2></div>
       <div class="card-body">
@@ -480,6 +525,5 @@
 
       </div>
     </section>
-
   </aside>
 </div>

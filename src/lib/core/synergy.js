@@ -151,6 +151,18 @@ const SYNERGY_UPTIME_FULL = 100;
 const SYNERGY_BASE_KEY = "";
 const SYNERGY_OWN_ID = "own";
 
+/**
+ * 직업 없는 줄 — 표준 시너지 하나만 주는 파티원.
+ *
+ * "피증 둘, 치적 하나"만 적고 싶은데 직업을 세 번 고르게 하면 물어보는 것이
+ * 다르다. 그렇다고 간략용 모델을 따로 세우면 같은 시너지가 두 군데서 계산될
+ * 위험이 생긴다 — 그래서 별도 모드가 아니라 그냥 줄이다. 직업 코드 자리에
+ * 종류 이름이 들어가고, 나머지는 여느 줄과 똑같이 흐른다.
+ */
+const GENERIC_SYNERGY_JOBS = ["damage", "critRate"];
+const isGenericSynergyJob = job => GENERIC_SYNERGY_JOBS.includes(job);
+const genericSynergyName = job => `${SYNERGY_TYPES[job]?.label ?? job} · 표준`;
+
 function getSynergyJob(job) {
   const code = readNumber(job);
   return SYNERGY_JOBS.find(entry => entry.job === code) ?? null;
@@ -179,6 +191,8 @@ function findSynergyChoice(entry, node) {
  * 같은 groups 안에서는 하나만 센다 — 게임에서 서로 배타라 둘 다 찍을 수 없다.
  */
 function synergyRowParts(job, nodes) {
+  // 직업 없는 줄은 제 종류 하나만 준다. 갈래도 없다.
+  if (isGenericSynergyJob(job)) return [{ key: job, choice: null, node: "" }];
   const entry = getSynergyJob(job);
   if (!entry) return [];
   const parts = [];
@@ -280,6 +294,13 @@ function synergyChoiceNote(choice, own) {
 function normalizeSynergyRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .map(row => {
+      // 직업 없는 줄도 줄이다. 여기서 걸러 버리면 간략 스테퍼가 아무것도 못 남긴다.
+      if (isGenericSynergyJob(row?.job)) {
+        return {
+          id: String(row.id ?? ""), own: false, job: row.job,
+          nodes: [], uptime: normalizeUptimeMap(row.uptime),
+        };
+      }
       const entry = getSynergyJob(row?.job);
       if (!entry) return null;
       const nodes = (Array.isArray(row.nodes) ? row.nodes : [])
@@ -310,7 +331,8 @@ function synergyBonuses(awakening, synergy, settings) {
   const totals = {};
   let combatCount = 0;
   const detailed = rows.map(row => {
-    const entry = getSynergyJob(row.job);
+    const generic = isGenericSynergyJob(row.job);
+    const entry = generic ? null : getSynergyJob(row.job);
     const parts = synergyRowParts(row.job, row.nodes).map(part => {
       const type = SYNERGY_TYPES[part.key];
       const uptime = synergyRowUptime(row, part.node);
@@ -328,7 +350,13 @@ function synergyBonuses(awakening, synergy, settings) {
       if (at) at.parts.push(part);
       else buffs.push({ node: part.node, uptime: part.uptime, parts: [part] });
     });
-    return { ...row, name: entry?.name ?? "", parts, buffs };
+    return {
+      ...row,
+      generic,
+      name: generic ? genericSynergyName(row.job) : (entry?.name ?? ""),
+      parts,
+      buffs,
+    };
   });
 
   const damageGroups = {};
@@ -361,6 +389,9 @@ export {
   SYNERGY_UPTIME_FULL,
   SYNERGY_BASE_KEY,
   SYNERGY_OWN_ID,
+  GENERIC_SYNERGY_JOBS,
+  isGenericSynergyJob,
+  genericSynergyName,
   getSynergyJob,
   synergyAmount,
   findSynergyChoice,

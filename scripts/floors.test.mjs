@@ -393,5 +393,46 @@ console.log(`  (f) 상한 위쪽 하한: ${failures - before} failures`);
   console.log(`  (j) 전수 탐색 두 상한: ${failures - before} failures — 뭉가 ${ranWithThorn}개 · 기본 ${ranWithout}개`);
 }
 
+// (k) 대난투 순위 — 빔이 제압 계열을 앞 차원에서 잘라먹지 않는가.
+//
+// 제압 위주 조합은 한 방 딜·DPS 어느 축에서도 상위가 아니다. 빔이 그 두 축만
+// 보고 남기면 마지막 차원에 닿기도 전에 사라져서, 대난투 순위가 살아남은 것
+// 중 그나마 나은 것을 모은 목록이 된다. 전수와 빔의 1위가 같아야 한다.
+{
+  const before = failures;
+  let compared = 0;
+  let staggerDiffers = 0;
+
+  for (let run = 0; run < 6; run += 1) {
+    const state = randomState();
+    // 제압을 실제로 굴릴 수 있게 1T를 열어 준다.
+    const settings = { engravingSlots: "fixed", fullBudget: true, resultLimit: 20, tier1Mode: "step10" };
+    const full = await runSearch(state, { ...settings, mode: "exhaustive" });
+    const beam = await runSearch(state, { ...settings, mode: "beam", beamWidth: 60 });
+    if (!full.stagger?.length || !beam.stagger?.length) continue;
+    compared += 1;
+
+    const best = full.stagger[0].staggerIndex;
+    const got = beam.stagger[0].staggerIndex;
+    // 빔은 근사라 한 톨쯤 못 미칠 수 있다. 재는 것은 그 오차가 아니라 축이
+    // 통째로 잘렸는가다 — 잘리면 제압을 안 찍은 것만 남아 몇 %가 벌어진다.
+    if (got < best * 0.99) {
+      fail(`(k) 빔의 대난투 1위가 전수보다 낮다 (전수 ${best.toFixed(2)} · 빔 ${got.toFixed(2)})`);
+    }
+    // 값만 보면 1% 안쪽에서 눈감아 준다. 그래서 구조도 함께 본다 —
+    // 전수가 제압을 찍었으면 빔도 찍어야 한다. 축이 잘리면 여기서 걸린다.
+    const domFull = full.stagger[0].nodeLevels["e1-domination"] || 0;
+    const domBeam = beam.stagger[0].nodeLevels["e1-domination"] || 0;
+    if (domFull > 0 && domBeam <= 0) {
+      fail(`(k) 전수는 제압 ${domFull}Lv를 찍었는데 빔의 대난투 1위는 안 찍었다`);
+    }
+    // 대난투 1위가 한 방 딜 1위와 늘 같으면 이 검사가 아무것도 안 잰다.
+    if (full.stagger[0].id !== full.damage[0].id) staggerDiffers += 1;
+  }
+
+  check(compared > 0, "(k) 대난투 순위가 하나는 나와야 한다");
+  console.log(`  (k) 대난투 빔 보존: ${failures - before} failures — 비교 ${compared}판 · 한 방 딜 1위와 다른 판 ${staggerDiffers}`);
+}
+
 console.log(failures === 0 ? "floors: all checks passed" : `floors: ${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

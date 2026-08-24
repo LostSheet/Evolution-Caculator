@@ -13,7 +13,7 @@
 import { DEFAULT_STATE, mergeState, calculateMetrics, STAGGER_DAMAGE_GROUPS, getStaggerShare } from "../src/lib/core/metrics.js";
 import { ARC_PASSIVE_CONSTANTS } from "../src/lib/core/data.js";
 import { ENGRAVING_LIBRARY } from "../src/lib/core/engravings.js";
-import { SEARCH_DEFAULTS, buildSearchPlan, buildEvaluator } from "../src/lib/core/runner.js";
+import { SEARCH_DEFAULTS, buildSearchPlan, buildEvaluator, runSearch } from "../src/lib/core/runner.js";
 import { getModeledStatKeys } from "../src/lib/core/search.js";
 import { explainMetrics } from "../src/lib/core/explain.js";
 
@@ -77,12 +77,40 @@ const build = (share, extra = {}) => mergeState(DEFAULT_STATE, {
   want("(d) 비중 0에서 부뼈는 무해", off.damageIndex, on.damageIndex, 1e-9);
 }
 
-// (e) 비중을 적으면 제압이 탐색 후보가 된다.
+// (e) 제압은 언제나 탐색 후보다.
+//
+// 예전에는 대난투 비중을 적었을 때만 후보였다. 비중이 0이면 제압이 한 방 딜에
+// 아무 값도 안 내니 탐색이 헛돈다고 봤기 때문이다. 그런데 무력화 가중 100%로
+// 재는 대난투 순위가 생기면서 그 규칙이 답을 망친다 — 제압을 뺀 채로 뽑은
+// 대난투 1위는 "제압을 안 찍은 것들 중 1위"라 물어본 것과 다른 답이다.
 {
   const off = getModeledStatKeys(build(0));
   const on = getModeledStatKeys(build(50));
-  if (off.has("dominationStat")) fail("(e) 비중 0인데 제압을 후보에 넣는다");
+  if (!off.has("dominationStat")) fail("(e) 비중 0에서 제압이 후보에서 빠졌다");
   if (!on.has("dominationStat")) fail("(e) 비중이 있는데 제압을 안 넣는다");
+}
+
+// (e2) 비중 0에서도 대난투 순위 1위는 제압을 찍는다.
+//
+// 후보에 넣는 것만으로는 부족하다 — 빔이 앞 차원에서 잘라내면 목록에 못 남는다.
+{
+  const state = build(0);
+  const got = await runSearch(state, {
+    ...SEARCH_DEFAULTS, tier1Mode: "step10", engravingSlots: "fixed", mode: "exhaustive",
+  });
+  const top = got.stagger?.[0];
+  if (!top) {
+    fail("(e2) 대난투 순위가 비었다");
+  } else {
+    const dom = top.nodeLevels["e1-domination"] || 0;
+    if (dom <= 0) fail(`(e2) 대난투 1위가 제압을 안 찍었다 (1T 제압 ${dom})`);
+    // 한 방 딜 1위보다 대난투 지수가 높아야 순위가 뜻이 있다.
+    const rival = got.damage[0].staggerIndex;
+    if (!(top.staggerIndex > rival)) {
+      fail(`(e2) 대난투 1위가 한 방 딜 1위를 못 넘겼다 (${top.staggerIndex.toFixed(2)} vs ${rival.toFixed(2)})`);
+    }
+    console.log(`  (e2) 비중 0에서도 제압을 찾는다 — 제압 ${dom}Lv · 대난투 ${top.staggerIndex.toFixed(0)} vs 한 방 1위의 ${rival.toFixed(0)}`);
+  }
 }
 
 // (f) 탐색 평가기가 본체와 같은 값을 낸다 — 전수.

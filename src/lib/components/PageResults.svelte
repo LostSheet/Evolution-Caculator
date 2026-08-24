@@ -14,6 +14,7 @@
   import Select from "./Select.svelte";
   import TradeoffChart from "./TradeoffChart.svelte";
   import ResultsTable from "./ResultsTable.svelte";
+  import TopPicks from "./TopPicks.svelte";
   import ResultDialog from "./ResultDialog.svelte";
   import CeilingBar from "./CeilingBar.svelte";
 
@@ -71,7 +72,7 @@
 
 {#if !app.results && !app.running}
   <section class="card blank">
-    <p>아직 탐색하지 않았습니다. 설정에서 범위를 정하고 돌리면 한 방 딜과 DPS의 균형 곡선이 여기 그려집니다.</p>
+    <p>돌리면 대표 세팅 네 장과 균형 곡선이 여기 섭니다.</p>
     <div class="blank-actions">
       <button class="btn primary" type="button" onclick={() => goTab("rules")}>탐색 설정으로 →</button>
       <button class="btn" type="button" onclick={openDrawer}>지금 빌드 보기</button>
@@ -94,6 +95,9 @@
   </section>
 {:else}
   <div class="results-main">
+      <!-- 답이 먼저. 표는 그 아래에서 근거가 된다. -->
+      <TopPicks />
+
       <section class="card">
         <div class="card-hd">
           <h2>균형 곡선</h2>

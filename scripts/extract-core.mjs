@@ -103,6 +103,7 @@ import AWAKENING_SCOPE from "../data/awakening-scope.json" with { type: "json" }
 const synergyExports = [
   "SYNERGY_TYPES", "SYNERGY_TYPE_ORDER", "SYNERGY_JOBS", "SYNERGY_SLOTS",
   "SYNERGY_UPTIME_FULL", "SYNERGY_BASE_KEY", "SYNERGY_OWN_ID",
+  "GENERIC_SYNERGY_JOBS", "isGenericSynergyJob", "genericSynergyName",
   "getSynergyJob", "synergyAmount", "findSynergyChoice", "synergyRowParts", "defaultSynergyNodes",
   "jobSelfBuffs", "jobBranches", "takenBranch", "jobStat", "jobDirection", "JOB_BUFFS",
   "ownSynergyRow", "normalizeUptime", "normalizeUptimeMap", "synergyRowUptime",
@@ -217,7 +218,7 @@ writeFileSync(resolve(OUT, "search.js"), buildModule({
     // runner re-implements it with the options passed in explicitly.
     "getModeledEngravings", "DEFAULT_CANDIDATES", "defaultEngravingRole", "enumerateEngravingSets",
     "createTopList", "createParetoFront",
-    "createChunkClock", "selectBeam",
+    "createChunkClock", "BEAM_METRICS", "selectBeam",
   ],
 }));
 

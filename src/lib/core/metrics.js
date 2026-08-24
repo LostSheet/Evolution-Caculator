@@ -685,6 +685,29 @@ function finalizeMetrics(context) {
   const damageIndex = 100 * critFactor * damageMultiplier;
   const dpsIndex = damageIndex * cooldownFactor * attackSpeedFactor;
 
+  /**
+   * 대난투 지수 — 무력화 가중을 100%로 둔 한 방 딜.
+   *
+   * 사용자의 '대난투 딜 비중'과 무관하게 언제나 잰다. 그 칸은 "내 로테이션에서
+   * 대난투가 몇 %냐"를 적는 자리이고, 이 지수는 "대난투만 재면 누가 제일 센가"라
+   * 서 묻는 것이 다르다.
+   *
+   * 비중이 0이면 무력화 그룹이 damageGroups에 아예 안 들어간다. 그 몫을 여기서
+   * 따로 얹는다 — damageGroups 자체는 안 건드린다. 계기판이 읽는 것이라,
+   * 비중을 0으로 둔 사람에게 없는 줄이 보이면 그게 거짓말이 된다.
+   */
+  const staggerFullGroups = { ...damageGroups };
+  if (!(staggerShare > 0)) {
+    addDamageGroup(
+      staggerFullGroups, "무력화 대상 피해",
+      readNumber(totalStats.dominationStat) * ARC_PASSIVE_CONSTANTS.staggerDamagePerDomination,
+    );
+  }
+  const staggerFullMultiplier = Object.entries(staggerFullGroups)
+    .filter(([key]) => STAGGER_DAMAGE_GROUPS.has(key))
+    .reduce((acc, [key, value]) => acc * damageGroupFactor(key, value), 1);
+  const staggerIndex = 100 * critFactor * plainMultiplier * staggerFullMultiplier * specBundleResult.blend;
+
   return {
     totalStats,
     percentBonuses,
@@ -733,6 +756,7 @@ function finalizeMetrics(context) {
     attackSpeedFactor,
     damageIndex,
     dpsIndex,
+    staggerIndex,
     // 공격력 축. 지수에는 곱하지 않는다 — 지수는 어디까지나 상대값이고,
     // 절대 데미지를 내려면 스킬 계수가 있어야 하는데 그건 이 계산기 밖이다.
     // 여기 있는 값은 평면 증가를 퍼센트로 바꾸는 데에만 쓰이고, 계기판이

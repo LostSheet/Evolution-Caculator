@@ -74,6 +74,9 @@
             <!-- 내가 나에게 주는 몫은 시너지가 아니라 자버프다. 유효율은
                  깨달음 쪽에서 매기고 여기서는 결과만 읽는다. -->
             <b>{row.name}</b>
+          {:else if row.generic}
+            <!-- 간략 카드가 세운 줄. 직업이 없으니 고를 것도 없다. -->
+            <b>{row.name}</b>
           {:else}
             <Select value={row.job} options={JOB_OPTIONS} label="직업" align="left"
                     onchange={job => setSynergyRowJob(row.id, job)} />

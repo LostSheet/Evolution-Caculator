@@ -19,7 +19,7 @@ import {
   OPTIMIZER_PET_OPTIONS, OPTIMIZER_TIER1_STEPS, OPTIMIZER_ENGRAVING_ROLES,
   getModeledStatKeys, isNodeImpactful, enumerateNodeCombos, keepFullBudgetCombos,
   getModeledEngravings, defaultEngravingRole, enumerateEngravingSets,
-  createTopList, createParetoFront, createChunkClock, selectBeam,
+  createTopList, createParetoFront, createChunkClock, selectBeam, BEAM_METRICS,
 } from "./search.js";
 
 // 1T 특화 노드. 특화 캐릭터는 여기를 30까지 채우는 것이 사실상 전제다.
@@ -51,6 +51,9 @@ export const SEARCH_DEFAULTS = {
   floors: { critRate: 0, critRateThorn: 0, attackSpeed: 0, moveSpeed: 0, cooldown: 0 },
   // 상한. 0이면 안 건다 — normalizeSearchCeilings 참고.
   ceilings: { critRate: 0, critRateThorn: 0, attackSpeed: 0, moveSpeed: 0, cooldown: 0 },
+  // 내 로테이션이 쿨감 몇 %에서 막히나. 탐색은 안 쓰고 대표 카드만 읽는다 —
+  // 비워 두면 구간이 가장 넓은 빌드가 선다.
+  ceilingGuess: "",
 };
 
 // --- 하한 조건 --------------------------------------------------------------
@@ -603,6 +606,8 @@ function buildResultEntry(picks, metrics, plan, baseEngravings) {
     id: signature, signature, nodeLevels, pet, food, engravings,
     damageIndex: metrics.damageIndex,
     dpsIndex: metrics.dpsIndex,
+    // 무력화 가중 100%일 때의 한 방 딜. 대난투 비중 설정과는 무관하다.
+    staggerIndex: metrics.staggerIndex,
     pointsUsed: metrics.pointsUsed,
     critRateCapped: metrics.critRateCapped,
     // 뭉툭한 가시는 치명타 상한을 80%로 내리고 초과분을 피해로 바꾼다.
@@ -628,6 +633,7 @@ function offerResult(context, picks, metrics) {
 
   const wantedByRanking = context.damageTop.wants(metrics.damageIndex)
     || context.dpsTop.wants(metrics.dpsIndex)
+    || context.staggerTop.wants(metrics.staggerIndex)
     || context.cooldownTop.wants(metrics.cooldownReduction, metrics.damageIndex);
   const wantedByPareto = context.pareto.accepts(metrics.damageIndex, metrics.dpsIndex)
     || context.cooldownPareto.accepts(metrics.damageIndex, metrics.cooldownReduction);
@@ -637,6 +643,7 @@ function offerResult(context, picks, metrics) {
   if (wantedByRanking) {
     context.damageTop.offer(entry);
     context.dpsTop.offer(entry);
+    context.staggerTop.offer(entry);
     context.cooldownTop.offer(entry);
   }
   if (wantedByPareto) {
@@ -749,6 +756,9 @@ async function runBeam(context, report, isCancelled, beamWidth) {
           indexes, points,
           damageIndex: metrics.damageIndex,
           dpsIndex: metrics.dpsIndex,
+          // 빔이 이 축에서도 상위를 남긴다. 없으면 제압 계열이 앞 차원에서 잘려
+          // 대난투 순위가 차선만 모은 목록이 된다.
+          staggerIndex: metrics.staggerIndex,
           // 빔이 조건을 채운 갈래를 먼저 남기도록. 하한이 없으면 늘 0이다.
           shortfall: context.floored ? floorShortfall(metrics, context.floors, context.ceilings) : 0,
         });
@@ -795,17 +805,16 @@ async function refine(context, beam, report, isCancelled) {
   const dimensions = plan.dimensions;
   // 씨앗도 조건을 채운 갈래를 먼저 집는다. 빔과 같은 이유다.
   const rank = key => (a, b) => (a.shortfall ?? 0) - (b.shortfall ?? 0) || b[key] - a[key];
-  const seeds = [
-    ...beam.slice().sort(rank("damageIndex")).slice(0, OPTIMIZER_REFINE_SEEDS),
-    ...beam.slice().sort(rank("dpsIndex")).slice(0, OPTIMIZER_REFINE_SEEDS),
-  ];
+  const seeds = BEAM_METRICS.flatMap(
+    key => beam.slice().sort(rank(key)).slice(0, OPTIMIZER_REFINE_SEEDS),
+  );
   const ceiling = context.evaluated + OPTIMIZER_REFINE_BUDGET;
   const clock = createChunkClock();
 
   for (let seedIndex = 0; seedIndex < seeds.length; seedIndex += 1) {
     if (context.evaluated >= ceiling) return;
 
-    for (const metricKey of ["damageIndex", "dpsIndex"]) {
+    for (const metricKey of BEAM_METRICS) {
       const indexes = seeds[seedIndex].indexes.slice();
       let best = climbScore(context, evaluate(indexes.map((index, i) => dimensions[i].options[index])), metricKey);
       context.evaluated += 1;
@@ -870,7 +879,8 @@ export async function runSearch(sourceState, options, onProgress = () => {}, isC
   if (plan.engravings.overflow) {
     return {
       error: "engravingOverflow", plan, floors, ceilings,
-      damage: [], dps: [], cooldown: [], pareto: [], cooldownPareto: [], evaluated: 0, rejected: 0, exhaustive: false,
+      damage: [], dps: [], stagger: [], cooldown: [], pareto: [], cooldownPareto: [],
+      evaluated: 0, rejected: 0, exhaustive: false,
     };
   }
 
@@ -881,6 +891,7 @@ export async function runSearch(sourceState, options, onProgress = () => {}, isC
     baseEngravings: sourceState.engravings || {},
     damageTop: createTopList(limit, "damageIndex"),
     dpsTop: createTopList(limit, "dpsIndex"),
+    staggerTop: createTopList(limit, "staggerIndex"),
     // 쿨감 순위. 절대 쿨감이 먼저인 직업은 이 줄부터 읽고 그 안에서 딜을 고른다.
     cooldownTop: createTopList(limit, "cooldownReduction", "damageIndex"),
     pareto: createParetoFront(),
@@ -913,6 +924,8 @@ export async function runSearch(sourceState, options, onProgress = () => {}, isC
     cancelled: isCancelled(),
     damage: context.damageTop.items.slice(),
     dps: context.dpsTop.items.slice(),
+    // 대난투 순위. 무력화 가중 100%로 잰 한 방 딜 기준이다.
+    stagger: context.staggerTop.items.slice(),
     cooldown: context.cooldownTop.items.slice(),
     // 곡선 위의 점들. 어느 점이 언제 1등인지는 ceiling.js의 한계 스윕이 정한다.
     pareto: context.pareto.items.slice(),
