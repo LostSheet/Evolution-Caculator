@@ -106,7 +106,8 @@
         .map(effect => {
           const grade = build.bracelet?.effects?.[effect.id];
           const at = BRACELET_GRADES.findIndex(item => item.value === grade);
-          return at < 0 ? "" : `${effect.label} ${BRACELET_GRADES[at].label}`;
+          // 팔찌 효과가 든 칸은 name이다. label로 읽으면 undefined가 찍힌다.
+          return at < 0 ? "" : `${effect.name} ${BRACELET_GRADES[at].label}`;
         })
         .filter(Boolean).join(" · ") || "없음",
     })), { tab: "setup" });
