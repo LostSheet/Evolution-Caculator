@@ -569,6 +569,17 @@ svg { display: block; flex: none; width: 1.1rem; height: 1.1rem; fill: none; str
 .sb-tile-nums em { font-style: normal; }
 .sb-tile-nums em.up { color: var(--good); }
 .sb-tile-nums em.down { color: var(--bad); }
+/* 무엇의 증감인지. 라벨 없이 숫자 둘만 있으면 어느 쪽이 한 방인지 매번 센다. */
+.sb-tile-nums u {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  text-decoration: none;
+  color: var(--txt-3);
+}
+
+/* 서랍을 펼치면 막대는 손잡이만 남는다 — 같은 숫자를 표와 막대가 겹쳐 들지 않게. */
+.statusbar.folded { gap: 10px; }
+.sb-folded { font-size: 12px; color: var(--txt-3); }
 
 /* 상태 한 줄. 막대 위에 떴다 사라진다 — 어느 화면에 있든 보여야 하므로. */
 .sb-toast {
@@ -3637,12 +3648,13 @@ td.base .c-levels li { color: var(--txt); }
    벌어져서, 아무것도 안 가리켰을 때 빈 줄이 하나 더 있는 것처럼 보인다. */
 .c-under { min-height: 24px; align-items: center; }
 .c-under > * { align-self: center; }
-.c-acts { height: 24px; }
 .c-acts button { line-height: 1.35; }
 
 /* 아이콘 잔일. 낱말로 넷을 늘어놓으면 196px 칸이 꽉 차고, 그 글자들이
-   슬롯 이름보다 눈에 먼저 들어온다. 뜻은 title이 든다. */
-.c-acts button,
+   슬롯 이름보다 눈에 먼저 들어온다. 뜻은 title이 든다.
+
+   글자 단추는 뺀다 — 22px 상자에 넣으면 글씨가 서로 위에 겹쳐 찍힌다. */
+.c-acts button:not(.c-lift),
 .slot-acts button {
   display: grid;
   place-items: center;
@@ -3683,8 +3695,8 @@ td.base .c-levels li { color: var(--txt); }
 /* 겹쳐 둔 출처 줄은 투명해져도 자리를 지킨다. 그대로 두면 아이콘 위에 얹혀
    포인터를 가로채서, 가리켰는데 아무 반응이 없는 칸이 생긴다. */
 .c-meta { pointer-events: none; }
-.c-acts button, .slot-acts button { width: 24px; height: 24px; }
-.c-acts { height: 26px; }
+.c-acts button:not(.c-lift), .slot-acts button { width: 24px; height: 24px; }
+.c-acts { height: auto; min-height: 26px; }
 .c-under { min-height: 26px; }
 
 /* `.c-title th`가 뒤에 오면서 특정도(0,1,1)로 `.c-add-head`(0,1,0)의
@@ -4194,24 +4206,25 @@ td.base .c-levels li { color: var(--txt); }
 }
 .pick-acts .btn { flex: 1 1 0; justify-content: center; }
 
-/* 쿨감 한계는 사람마다 다르다. 카드 줄 끝에서 그 값을 받는다. */
+/* 쿨감 한계 — 그 값이 답을 바꾸는 카드 안에 산다. */
 .pick-limit {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 13px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r);
+  padding: 8px 13px;
+  border-top: 1px solid var(--line-soft);
   font-size: 11.5px;
   color: var(--txt-3);
 }
 .pick-limit input {
-  width: 62px;
+  width: 52px;
+  padding: 2px 6px;
   text-align: right;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .pick-limit i { font-style: normal; }
+.pick-limit em { margin-left: auto; font-style: normal; color: var(--cool-dim); }
 
 /* 그룹 머리의 지름길. 표는 보는 곳이고, 고치는 자리는 페이지다. */
 .c-goto {

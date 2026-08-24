@@ -25,9 +25,18 @@
   } = $props();
 
   const sign = value => (value >= 0 ? "up" : "down");
+
+  /**
+   * 서랍을 열면 막대는 손잡이만 남는다.
+   *
+   * 펼친 표가 이미 같은 것을 더 잘 보여준다 — 닻도 초점도 타일도 저 위에 열로
+   * 서 있다. 그런데도 막대가 축약본을 또 들고 있으면 같은 숫자가 한 화면에
+   * 두 번 나오고, 어느 쪽을 봐야 하는지 매번 고르게 된다.
+   */
+  const folded = $derived(Boolean(handle?.open));
 </script>
 
-<div class="statusbar">
+<div class="statusbar" class:folded>
   <!-- 어느 화면에서 무슨 일이 있었는지. 잠깐 떴다 사라진다. -->
   {#if status}
     <div class="sb-toast" role="status">{status}</div>
@@ -42,7 +51,12 @@
     </button>
   {/if}
 
-  {#if anchor}
+  {#if folded}
+    <!-- 펼친 표가 다 보여주고 있다. 여기서는 닫는 길만 남긴다. -->
+    <span class="sb-folded">비교표를 보는 중</span>
+  {/if}
+
+  {#if anchor && !folded}
     <div class="sb-anchor" class:premise={anchor.premise}>
       <span class="sb-anchor-name">
         {anchor.name}
@@ -64,7 +78,7 @@
     </div>
   {/if}
 
-  {#if focus}
+  {#if focus && !folded}
     <div class="sb-focus" class:temp={focus.temp}>
       <span class="sb-focus-name">{focus.name}</span>
       <span class="sb-nums big">
@@ -84,14 +98,14 @@
   {/if}
 
   <div class="sb-tiles" aria-label="비교함에 담은 빌드">
-    {#each tiles as tile (tile.id)}
+    {#each folded ? [] : tiles as tile (tile.id)}
       <button class="sb-tile" type="button" class:on={tile.focused}
               title="'{tile.name}'을 초점으로"
               onclick={() => onFocusTile?.(tile.id)}>
         <span class="sb-tile-name">{tile.name}</span>
         <span class="sb-tile-nums">
-          <em class={sign(tile.damageDelta)}>{formatSignedPercent(tile.damageDelta)}</em>
-          <em class={sign(tile.dpsDelta)}>{formatSignedPercent(tile.dpsDelta)}</em>
+          <u>한 방</u><em class={sign(tile.damageDelta)}>{formatSignedPercent(tile.damageDelta)}</em>
+          <u>DPS</u><em class={sign(tile.dpsDelta)}>{formatSignedPercent(tile.dpsDelta)}</em>
         </span>
       </button>
     {/each}

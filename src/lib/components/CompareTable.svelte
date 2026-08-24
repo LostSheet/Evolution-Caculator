@@ -208,7 +208,7 @@
 
 <section class="card compare">
   <div class="card-hd">
-    <h2>비교함</h2>
+    <!-- 제목은 서랍 머리가 이미 들고 있다. 여기 또 적으면 '비교함'이 두 번이다. -->
     <span class="spacer"></span>
     {#if hidden > 0}<span class="eyebrow">{hidden}줄 접힘</span>{/if}
     <label class="check">

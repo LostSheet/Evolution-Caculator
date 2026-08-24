@@ -94,8 +94,6 @@
           <div class="pick-labels">
             {#each card.labels as label}<span class="pick-label">{label}</span>{/each}
           </div>
-          {#if card.note}<div class="pick-note">{card.note}</div>{/if}
-
           <div class="pick-figs">
             <span class="pick-fig">
               <u>한 방</u>
@@ -130,22 +128,26 @@
           <div class="pick-1t">{tier1(card.entry)}</div>
         </button>
 
+        <!-- 쿨감 한계는 사람마다 다르다. 그 값을 묻는 자리는 그 값이 답을
+             바꾸는 카드 안이어야 한다 — 밖에 두면 빈 상자 하나가 더 서 있다. -->
+        {#if card.labels.includes("쿨감 한계 최강")}
+          <label class="pick-limit">
+            <span>내 한계</span>
+            <input type="number" min="0" max="100" step="1" placeholder="자동"
+                   value={app.search.ceilingGuess ?? ""}
+                   oninput={event => setLimit(event.currentTarget.value)} />
+            <i>%</i>
+            <em>{card.note}</em>
+          </label>
+        {/if}
+
         <div class="pick-acts">
           <button class="btn sm" type="button" onclick={() => toggleBoxed(card.entry)}>
-            {boxed ? "뺴기" : "담기"}
+            {boxed ? "빼기" : "담기"}
           </button>
           <button class="btn sm primary" type="button" onclick={() => adoptResult(card.entry)}>내 빌드로</button>
         </div>
       </section>
     {/each}
-
-    <!-- 쿨감 한계는 사람마다 다르다. 여기 적으면 그 구간의 1위가 카드로 온다. -->
-    <label class="pick-limit">
-      <span>내 쿨감 한계</span>
-      <input type="number" min="0" max="100" step="1" placeholder="자동"
-             value={app.search.ceilingGuess ?? ""}
-             oninput={event => setLimit(event.currentTarget.value)} />
-      <i>%</i>
-    </label>
   </div>
 {/if}

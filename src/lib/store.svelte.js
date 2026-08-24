@@ -695,6 +695,34 @@ function freezeName(name) {
   return name === "내 빌드" ? freeName("이전 빌드") : name;
 }
 
+/**
+ * 조사 — 이름이 숫자로 끝나는 일이 잦아서 규칙이 필요하다.
+ *
+ * '탐색 4'는 소리로 '사'라 받침이 없다. 그대로 '4으로'라고 적으면 이름이
+ * 저절로 만들어졌다는 게 티가 난다.
+ */
+const DIGIT_CODA = { 0: true, 1: true, 3: true, 6: true, 7: true, 8: true };
+function hasCoda(word) {
+  const text = String(word ?? "").trim();
+  if (!text) return false;
+  const last = text[text.length - 1];
+  if (/[0-9]/.test(last)) return Boolean(DIGIT_CODA[Number(last)]);
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return false;
+  return (code - 0xac00) % 28 !== 0;
+}
+/** …로 / …으로. ㄹ 받침은 '로'를 쓴다(1·7·8이 그렇다). */
+function ro(word) {
+  const text = String(word ?? "").trim();
+  const last = text[text.length - 1];
+  if (/[178]/.test(last)) return "로";
+  return hasCoda(text) ? "으로" : "로";
+}
+/** …을 / …를. */
+function eul(word) {
+  return hasCoda(word) ? "을" : "를";
+}
+
 export function makeMine(id) {
   const at = app.compare.findIndex(item => item.id === id);
   if (at < 0) return false;
@@ -708,7 +736,7 @@ export function makeMine(id) {
   // 올라온 것은 이제 내 빌드다 — 초점으로 남겨 두면 자기 자신과 견주게 된다.
   if (app.focus?.kind === "tile" && app.focus.id === id) app.focus = null;
 
-  app.status = `'${target.name}'을 내 빌드로 올렸습니다. 쓰던 것은 '${mineName}'으로 남았습니다.`;
+  app.status = `'${target.name}'${eul(target.name)} 내 빌드로 올렸습니다. 쓰던 것은 '${mineName}'${ro(mineName)} 남았습니다.`;
   persist();
   return true;
 }
@@ -726,13 +754,17 @@ export function adoptResult(entry) {
     return false;
   }
   const mineName = freezeName(app.buildName);
-  const kept = keepSnapshot(mineName, currentBuild());
-  if (!kept) return false;
+  const mineBuild = currentBuild();
 
+  // 이름을 먼저 넘긴다. 쓰던 이름이 아직 내 빌드에 붙어 있는 채로 얼리면
+  // 자기 이름과 부딪혀 뒤에 숫자가 하나 더 붙는다 — 남과 겹친 게 아니라
+  // 자기 자신과 겹친 것이라, 이름이 "탐색 4 2"처럼 망가진다.
   app.character = normalizeBuild(stateFromResult(entry));
   app.buildName = nextSearchName();
+  const kept = keepSnapshot(mineName, mineBuild);
+  if (!kept) return false;
   app.focus = null;
-  app.status = `후보를 '${app.buildName}'으로 올렸습니다. 쓰던 것은 '${kept.name}'으로 남았습니다.`;
+  app.status = `후보를 '${app.buildName}'${ro(app.buildName)} 올렸습니다. 쓰던 것은 '${kept.name}'${ro(kept.name)} 남았습니다.`;
   persist();
   return true;
 }
@@ -1661,7 +1693,7 @@ export function confirmResult(entry) {
   app.selectedId = entry.id;
   const added = keepSnapshot(nextSearchName(), stateFromResult(entry));
   if (added) {
-    app.status = `'${added.name}'로 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
+    app.status = `'${added.name}'${ro(added.name)} 담았습니다. 탐색 결과 자체는 안 바뀝니다.`;
     openDrawer();
   }
 }
@@ -1723,7 +1755,7 @@ export function toggleBoxed(entry) {
   }
   const entryAdded = keepSnapshot(nextSearchName(), stateFromResult(entry));
   if (entryAdded) {
-    app.status = `'${entryAdded.name}'로 담았습니다.`;
+    app.status = `'${entryAdded.name}'${ro(entryAdded.name)} 담았습니다.`;
     // 방금 담은 것이 곧 보고 있던 것이다. 초점을 임시에서 타일로 넘긴다 —
     // 안 그러면 같은 조합이 초점과 타일 두 자리에 서서 어느 쪽인지 흐려진다.
     if (app.focus?.kind === "result" && app.focus.id === entry.id) {
