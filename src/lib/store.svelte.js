@@ -301,6 +301,10 @@ export const app = $state({
   progress: { phase: "", progress: 0, evaluated: 0 },
   status: "아직 탐색하지 않았습니다.",
   selectedId: null,
+  // 지금 견주는 하나. { kind: "result" | "tile", id }.
+  // 표 줄이든 곡선 점이든 담아 둔 타일이든, 고르면 전부 이 자리로 온다 —
+  // 비교는 언제나 '닻 대 초점' 하나뿐이라 화살표가 둘로 갈리지 않는다.
+  focus: null,
   view: "pareto",
   // 균형 곡선의 두 축. 무엇을 팔아 무엇을 사는지 직접 고른다.
   chartX: "dpsIndex",
@@ -525,6 +529,54 @@ export function buildState(build) {
   return normalizeBuild(build);
 }
 
+// --- 전제 -------------------------------------------------------------------
+//
+// 비교는 같은 전제 위에서만 뜻이 있다.
+//
+// 불러온 캐릭터는 실물 각인서를 낀다 — 전설 4단계가 섞여 있다. 그런데 탐색은
+// 후보에게 전제 단계를 입혀 내놓는다. 전제가 실물보다 높으면 두 세계가 달라서,
+// 아무 후보나 집어도 기준보다 세게 나온다. 그 증감은 빌드 차이가 아니라 각인서
+// 차이를 재고 있는 것이라, 비교라는 행위 자체가 죽는다.
+//
+// 그래서 전제가 실물을 넘는 순간 실물은 증감 자격을 잃고, 같은 전제를 입은
+// '내 배분'이 그 자리를 잇는다. 실물 숫자는 꼬리표로 남긴다 — 그 차이도
+// "각인서를 올리면 이만큼"이라는 답이다.
+
+/** 이 각인이 지금 전제로 쓰는 단계. 안 적었으면 탐색과 같은 기본값(맨 끝). */
+function premiseTierIndex(id) {
+  const index = getEngravingTierIndex(app.search.engravingTiers?.[id]);
+  return index >= 0 ? index : ENGRAVING_TIERS.length - 1;
+}
+
+/** 낀 각인 중 하나라도 전제가 실물보다 높은가. */
+export function premiseExceeded() {
+  const worn = app.character.engravings ?? {};
+  return ENGRAVING_LIBRARY.some(item => {
+    const real = getEngravingTierIndex(worn[item.id]);
+    if (real < 0) return false;
+    return premiseTierIndex(item.id) > real;
+  });
+}
+
+/**
+ * 증감의 기준이 되는 상태.
+ *
+ * 전제를 안 넘으면 내 빌드 그대로다. 넘으면 낀 각인의 단계만 전제로 올린
+ * 사본 — 배분도 각인 종류도 그대로라, 후보들과 정확히 같은 세계에 선다.
+ */
+export function anchorState() {
+  if (!premiseExceeded()) return app.character;
+  const next = cloneState(app.character);
+  const worn = next.engravings ?? {};
+  ENGRAVING_LIBRARY.forEach(item => {
+    const real = getEngravingTierIndex(worn[item.id]);
+    if (real < 0) return;
+    const premise = premiseTierIndex(item.id);
+    if (premise > real) worn[item.id] = ENGRAVING_TIERS[premise].value;
+  });
+  return next;
+}
+
 function persistCompare() {
   try {
     localStorage.setItem(SLOTS_KEY, JSON.stringify({ name: app.buildName, compare: app.compare }));
@@ -625,26 +677,101 @@ export function keepSnapshot(name, build) {
  *
  * 덮어쓰기가 아니다. 덮으면 "후보 셋을 놓고 하나씩 굴려 본다"가 성립하지 않는다.
  */
+/**
+ * 얼릴 때 쓸 이름.
+ *
+ * 기본 이름 그대로 얼리면 비교함에 '내 빌드'라는 열이 서서, 서랍 머리의
+ * "내 빌드 · 탐색 1"과 정면으로 어긋난다. 기본값일 때만 갈아 준다 —
+ * 손으로 지은 이름은 그 사람의 것이라 건드리지 않는다.
+ */
+function freezeName(name) {
+  return name === "내 빌드" ? freeName("이전 빌드") : name;
+}
+
 export function makeMine(id) {
   const at = app.compare.findIndex(item => item.id === id);
   if (at < 0) return false;
   const target = app.compare[at];
-  const mineName = app.buildName;
+  const mineName = freezeName(app.buildName);
   const mineBuild = currentBuild();
 
   app.character = normalizeBuild(target.build);
   app.buildName = target.name;
   app.compare[at] = { ...target, name: mineName, build: mineBuild };
+  // 올라온 것은 이제 내 빌드다 — 초점으로 남겨 두면 자기 자신과 견주게 된다.
+  if (app.focus?.kind === "tile" && app.focus.id === id) app.focus = null;
 
   app.status = `'${target.name}'을 내 빌드로 올렸습니다. 쓰던 것은 '${mineName}'으로 남았습니다.`;
   persist();
   return true;
 }
 
+/**
+ * 탐색 후보를 내 빌드로 올린다.
+ *
+ * 맞바꾸기와 같은 규칙이다 — 쓰던 것은 그 자리에 얼려 두므로 아무것도
+ * 사라지지 않는다. 다만 후보는 아직 비교함에 없으니 자리를 새로 만든다.
+ */
+export function adoptResult(entry) {
+  if (!entry) return false;
+  if (app.compare.length >= COMPARE_LIMIT) {
+    app.status = `비교함이 ${COMPARE_LIMIT}개로 가득 찼습니다. 하나 빼고 올리세요.`;
+    return false;
+  }
+  const mineName = freezeName(app.buildName);
+  const kept = keepSnapshot(mineName, currentBuild());
+  if (!kept) return false;
+
+  app.character = normalizeBuild(stateFromResult(entry));
+  app.buildName = nextSearchName();
+  app.focus = null;
+  app.status = `후보를 '${app.buildName}'으로 올렸습니다. 쓰던 것은 '${kept.name}'으로 남았습니다.`;
+  persist();
+  return true;
+}
+
+// --- 초점 -------------------------------------------------------------------
+
+/** 표 줄·곡선 점을 골랐다. 표의 선택 상태와 초점은 같이 움직인다. */
+export function focusResult(entry) {
+  const id = entry?.id ?? entry ?? null;
+  app.selectedId = id;
+  app.focus = id ? { kind: "result", id } : null;
+}
+
+/** 담아 둔 타일을 골랐다. 내 빌드는 안 건드린다 — 보기만 바꾼다. */
+export function focusTile(id) {
+  app.focus = app.focus?.kind === "tile" && app.focus.id === id
+    ? null
+    : { kind: "tile", id };
+}
+
+/**
+ * 지금 초점이 무엇인가 — 이름·상태·임시 여부.
+ *
+ * 표에서 고른 후보가 이미 비교함에 있으면 타일로 읽는다. 같은 조합이 두 자리에
+ * 서면 어느 쪽이 초점인지 모르게 된다.
+ */
+export function focusView() {
+  const focus = app.focus;
+  if (!focus) return null;
+  if (focus.kind === "tile") {
+    const item = app.compare.find(entry => entry.id === focus.id);
+    return item ? { id: item.id, name: item.name, build: item.build, temp: false } : null;
+  }
+  const entry = (app.results ? resultPool() : []).find(item => item.id === focus.id);
+  if (!entry) return null;
+  const boxed = boxedSlot(entry);
+  if (boxed?.mine) return null;
+  if (boxed) return { id: boxed.id, name: boxed.name, build: boxed.build, temp: false };
+  return { id: entry.id, name: "고른 후보", build: stateFromResult(entry), temp: true, entry };
+}
+
 export function dropCompare(id) {
   const at = app.compare.findIndex(item => item.id === id);
   if (at < 0) return false;
   const [gone] = app.compare.splice(at, 1);
+  if (app.focus?.kind === "tile" && app.focus.id === id) app.focus = null;
   app.status = `'${gone.name}'을 비교함에서 뺐습니다.`;
   persist();
   return true;
@@ -1112,6 +1239,22 @@ function loadEngravingsFor(name) {
   app.search.engravingTiers = { ...(saved?.engravingTiers ?? {}) };
 }
 
+/**
+ * 낀 각인의 단계를 전제에 적어 둔다.
+ *
+ * 안 낀 각인은 안 건드린다 — API가 모르는 것이라, 저장해 둔 값이 있으면
+ * 그게 유일한 근거다.
+ */
+function adoptWornTiers() {
+  const worn = app.character.engravings ?? {};
+  const tiers = { ...app.search.engravingTiers };
+  ENGRAVING_LIBRARY.forEach(item => {
+    const real = getEngravingTierIndex(worn[item.id]);
+    if (real >= 0) tiers[item.id] = ENGRAVING_TIERS[real].value;
+  });
+  app.search.engravingTiers = tiers;
+}
+
 /** 적용하지 않고 결과만 본다. 불러오기 화면이 막을지 말지 여기서 정한다. */
 export function previewCharacter(read, picks) {
   return buildCharacter(read, picks);
@@ -1142,8 +1285,12 @@ export function applyCharacter(read, picks, force) {
   persistEngravingScope();
   app.characterName = String(read?.profile?.name ?? "").trim();
   loadEngravingsFor(app.characterName);
+  // 낀 각인의 단계는 사실이다. 전제의 기본값으로 그대로 얹는다 — 안 그러면
+  // 전제가 '전부 유물'로 서서, 실물과 다른 세계의 후보들이 나온다.
+  adoptWornTiers();
   app.results = null;
   app.selectedId = null;
+  app.focus = null;
   // 비교함도 비운다. 앞 캐릭터의 빌드가 남아 있으면 직업이 달라도 노드가
   // 그대로 남아 비교표가 거짓말을 한다.
   app.buildName = "인게임";
@@ -1196,6 +1343,7 @@ export function loadSetup(id) {
   app.search = migrateSearch(cloneState(save.search ?? {}));
   app.results = null;
   app.selectedId = null;
+  app.focus = null;
   // 캐릭터를 통째로 갈아끼우므로 비교함도 그 저장본의 것으로 간다.
   app.buildName = String(save.buildName || save.name || "내 빌드");
   app.compare = (save.compare ?? []).filter(item => item && item.id).map(item => cloneState(item));
@@ -1408,6 +1556,7 @@ export async function startSearch() {
   app.running = true;
   app.results = null;
   app.selectedId = null;
+  app.focus = null;
   app.progress = { phase: "준비", progress: 0, evaluated: 0 };
   // 돌리는 순간 결과 화면으로 넘어간다. 진행 막대가 거기 있고,
   // 설정 화면에 남아 있으면 다 돌 때까지 아무 일도 안 일어난 것처럼 보인다.
@@ -1432,7 +1581,14 @@ export async function startSearch() {
     return;
   }
 
-  app.results = { ...result, baseline: calculateMetrics(app.character) };
+  // 돌린 시점의 고정부를 함께 적어 둔다. 나중에 무기나 팔찌를 만지면 이 표는
+  // 옛 세상의 숫자가 되는데, 그 사실을 아는 방법이 이것뿐이다.
+  app.results = {
+    ...result,
+    baseline: calculateMetrics(app.character),
+    basis: basisSignature(),
+    basisName: app.buildName,
+  };
 
   // 하한을 걸어 두고 결과가 비면 원인이 그것뿐이다. 조합이 없다고만 적으면
   // 탐색이 실패한 줄 알게 되므로, 몇 개를 왜 버렸는지 그 자리에서 밝힌다.
@@ -1454,9 +1610,9 @@ export function cancelSearch() {
   app.status = "탐색을 중지했습니다.";
 }
 
-// 곡선이나 표에서 고르는 것 — 여기서는 계기판 미리보기만 바뀐다.
+// 곡선이나 표에서 고르는 것. 고르기는 언제나 초점 하나로 모인다.
 export function previewResult(entry) {
-  app.selectedId = entry?.id ?? null;
+  focusResult(entry);
 }
 
 /** 곡선에서 고른 지점을 비교함에 담고 서랍을 연다. */
@@ -1526,7 +1682,14 @@ export function toggleBoxed(entry) {
     return;
   }
   const entryAdded = keepSnapshot(nextSearchName(), stateFromResult(entry));
-  if (entryAdded) app.status = `'${entryAdded.name}'로 담았습니다.`;
+  if (entryAdded) {
+    app.status = `'${entryAdded.name}'로 담았습니다.`;
+    // 방금 담은 것이 곧 보고 있던 것이다. 초점을 임시에서 타일로 넘긴다 —
+    // 안 그러면 같은 조합이 초점과 타일 두 자리에 서서 어느 쪽인지 흐려진다.
+    if (app.focus?.kind === "result" && app.focus.id === entry.id) {
+      app.focus = { kind: "tile", id: entryAdded.id };
+    }
+  }
 }
 
 export function currentSignature() {
@@ -1537,6 +1700,54 @@ export function currentSignature() {
     app.character.convenience.food || "none",
     controlled.map(id => app.character.engravings[id] || "none").join(","),
   ].join("|");
+}
+
+/**
+ * 고정부의 서명 — 탐색이 깔고 앉는 것들.
+ *
+ * 탐색이 덮어쓰는 차원(노드·각인·펫·음식)은 뺀다. 그것들은 후보가 정하므로
+ * 바뀌어도 결과가 낡지 않는다. 반대로 무기 품질이나 팔찌가 바뀌면 표의 숫자는
+ * 전부 옛 세상의 것이 된다 — 그때만 낡았다고 말해야 한다.
+ */
+export function basisSignature(state = app.character) {
+  const rest = cloneState(state);
+  delete rest.nodeLevels;
+  delete rest.engravings;
+  delete rest.engravingStones;
+  delete rest.selectedTier;
+  delete rest.setupName;
+  if (rest.convenience) {
+    rest.convenience = { ...rest.convenience };
+    delete rest.convenience.petStat;
+    delete rest.convenience.food;
+  }
+  return JSON.stringify(rest);
+}
+
+/** 돌린 뒤에 고정부가 바뀌었나. 바뀌었으면 표의 숫자는 그때 기준이다. */
+export function basisStale() {
+  if (!app.results?.basis) return false;
+  return app.results.basis !== basisSignature();
+}
+
+/**
+ * 기준 카드에 적을 것 — 탐색이 깔고 앉는 것들만.
+ *
+ * 여기 없는 것(노드·각인·펫·음식)이 곧 "후보가 덮는다"는 표시다.
+ */
+export function basisSummary() {
+  const c = app.character;
+  const metrics = calculateMetrics(anchorState());
+  const mix = c.convenience?.damageMix ?? {};
+  const synergyRows = (c.synergy?.rows ?? []).length;
+  return [
+    { label: "무기 품질", value: `${readNumber(c.weapon?.quality)}` },
+    { label: "보석 쿨감", value: `${readNumber(c.jewel?.cooldown)}%` },
+    { label: "치피", value: `${Math.round(readNumber(metrics.critDamage))}%` },
+    { label: "딜 비중", value: `${readNumber(mix.manaCooldown)}/${readNumber(mix.plainCooldown)}` },
+    { label: "시너지", value: synergyRows === 0 ? "없음" : `${synergyRows}줄` },
+    { label: "자버프", value: `${(c.baseEffects ?? []).length}줄` },
+  ];
 }
 
 export function exportState() {

@@ -9,7 +9,7 @@
   import { SEARCH_FLOOR_FIELDS } from "../core/runner.js";
   import { CHART_AXES } from "../core/axes.js";
   import {
-    app, persist, startSearch, cancelSearch, goTab, openDrawer,
+    app, persist, startSearch, cancelSearch, goTab, openDrawer, basisStale,
   } from "../store.svelte.js";
   import Select from "./Select.svelte";
   import TradeoffChart from "./TradeoffChart.svelte";
@@ -42,17 +42,25 @@
   );
 </script>
 
-<!-- 이 결과가 무엇이었는지와, 규칙을 고치러 가는 길. 규칙 자체는 여기 없다. -->
+<!--
+  이 결과가 무엇이었는지.
+
+  단추는 없다 — 실행도 설정으로 가는 길도 위(상단바·하위 탭)에 늘 있어서,
+  여기 또 두면 같은 일을 하는 자리가 한 화면에 둘이 된다.
+-->
 <section class="card runbar">
   <div class="runbar-main">
     {#if app.running}
       <button class="btn" type="button" onclick={cancelSearch}>중지</button>
       <div class="runbar-status"><b>{app.progress.phase}</b><span>{formatInteger(app.progress.evaluated)}개 평가</span></div>
     {:else}
-      <button class="btn" type="button" onclick={() => goTab("rules")}>← 탐색 설정</button>
+      <!-- 이 표가 무엇을 딛고 선 숫자인지. 그 뒤로 기준이 바뀌면 여기가 띠가 된다. -->
+      {#if app.results?.basisName}
+        <span class="basis-tag" class:stale={basisStale()}>
+          {#if basisStale()}기준 바뀜 · 돌린 시점 기준{:else}'{app.results.basisName}' 기준{/if}
+        </span>
+      {/if}
       <div class="runbar-status"><span>{app.status}</span></div>
-      <span class="spacer"></span>
-      <button class="btn sm" type="button" onclick={startSearch}>{app.results ? "다시 탐색" : "탐색 실행"}</button>
     {/if}
   </div>
 

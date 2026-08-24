@@ -4,7 +4,7 @@
   import { sweepCeiling, ceilingLabel } from "../core/ceiling.js";
   import { CHART_AXES, chartAxis } from "../core/axes.js";
   import { cooldownRange, cooldownColor } from "../ramp.js";
-  import { app, currentSignature, resultPool } from "../store.svelte.js";
+  import { app, currentSignature, resultPool, focusResult } from "../store.svelte.js";
 
   // Generous margins — this panel is meant to be read slowly, and the callout
   // needs somewhere to sit without colliding with the axis.
@@ -84,7 +84,7 @@
 
   // 고르기만 한다. 고른 점은 아래 막대에 임시 열로 서고, 담기는 표의 체크가 한다.
   function choose(point) {
-    app.selectedId = point.id;
+    focusResult(point);
   }
 </script>
 

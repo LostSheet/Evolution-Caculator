@@ -14,13 +14,19 @@
   import { getEngravingTierIndex } from "../core/metrics.js";
   import { OPTIMIZER_PET_LABELS } from "../core/search.js";
   import { FOODS } from "../core/metrics.js";
-  import { formatNumber } from "../core/util.js";
-  import { boxedSlot, toggleBoxed } from "../store.svelte.js";
+  import { formatNumber, formatSignedPercent, percentDelta } from "../core/util.js";
+  import { calculateMetrics } from "../core/metrics.js";
+  import { boxedSlot, toggleBoxed, adoptResult, anchorState } from "../store.svelte.js";
   import Dialog from "./Dialog.svelte";
 
   let { open = $bindable(false), entry = null } = $props();
 
   const boxed = $derived(entry ? boxedSlot(entry) : null);
+
+  // 담을지 말지를 여기서 정한다. 그러려면 내 것과 견준 값이 있어야 하는데,
+  // 그 숫자를 든 하단 막대는 이 대화상자 뒤에 가려 있다.
+  const anchor = $derived(calculateMetrics(anchorState()));
+  const rel = (now, base) => percentDelta(now, base);
 
   // 티어마다 한 줄. 노드를 하나씩 세면 안 찍은 것까지 스물몇 줄이 된다.
   const tiers = $derived.by(() => {
@@ -46,11 +52,31 @@
 
 <Dialog bind:open title="후보 자세히" subtitle={boxed ? `비교함 · ${boxed.name}` : "아직 안 담음"} width="720px">
   {#if entry}
+    <!-- @const는 블록의 직계 자식 자리에만 온다 — div 안으로 넣으면 컴파일이 막힌다. -->
+    {@const raw = entry.critRateRaw ?? entry.critRateCapped}
+    {@const dmg = rel(entry.damageIndex, anchor.damageIndex)}
+    {@const dps = rel(entry.dpsIndex, anchor.dpsIndex)}
     <div class="rd-figures">
-      <div><dt>한 방 딜</dt><dd>{formatNumber(entry.damageIndex)}</dd></div>
-      <div><dt>DPS</dt><dd>{formatNumber(entry.dpsIndex)}</dd></div>
+      <div>
+        <dt>한 방 딜</dt>
+        <dd>{formatNumber(entry.damageIndex)}<em class={dmg >= 0 ? "up" : "down"}>{formatSignedPercent(dmg)}</em></dd>
+      </div>
+      <div>
+        <dt>DPS</dt>
+        <dd>{formatNumber(entry.dpsIndex)}<em class={dps >= 0 ? "up" : "down"}>{formatSignedPercent(dps)}</em></dd>
+      </div>
       <div><dt>쿨감</dt><dd>{formatNumber(entry.cooldownReduction)}%</dd></div>
-      <div><dt>치적</dt><dd>{formatNumber(entry.critRateRaw ?? entry.critRateCapped)}%</dd></div>
+      <!-- 표와 같은 표기다. 상한에 눌린 줄만 괄호로 상한 전 합산을 단다. -->
+      <div>
+        <dt>치적</dt>
+        <dd>
+          {#if entry.bluntThorn && raw > entry.critRateCapped + 1e-9}
+            {Math.round(entry.critRateCapped * 100) / 100}%<em class="over">({formatNumber(raw)}%)</em>
+          {:else}
+            {formatNumber(raw)}%
+          {/if}
+        </dd>
+      </div>
     </div>
 
     <div class="rd-grid">
@@ -84,9 +110,12 @@
     </div>
 
     <div class="rd-foot">
-      <button class="btn primary" type="button" onclick={() => toggleBoxed(entry)}>
+      <button class="btn" type="button" onclick={() => toggleBoxed(entry)}>
         {boxed ? "비교함에서 빼기" : "비교함에 담기"}
       </button>
+      <!-- 쓰던 빌드는 그 자리에 얼린다. 아무것도 안 사라진다. -->
+      <button class="btn primary" type="button"
+              onclick={() => { adoptResult(entry); open = false; }}>내 빌드로</button>
     </div>
   {/if}
 </Dialog>

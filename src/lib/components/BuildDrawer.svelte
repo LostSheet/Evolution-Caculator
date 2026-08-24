@@ -58,7 +58,8 @@
 
   <header class="bd-hd">
     <b class="bd-title">비교함</b>
-    <small class="bd-who">내 빌드 · {app.buildName}</small>
+    <!-- 이름이 기본값이면 '내 빌드 · 내 빌드'가 된다. 이름만 적는다. -->
+    <small class="bd-who">{app.buildName}</small>
     <span class="spacer"></span>
     <button class="btn icon" type="button" aria-label="닫기" onclick={closeDrawer}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>

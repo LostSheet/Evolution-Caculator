@@ -9,10 +9,9 @@
    * 요약 카드도 없앴다. 거기 적히던 것은 전부 아래 판과 목록에 이미 그려져
    * 있었다 — 같은 사실을 두 군데 적으면 고칠 곳이 두 군데가 된다.
    */
-  import { startSearch } from "../store.svelte.js";
   import SearchScope from "./SearchScope.svelte";
 
   let { report, plan, budget } = $props();
 </script>
 
-<SearchScope {plan} {report} {budget} onRun={startSearch} />
+<SearchScope {plan} {report} {budget} />

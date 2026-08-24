@@ -4,6 +4,7 @@
     selectedResult, resultState, boxedSlot, toggleBoxed,
     startSearch, cancelSearch, cycleTheme,
     toggleDrawer, buildState, makeMine,
+    anchorState, premiseExceeded, focusView, focusTile, focusResult, resultPool,
   } from "./lib/store.svelte.js";
   import { explainMetrics } from "./lib/core/explain.js";
   import { calculateMetrics } from "./lib/core/metrics.js";
@@ -48,70 +49,97 @@
   };
 
   /**
-   * 비교함 — 접힌 막대에 열로 서는 것들.
+   * 닻 — 모든 증감의 기준.
    *
-   * 지금 만지는 슬롯은 살아 있는 빌드를 잰다. 슬롯에 적힌 값은 마지막 저장
-   * 시점이라 방금 올린 노드가 숫자에 안 나타난다.
-   *
-   * 첫 칸이 내 빌드다. 언제나 편집 대상이자 증감의 기준이라 고를 것이 없다.
-   * 나머지는 얼린 것이고, 누르면 내 빌드로 올라온다(맞바꾸기).
+   * 전제(탐색이 후보에게 입히는 각인 단계)가 실물을 넘으면 실물은 증감 자격을
+   * 잃는다. 두 세계가 다른데 증감을 달면 그건 빌드 차이가 아니라 각인서 차이를
+   * 재는 것이라, 아무 후보나 집어도 세게 나온다. 그때는 같은 전제를 입은
+   * 내 배분이 자리를 잇고, 실물은 꼬리표로 남는다.
    */
-  /**
-   * 결과 표에서 고른 줄.
-   *
-   * 고르기만 해서는 비교가 안 됐다 — 하이라이트만 되고 숫자는 안 서서, 견주려면
-   * 반드시 담아야 했다. 담기 전에 "이게 내 빌드보다 나은가"를 먼저 보는 게
-   * 순서라, 고른 줄을 임시 열로 세운다. 담으면 그때 영구 열이 된다.
-   */
-  const previewed = $derived.by(() => {
-    if (app.page !== PAGE.search || currentTab() !== "results") return null;
-    const entry = selectedResult();
-    if (!entry || boxedSlot(entry)) return null;
-    return { entry, build: resultState(entry) };
+  const anchor = $derived.by(() => {
+    const premise = premiseExceeded();
+    const scores = calculateMetrics(anchorState());
+    const real = premise ? calculateMetrics(app.character) : null;
+    return {
+      // 배지가 '전제 적용'을 이미 말한다. 이름에도 넣으면 같은 말이 두 번이다.
+      name: premise ? "내 배분" : app.buildName,
+      premise,
+      damageIndex: scores.damageIndex,
+      dpsIndex: scores.dpsIndex,
+      real: real ? {
+        damage: percentDelta(real.damageIndex, scores.damageIndex),
+        dps: percentDelta(real.dpsIndex, scores.dpsIndex),
+      } : null,
+    };
   });
 
-  const boxSlots = $derived.by(() => {
-    const columns = [
-      { id: null, name: app.buildName, mine: true },
-      ...app.compare.map(item => ({ id: item.id, name: item.name, build: item.build, mine: false })),
-      ...(previewed ? [{ id: "preview", name: "고른 후보", build: previewed.build, mine: false, preview: true }] : []),
-    ];
-    const scores = columns.map(column => calculateMetrics(
-      column.mine ? app.character : buildState(column.build),
-    ));
-    // 증감은 지표마다 따로 낸다. 하나만 적으면 두 숫자 중 어느 쪽 것인지
-    // 알 수가 없다 — 실제로 한 방 딜은 오르고 DPS는 내려가는 빌드가 있다.
-    const rel = (now, base) => (
-      !Number.isFinite(base) || base === 0 || Math.abs(percentDelta(now, base)) < 0.005
-        ? null
-        : { value: percentDelta(now, base) }
-    );
-    return columns.map((column, at) => ({
-      id: column.id,
-      name: column.name,
-      isBase: column.mine,
-      preview: Boolean(column.preview),
-      damageIndex: scores[at].damageIndex,
-      dpsIndex: scores[at].dpsIndex,
-      damageDelta: column.mine ? null : rel(scores[at].damageIndex, scores[0]?.damageIndex),
-      dpsDelta: column.mine ? null : rel(scores[at].dpsIndex, scores[0]?.dpsIndex),
-    }));
+  /** 지금 견주는 하나. 표 줄이든 곡선 점이든 타일이든 여기로 온다. */
+  const focused = $derived.by(() => {
+    const view = focusView();
+    if (!view) return null;
+    const scores = calculateMetrics(buildState(view.build));
+    return {
+      ...view,
+      damageDelta: percentDelta(scores.damageIndex, anchor.damageIndex),
+      dpsDelta: percentDelta(scores.dpsIndex, anchor.dpsIndex),
+    };
   });
 
+  /** 담아 둔 것들. 작아도 숫자를 잃지 않는다. */
+  const tiles = $derived.by(() => app.compare.map(item => {
+    const scores = calculateMetrics(buildState(item.build));
+    return {
+      id: item.id,
+      name: item.name,
+      focused: app.focus?.kind === "tile" && app.focus.id === item.id,
+      damageDelta: percentDelta(scores.damageIndex, anchor.damageIndex),
+      dpsDelta: percentDelta(scores.dpsIndex, anchor.dpsIndex),
+    };
+  }));
+
   /**
-   * 막대는 언제나 비교함이다.
+   * ↑/↓로 줄을 옮긴다.
    *
-   * 예전에는 탐색 화면에서만 '고른 후보' 하나를 들고 옆에 '슬롯에 담기'가
-   * 붙어 있었다. 지금은 표의 체크가 곧 담기라 그 단추가 할 일이 없고, 오히려
-   * 그 모드 때문에 방금 담은 것이 막대에서 안 보였다.
+   * 견주는 일은 루프다 — 고르고, 두 증감을 읽고, 다음 줄로. 그 루프가 마우스
+   * 왕복이면 느려서 몇 줄 보다 만다. 입력 칸에 있을 때는 물러난다.
    */
-  const bar = $derived({
-    report: null,
-    deltas: [],
-    slots: boxSlots,
-    label: "비교함",
-    handle: { open: app.drawer.open, onToggle: toggleDrawer },
-    action: null,
+  function onKeydown(event) {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    if (app.page !== PAGE.search || currentTab() !== "results" || !app.results) return;
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+    const list = app.results[app.view] ?? app.results.damage ?? [];
+    if (list.length === 0) return;
+    const at = list.findIndex(item => item.id === app.selectedId);
+    const next = event.key === "ArrowDown"
+      ? Math.min(list.length - 1, at + 1)
+      : Math.max(0, (at < 0 ? 0 : at) - 1);
+    event.preventDefault();
+    focusResult(list[next]);
+  }
+
+  // 담기는 초점이 임시일 때만 뜻이 있다 — 이미 담긴 것은 타일이 들고 있다.
+  function keepFocused() {
+    if (focused?.temp && focused.entry) toggleBoxed(focused.entry);
+  }
+
+  /**
+   * 상태 한 줄.
+   *
+   * app.status는 결과 화면의 runbar에서만 그려지고 있었다. 그래서 비교함이
+   * 가득 차 거절당해도, 세팅을 저장해도, 빌드를 맞바꿔도 화면은 침묵했다 —
+   * 앱이 허공에 대고 말하고 있었던 셈이다. 어느 화면에서든 잠깐 뜬다.
+   */
+  let toast = $state("");
+  let toastTimer = 0;
+  $effect(() => {
+    const message = app.status;
+    if (!message) return;
+    toast = message;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast = ""), 4000);
+    return () => clearTimeout(toastTimer);
   });
 
   // 테마는 CSS가 :root[data-theme]로 읽는다. "auto"면 표식을 지워서
@@ -141,6 +169,8 @@
   const axis = $derived(PAGES.find(item => item.n === app.page) ?? PAGES[0]);
   const tab = $derived(currentTab());
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <header class="topbar">
   <div class="wordmark">아크 패시브 <b>계산기</b></div>
@@ -240,10 +270,9 @@
 <BuildDrawer {report} {budget} onOpenEngravings={() => (engravingsOpen = true)} />
 
 <!-- 답이 놓이는 자리. 어느 화면에 있든 늘 보인다. 이름표가 서랍 손잡이다. -->
-<StatusBar report={bar.report} deltas={bar.deltas} label={bar.label}
-           action={bar.action} handle={bar.handle}
-           slots={bar.slots ?? null}
-           onPick={id => (id === "preview" ? toggleBoxed(previewed?.entry) : makeMine(id))} />
+<StatusBar {anchor} focus={focused} {tiles} status={toast} label="비교함"
+           handle={{ open: app.drawer.open, onToggle: toggleDrawer }}
+           onFocusTile={focusTile} onKeep={keepFocused} />
 
 <EngravingDialog bind:open={engravingsOpen} />
 <BraceletDialog bind:open={braceletOpen} />

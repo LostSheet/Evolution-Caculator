@@ -4,7 +4,7 @@
   import { formatNumber } from "../core/util.js";
   import { sweepCeiling } from "../core/ceiling.js";
   import { cooldownColor } from "../ramp.js";
-  import { app } from "../store.svelte.js";
+  import { app, focusResult } from "../store.svelte.js";
 
   let { front } = $props();
 
@@ -34,7 +34,7 @@
           style:flex-grow={segment.width}
           style:--ramp={ramp(segment.entry.cooldownReduction)}
           title="소화 한계 {formatNumber(segment.from)}~{formatNumber(segment.to)}% · 한 방 {formatNumber(segment.entry.damageIndex)} · 쿨감 {formatNumber(segment.entry.cooldownReduction)}%"
-          onclick={() => (app.selectedId = segment.entry.id)}>
+          onclick={() => focusResult(segment.entry)}>
           {#if segment.width > 0.12}<span>{formatNumber(segment.entry.cooldownReduction)}%</span>{/if}
         </button>
       {/each}

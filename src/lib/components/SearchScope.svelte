@@ -11,13 +11,13 @@
     getEngravingRole, getEngravingSearchTierIndex, getPickRole,
     SEARCH_FLOOR_FIELDS, capApplies, hasSearchBound,
   } from "../core/runner.js";
-  import { app, persist, resetSection } from "../store.svelte.js";
+  import { app, persist, resetSection, basisSummary } from "../store.svelte.js";
   import Select from "./Select.svelte";
   import NodeBoard from "./NodeBoard.svelte";
   import SynergyPanel from "./SynergyPanel.svelte";
   import Hint from "./Hint.svelte";
 
-  let { plan, onRun, report, budget } = $props();
+  let { plan, report, budget } = $props();
 
   const TIER_OPTIONS = ENGRAVING_TIERS.map(tier => ({ value: tier.value, label: tier.label }));
   const TIER1_OPTIONS = [
@@ -152,6 +152,29 @@
 -->
 <div class="engraving-layout">
   <div class="split-main">
+    <!--
+      기준 — 탐색이 깔고 앉는 것들.
+
+      "지금 돌리면 무엇을 기준으로 도는가"가 화면 어디에도 없었다. 그래서 빌드를
+      맞바꿔도 기준이 바뀐 줄 모르고, 무엇이 고정이고 무엇이 후보인지도 몰랐다.
+      여기 적힌 것이 고정부이고, 여기 없는 것(노드·각인·펫·음식)이 후보다.
+    -->
+    <section class="card basis-card">
+      <div class="card-hd">
+        <h2>기준</h2>
+        <span class="basis-name">{app.buildName}</span>
+        <span class="spacer"></span>
+        <span class="eyebrow">여기 없는 것은 탐색이 고릅니다</span>
+      </div>
+      <div class="card-body">
+        <div class="summary-line">
+          {#each basisSummary() as item (item.label)}
+            <span class="summary-chip">{item.label} <b>{item.value}</b></span>
+          {/each}
+        </div>
+      </div>
+    </section>
+
     <!-- 빈 판이다. 지금 빌드를 안 읽고 고정한 칸만 채운다. -->
     <NodeBoard {report} {budget} mode="scope" />
 
@@ -458,8 +481,5 @@
       </div>
     </section>
 
-    <button class="btn primary wide" type="button" disabled={engravings.overflow} onclick={onRun}>
-      이 범위로 탐색 →
-    </button>
   </aside>
 </div>

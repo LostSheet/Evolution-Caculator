@@ -253,13 +253,11 @@
                 </div>
                 <div class="c-acts">
                   {#if !column.mine}
-                    <button type="button" title="이 빌드를 내 빌드로 (지금 것은 이 자리에 얼림)"
+                    <!-- 화살표 하나로 두면 무엇이 일어나는지 짐작해야 한다.
+                         이 앱에서 제일 큰 동작이라 글자로 적는다. -->
+                    <button type="button" class="c-lift" title="지금 내 빌드는 이 자리에 얼립니다"
                             aria-label="{column.name}을 내 빌드로"
-                            onclick={() => lift(column)}>
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 19V5" /><path d="m6 11 6-6 6 6" />
-                      </svg>
-                    </button>
+                            onclick={() => lift(column)}>내 빌드로</button>
                     <button type="button" class="rm" title="비교함에서 빼기" aria-label="{column.name} 빼기"
                             onclick={() => dropCompare(column.id)}>
                       <svg viewBox="0 0 24 24" aria-hidden="true">
