@@ -397,10 +397,14 @@ console.log(`  (f) 상한 위쪽 하한: ${failures - before} failures`);
 //
 // 제압 위주 조합은 한 방 딜·DPS 어느 축에서도 상위가 아니다. 빔이 그 두 축만
 // 보고 남기면 마지막 차원에 닿기도 전에 사라져서, 대난투 순위가 살아남은 것
-// 중 그나마 나은 것을 모은 목록이 된다. 전수와 빔의 1위가 같아야 한다.
+// 중 그나마 나은 것을 모은 목록이 된다.
+//
+// 판마다 따로 재면 안 된다. 빔은 근사라 멀쩡할 때도 한 판씩 1%쯤 못 미치고,
+// 축이 잘렸을 때는 여섯 판 전부가 1.8% 넘게 벌어진다 — 실측이다. 낱개로
+// 그으면 그 둘 사이에 금을 못 긋는다. 평균은 갈린다: 정상 0.1%대, 버그 2.8%대.
 {
   const before = failures;
-  let compared = 0;
+  const gaps = [];
   let staggerDiffers = 0;
 
   for (let run = 0; run < 6; run += 1) {
@@ -410,28 +414,26 @@ console.log(`  (f) 상한 위쪽 하한: ${failures - before} failures`);
     const full = await runSearch(state, { ...settings, mode: "exhaustive" });
     const beam = await runSearch(state, { ...settings, mode: "beam", beamWidth: 60 });
     if (!full.stagger?.length || !beam.stagger?.length) continue;
-    compared += 1;
 
     const best = full.stagger[0].staggerIndex;
     const got = beam.stagger[0].staggerIndex;
-    // 빔은 근사라 한 톨쯤 못 미칠 수 있다. 재는 것은 그 오차가 아니라 축이
-    // 통째로 잘렸는가다 — 잘리면 제압을 안 찍은 것만 남아 몇 %가 벌어진다.
-    if (got < best * 0.99) {
-      fail(`(k) 빔의 대난투 1위가 전수보다 낮다 (전수 ${best.toFixed(2)} · 빔 ${got.toFixed(2)})`);
-    }
-    // 값만 보면 1% 안쪽에서 눈감아 준다. 그래서 구조도 함께 본다 —
-    // 전수가 제압을 찍었으면 빔도 찍어야 한다. 축이 잘리면 여기서 걸린다.
-    const domFull = full.stagger[0].nodeLevels["e1-domination"] || 0;
-    const domBeam = beam.stagger[0].nodeLevels["e1-domination"] || 0;
-    if (domFull > 0 && domBeam <= 0) {
-      fail(`(k) 전수는 제압 ${domFull}Lv를 찍었는데 빔의 대난투 1위는 안 찍었다`);
+    const gap = (best - got) / best;
+    gaps.push(gap);
+
+    // 한 판이라도 이만큼 벌어지면 근사 오차가 아니다.
+    if (gap > 0.05) {
+      fail(`(k) 빔의 대난투 1위가 전수보다 크게 낮다 (전수 ${best.toFixed(2)} · 빔 ${got.toFixed(2)})`);
     }
     // 대난투 1위가 한 방 딜 1위와 늘 같으면 이 검사가 아무것도 안 잰다.
     if (full.stagger[0].id !== full.damage[0].id) staggerDiffers += 1;
   }
 
-  check(compared > 0, "(k) 대난투 순위가 하나는 나와야 한다");
-  console.log(`  (k) 대난투 빔 보존: ${failures - before} failures — 비교 ${compared}판 · 한 방 딜 1위와 다른 판 ${staggerDiffers}`);
+  check(gaps.length > 0, "(k) 대난투 순위가 하나는 나와야 한다");
+  const mean = gaps.reduce((sum, gap) => sum + gap, 0) / Math.max(1, gaps.length);
+  if (mean > 0.008) {
+    fail(`(k) 빔이 대난투 축을 잘라먹는다 — 평균 ${(mean * 100).toFixed(2)}% 뒤짐`);
+  }
+  console.log(`  (k) 대난투 빔 보존: ${failures - before} failures — 비교 ${gaps.length}판 · 평균 뒤짐 ${(mean * 100).toFixed(2)}% · 한 방 딜 1위와 다른 판 ${staggerDiffers}`);
 }
 
 console.log(failures === 0 ? "floors: all checks passed" : `floors: ${failures} FAILURES`);

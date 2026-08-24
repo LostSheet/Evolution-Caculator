@@ -50,11 +50,6 @@
   // 기준은 언제나 내 빌드다. 고를 것이 아니다.
   const baseAt = 0;
 
-  const engravingLabel = (build, item) => {
-    const at = getEngravingTierIndex(build.engravings?.[item.id]);
-    return at < 0 ? "없음" : ENGRAVING_TIERS[at].label;
-  };
-
   const rows = $derived.by(() => {
     const out = [];
     const add = (group, label, cells, opts = {}) => out.push({ group, label, cells, ...opts });
@@ -101,16 +96,23 @@
         .join(" · ") || "없음",
     })), { tab: "setup" });
 
-    add("장비", "팔찌 효과", builds.map(build => ({
-      text: BRACELET_EFFECTS
-        .map(effect => {
-          const grade = build.bracelet?.effects?.[effect.id];
-          const at = BRACELET_GRADES.findIndex(item => item.value === grade);
-          // 팔찌 효과가 든 칸은 name이다. label로 읽으면 undefined가 찍힌다.
-          return at < 0 ? "" : `${effect.name} ${BRACELET_GRADES[at].label}`;
-        })
-        .filter(Boolean).join(" · ") || "없음",
-    })), { tab: "setup" });
+    // 팔찌 효과는 한 줄에 하나다.
+    //
+    // 넷을 가운뎃점으로 이어 한 칸에 넣었더니 세 줄로 접혀서, 같은 효과가
+    // 열마다 다른 높이에 놓였다 — 나란히 놓고 보는 표에서 그건 비교가 아니다.
+    // 줄로 가르면 '무기 공격력'이 세 열에서 같은 눈금에 선다.
+    BRACELET_EFFECTS.forEach(effect => {
+      const cells = builds.map(build => {
+        const at = BRACELET_GRADES.findIndex(
+          item => item.value === build.bracelet?.effects?.[effect.id],
+        );
+        // 팔찌 효과가 든 칸은 name이다. label로 읽으면 undefined가 찍힌다.
+        return { text: at < 0 ? "없음" : BRACELET_GRADES[at].label };
+      });
+      // 아무도 안 낀 효과는 줄을 안 만든다 — '없음'만 스물몇 줄이 된다.
+      if (cells.every(cell => cell.text === "없음")) return;
+      add("장비", effect.name, cells, { tab: "setup" });
+    });
 
     add("깨달음", "직업", builds.map(build => ({
       text: ARKPASSIVE_TREE[build.awakening?.job]?.name ?? "안 고름",
@@ -155,17 +157,37 @@
         // 무엇을 뺐는지가 안 보인다.
         const lines = nodes
           .filter(node => own[node.id] > 0 || (at !== baseAt && levels[baseAt][node.id] > 0))
-          .map(node => ({ id: node.id, name: node.name, level: own[node.id] }));
+          .map(node => ({ id: node.id, name: node.name, level: own[node.id], text: `${own[node.id]}Lv.` }));
         return { lines, text: lines.map(line => `${line.name} ${line.level}`).join(" · "), levels: own };
       });
-      add("진화 노드", meta.label, cells, { kind: "levels", note: `최대 ${meta.maxPoints}P · ${meta.cost}P/Lv`, tab: "nodes" });
+      // 티어의 최대 포인트와 레벨당 값은 여기서 할 일이 없다. 이 표가 답하는
+      // 것은 "무엇이 다른가"이고, 그 수치는 세 열에 똑같이 적히는 규칙이다.
+      add("진화 노드", meta.label, cells, { kind: "levels", tab: "nodes" });
     });
 
-    ENGRAVING_LIBRARY.forEach(item => {
-      const cells = builds.map(build => ({ text: engravingLabel(build, item) }));
-      if (cells.every(cell => cell.text === "없음")) return;
-      add("각인", item.name, cells, { tab: "nodes" });
-    });
+    // 각인은 한 줄이다.
+    //
+    // 종류마다 줄을 냈더니 낀 것 다섯을 보려고 '없음'이 깔린 줄들을 지나야
+    // 했다. 게임에서도 각인은 낀 다섯을 목록으로 읽지, 안 낀 것을 세지 않는다.
+    // 진화 노드와 같은 꼴이라 눈이 한 번만 배우면 된다.
+    const worn = builds.map(build => Object.fromEntries(
+      ENGRAVING_LIBRARY
+        .map(item => [item.id, getEngravingTierIndex(build.engravings?.[item.id])])
+        .filter(([, at]) => at >= 0)
+        .map(([id, at]) => [id, ENGRAVING_TIERS[at].label]),
+    ));
+    add("각인", "낀 각인", worn.map((own, at) => {
+      // 기준이 낀 것을 여기서 안 꼈으면 '없음'으로 줄을 남긴다 — 노드와 같은
+      // 규칙이다. 뺀 것이 그냥 사라지면 무엇을 내줬는지 알 수가 없다.
+      const lines = ENGRAVING_LIBRARY
+        .filter(item => own[item.id] || (at !== baseAt && worn[baseAt][item.id]))
+        .map(item => ({ id: item.id, name: item.name, level: own[item.id] ?? "없음", text: own[item.id] ?? "없음" }));
+      return {
+        lines,
+        text: lines.map(line => `${line.name} ${line.level}`).join(" · ") || "없음",
+        levels: own,
+      };
+    }), { kind: "levels", empty: "없음", tab: "nodes" });
 
     return out;
   });
@@ -296,7 +318,9 @@
                 row.tab은 그대로 둔다. 무엇을 어디서 고치는지는 여전히 사실이고,
                 나중에 열 단위로 데려갈 자리가 생기면 그때 쓴다.
               -->
-              <td colspan={columns.length + 2}>{row.group}</td>
+              <!-- 전폭 셀은 sticky가 붙을 여유가 없어 그대로 흘러간다.
+                   글자를 감싼 span이 대신 왼쪽에 붙는다. -->
+              <td colspan={columns.length + 2}><span>{row.group}</span></td>
             </tr>
           {/if}
           <tr class:tall={row.kind === "levels"}>
@@ -310,12 +334,14 @@
               <td class:base={at === baseAt} class:moved>
                 {#if row.kind === "levels"}
                   {#if cell.lines.length === 0}
-                    <span class="c-none">안 찍음</span>
+                    <span class="c-none">{row.empty ?? "안 찍음"}</span>
                   {:else}
                     <ul class="c-levels">
                       {#each cell.lines as line (line.id)}
                         <li class:moved={at !== baseAt && row.cells[baseAt].levels[line.id] !== line.level}>
-                          <span>{line.name}</span><b>{line.level}Lv.</b>
+                          <!-- 줄이 제 표기를 들고 온다. 노드는 '3Lv.', 각인은
+                               '유물 4단계'라 여기서 단위를 붙일 수가 없다. -->
+                          <span>{line.name}</span><b>{line.text}</b>
                         </li>
                       {/each}
                     </ul>
