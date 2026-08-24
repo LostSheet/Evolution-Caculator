@@ -4185,19 +4185,6 @@ td.base .c-levels li { color: var(--txt); }
 .pick-limit i { font-style: normal; }
 .pick-limit em { margin-left: auto; font-style: normal; color: var(--cool-dim); }
 
-/* 그룹 머리의 지름길. 표는 보는 곳이고, 고치는 자리는 페이지다. */
-.c-goto {
-  margin-left: 10px;
-  padding: 1px 7px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: transparent;
-  font-size: 11px;
-  color: var(--txt-3);
-  cursor: pointer;
-}
-.c-goto:hover { border-color: var(--cool); color: var(--cool); }
-
 /* 하위 탭 — 축 안의 부위.
    상단 축 탭과 생김새를 달리한다. 같으면 어느 쪽이 큰 갈래인지 안 보인다.
    상단 바처럼 붙박이다 — 긴 페이지에서 탭을 갈아타려고 맨 위로 돌아가는 일이

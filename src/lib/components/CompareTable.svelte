@@ -11,7 +11,7 @@
   // 나머지 열은 얼려져 있다. 고치고 싶으면 '내 빌드로' 올린다. 그 순간 지금
   // 내 빌드가 그 자리에 얼려져 들어가므로 아무것도 안 사라진다.
   import {
-    app, goTab, buildState, keepBuild, makeMine, dropCompare,
+    app, buildState, keepBuild, makeMine, dropCompare,
     renameCompare, renameBuild,
   } from "../store.svelte.js";
   import { calculateMetrics, getEngravingTierIndex } from "../core/metrics.js";
@@ -287,16 +287,16 @@
         {#each shown as row, i (row.group + row.label)}
           {#if i === 0 || shown[i - 1].group !== row.group}
             <tr class="c-group">
-              <td colspan={columns.length + 2}>
-                {row.group}
-                <!-- 이 부위를 어디서 고치는지. 표는 보는 곳이라 여기서는 못
-                     고치고, 고치는 자리로 데려다만 준다. -->
-                {#if row.tab}
-                  <button type="button" class="c-goto" onclick={() => { goTab(row.tab); onEdit?.(); }}>
-                    고치기 →
-                  </button>
-                {/if}
-              </td>
+              <!--
+                고치기 지름길이 여기 있었다. 그런데 이 표는 얼린 것들을 견주는
+                자리이고, 그 단추는 내 빌드의 탭으로 갔다 — 지금 읽고 있는 열과
+                상관없는 데로 데려간다. 게다가 머리가 전 열을 가로질러서 어느
+                열에 대한 것인지도 안 보였다. 고치려면 서랍을 닫고 가면 된다.
+
+                row.tab은 그대로 둔다. 무엇을 어디서 고치는지는 여전히 사실이고,
+                나중에 열 단위로 데려갈 자리가 생기면 그때 쓴다.
+              -->
+              <td colspan={columns.length + 2}>{row.group}</td>
             </tr>
           {/if}
           <tr class:tall={row.kind === "levels"}>
