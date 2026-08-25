@@ -1,6 +1,6 @@
 <script>
   import {
-    app, PAGES, PAGE, goPage, goTab, setTab, currentTab,
+    app, PAGES, PAGE, goPage, goTab, setTab, currentTab, sweepMarket,
     selectedResult, resultState, boxedSlot, toggleBoxed,
     startSearch, cancelSearch, cycleTheme,
     toggleDrawer, buildState, makeMine,
@@ -16,6 +16,7 @@
   import PageRules from "./lib/components/PageRules.svelte";
   import PageResults from "./lib/components/PageResults.svelte";
   import PageNodes from "./lib/components/PageNodes.svelte";
+  import PageMarket from "./lib/components/PageMarket.svelte";
   import EngravingDialog from "./lib/components/EngravingDialog.svelte";
   import BraceletDialog from "./lib/components/BraceletDialog.svelte";
   import SavesMenu from "./lib/components/SavesMenu.svelte";
@@ -217,6 +218,10 @@
          규칙을 세웠으면 돌리는 것이다. -->
     {#if app.page === PAGE.build}
       <button class="btn primary" type="button" onclick={() => goPage(PAGE.search)}>탐색으로 →</button>
+    {:else if app.page === PAGE.market}
+      <button class="btn primary" type="button" disabled={app.market.running || !app.api.key} onclick={sweepMarket}>
+        {app.market.running ? `${app.market.done}/16` : "훑기"}
+      </button>
     {:else if app.running}
       <button class="btn" type="button" onclick={cancelSearch}>중지</button>
     {:else}
@@ -229,6 +234,7 @@
 
 <!-- 하위 탭. 축 안의 부위를 고른다 — 빌드 셋은 전부 내 빌드를 고치고,
      탐색 둘은 규칙을 걸고 답을 읽는다. -->
+{#if axis.tabs.length > 1}
 <nav class="subtabs" aria-label="{axis.label} 안">
   {#each axis.tabs as item (item.key)}
     <button type="button" class="subtab" class:on={tab === item.key}
@@ -236,6 +242,7 @@
             onclick={() => setTab(item.key)}>{item.label}</button>
   {/each}
 </nav>
+{/if}
 
 <main class="page">
   {#if tab === "setup"}
@@ -247,6 +254,8 @@
     <PageAwakening />
   {:else if tab === "nodes"}
     <PageNodes {report} {budget} onOpenEngravings={() => (engravingsOpen = true)} />
+  {:else if tab === "market"}
+    <PageMarket />
   {:else if tab === "rules"}
     <PageRules {report} {plan} {budget} />
   {:else}

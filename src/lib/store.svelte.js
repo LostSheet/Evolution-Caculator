@@ -1,6 +1,12 @@
 import { NODE_LIBRARY, ARC_PASSIVE_CONSTANTS } from "./core/data.js";
 import { ENGRAVING_LIBRARY, ENGRAVING_TIERS } from "./core/engravings.js";
-import { splitCollectionStats } from "./core/lostark.js";
+import {
+  splitCollectionStats, searchAuction, LostArkError,
+  AUCTION_CATEGORY, GRIND_FIRST_OPTION, GRIND_CODE, grindValueCode,
+} from "./core/lostark.js";
+import {
+  ACCESSORY_SLOTS, GRADES, comboQuery, readListing, valueListings,
+} from "./core/accessory.js";
 import { getAwakeningNodes, awakeningHeadroom, awakeningDependents } from "./core/awakening.js";
 import {
   SYNERGY_UPTIME_FULL, SYNERGY_OWN_ID, SYNERGY_JOBS,
@@ -42,6 +48,11 @@ const FOLDS_KEY = "ark-passive-folds-v1";
 // API 키는 캐릭터 세팅과 성격이 다르다. 내보내기 파일에 딸려 나가면 안 되고,
 // 세팅을 갈아끼워도 그대로 남아 있어야 한다.
 const API_KEY = "ark-passive-lostark-key";
+// 지금 낀 악세의 알맹이. 세팅이 아니라 '이 캐릭터가 실제로 끼고 있는 것'이라
+// 따로 둔다 — 저장된 세팅을 갈아끼워도 뺄셈의 기준은 인게임이어야 한다.
+const WORN_KEY = "ark-passive-worn-v1";
+// 경매장 화면에서 마지막으로 보던 부위와 등급. 매물은 안 담는다 — 시세다.
+const MARKET_KEY = "ark-passive-market-v1";
 
 // "auto"는 OS 설정을 따른다. 손으로 고르면 그때부터 OS를 무시한다 —
 // 밝은 데스크톱에서 이 화면만 어둡게 쓰고 싶은 사람이 있다.
@@ -262,10 +273,16 @@ export const PAGES = [
       { key: "results", label: "결과" },
     ],
   },
+  // 셋째 축은 성격이 다르다. 앞 둘은 가진 것을 어떻게 나눌지 묻고, 이쪽은
+  // 무엇을 살지 묻는다 — 답의 단위가 포인트가 아니라 골드다.
+  {
+    n: 3, key: "market", label: "악세",
+    tabs: [{ key: "market", label: "경매장" }],
+  },
 ];
 
 /** 각 축에서 마지막으로 보던 하위 탭. 왕복할 때 자리를 기억한다. */
-export const PAGE_TABS = { build: "setup", search: "rules" };
+export const PAGE_TABS = { build: "setup", search: "rules", market: "market" };
 
 export const PAGE = Object.fromEntries(PAGES.map(page => [page.key, page.n]));
 
@@ -324,6 +341,22 @@ export const app = $state({
   // 이름 붙인 각인 슬롯. 원정대 하나가 슬롯 하나다.
   engravingRoster: loadRoster(),
   theme: loadTheme(),
+  // 지금 낀 악세의 주스탯과 평면. 등급만으로는 매물과 뺄셈이 안 된다 —
+  // 같은 상상 반지라도 주스탯이 1,500 다르면 답이 갈린다.
+  worn: load(WORN_KEY, null),
+  // 경매장. 부위 하나를 골라 연마 조합 격자를 훑는다.
+  market: {
+    ...{ slot: "rings:0", grade: "고대", quality: 0 },
+    ...load(MARKET_KEY, {}),
+    // 격자 한 칸: "high:mid" → { total, price, gain, perGold, listing }.
+    cells: {},
+    // 펼친 칸과 그 칸의 매물들. 최저가가 늘 최고 효율은 아니다.
+    open: null,
+    listings: null,
+    running: false,
+    done: 0,
+    error: "",
+  },
   // 로스트아크 API. 키는 이 브라우저에만 남는다 — 서버를 거치지 않는다.
   api: {
     key: loadApiKey(),
@@ -1338,6 +1371,13 @@ export function applyCharacter(read, picks, force) {
   const keptBundles = sameJob ? cloneState(app.character.specBundles ?? []) : [];
 
   app.character = migrate(mergeState(DEFAULT_STATE, built.next));
+  // 등급 옆에 알맹이도 남긴다 — 주스탯과 평면. 경매장 화면이 매물과 뺄셈을
+  // 하려면 이게 있어야 한다. 적용할 때만 쓴다: 미리보기는 $derived 안에서
+  // 돌아서 여기서 앱 상태를 건드리면 Svelte가 막는다.
+  if (picks.accessories && read?.accessoriesWorn) {
+    app.worn = cloneState(read.accessoriesWorn);
+    try { localStorage.setItem(WORN_KEY, JSON.stringify(app.worn)); } catch {}
+  }
   if (keptBundles.length > 0) {
     app.character.specBundles = keptBundles;
     // 묶음이 있으면 옛 특화 효율 칸은 물러난다 — 같은 것을 두 번 세면 안 된다.
@@ -1837,4 +1877,117 @@ export async function importState(file) {
   if (payload.search) app.search = migrateSearch(payload.search);
   app.results = null;
   persist();
+}
+
+// --- 경매장 ------------------------------------------------------------------
+//
+// 앞 두 축은 "가진 포인트를 어떻게 나눌까"를 묻는다. 이 축은 "무엇을 살까"를
+// 묻는다. 답의 단위가 달라서 화면도 따로 섰다 — 여기서는 골드가 자원이다.
+
+/** 지금 고른 자리. "rings:0" 같은 문자열이 열쇠다. */
+export function marketSlot() {
+  const [key, index] = String(app.market.slot).split(":");
+  return ACCESSORY_SLOTS.find(slot => slot.key === key && slot.index === Number(index))
+    ?? ACCESSORY_SLOTS[0];
+}
+
+/** 그 자리에 지금 낀 것. 불러오기 전이면 null — 모르면 모른다고 한다. */
+export function wornAt(slot) {
+  const worn = app.worn;
+  if (!worn) return null;
+  const found = slot.key === "necklace" ? worn.necklace : worn[slot.key]?.[slot.index];
+  return readNumber(found?.mainStat) > 0 ? found : null;
+}
+
+export function setMarket(patch) {
+  Object.assign(app.market, patch);
+  try {
+    localStorage.setItem(MARKET_KEY, JSON.stringify({
+      slot: app.market.slot, grade: app.market.grade, quality: app.market.quality,
+    }));
+  } catch {}
+}
+
+const cellKey = combo => combo.join(":");
+
+/** 격자 한 칸의 질의 본문. */
+function marketBody(slot, combo) {
+  const body = {
+    CategoryCode: AUCTION_CATEGORY[slot.part],
+    ItemGrade: app.market.grade,
+    EtcOptions: comboQuery(slot, combo).map(pick => ({
+      FirstOption: GRIND_FIRST_OPTION,
+      SecondOption: GRIND_CODE[pick.name],
+      MinValue: grindValueCode(pick.value),
+      MaxValue: grindValueCode(pick.value),
+    })),
+  };
+  const quality = readNumber(app.market.quality);
+  if (quality > 0) body.ItemGradeQuality = quality;
+  return body;
+}
+
+/**
+ * 격자를 훑는다.
+ *
+ * 열여섯 칸을 넷씩 나눠 쏘고, 도착하는 대로 격자에 꽂는다 — 다 모아 놓고
+ * 한 번에 그리면 십몇 초 동안 빈 화면을 보게 된다. 경매장은 값싼 순으로
+ * 주므로 각 칸의 첫 매물이 그 조건의 최저가다.
+ */
+export async function sweepMarket() {
+  if (app.market.running) return;
+  const slot = marketSlot();
+  const worn = wornAt(slot);
+  const state = app.character;
+  const combos = [];
+  GRADES.forEach(a => GRADES.forEach(b => combos.push([a, b])));
+
+  setMarket({ running: true, done: 0, error: "", cells: {}, open: null, listings: null });
+  const queue = combos.slice();
+  const worker = async () => {
+    while (queue.length > 0 && !app.market.error) {
+      const combo = queue.shift();
+      try {
+        const found = await searchAuction(app.api.key, marketBody(slot, combo));
+        const listings = found.items.map(readListing);
+        const valued = valueListings(state, slot, listings, worn);
+        // 칸의 얼굴은 '가장 싼 것'이 아니라 '가장 잘 사는 것'이다. 최저가는
+        // 대개 품질이 낮아 주스탯이 적어서, 그 조건이 얼마짜리인지를 낮게 말한다.
+        // 못 사는 조건(전부 손해)이면 그때는 최저가를 얼굴로 둔다.
+        const best = valued.reduce((top, item) => (
+          item.perGold !== null && (!top || item.perGold > top.perGold) ? item : top
+        ), null) ?? valued.find(item => item.price > 0) ?? valued[0] ?? null;
+        app.market.cells[cellKey(combo)] = best
+          ? { total: found.total, price: best.price, gain: best.gain, perGold: best.perGold, listing: best.listing }
+          : { total: found.total, empty: true };
+      } catch (cause) {
+        if (cause?.name === "AbortError") return;
+        app.market.error = cause instanceof LostArkError ? cause.message : "경매장을 읽지 못했습니다.";
+        return;
+      }
+      app.market.done += 1;
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  app.market.running = false;
+}
+
+/** 칸 하나를 펼쳐 그 조건의 매물을 값으로 바꾼다. 최저가가 늘 최고 효율은 아니다. */
+export async function openCell(combo) {
+  const key = cellKey(combo);
+  if (app.market.open === key) {
+    setMarket({ open: null, listings: null });
+    return;
+  }
+  const slot = marketSlot();
+  setMarket({ open: key, listings: null, error: "" });
+  try {
+    const found = await searchAuction(app.api.key, marketBody(slot, combo));
+    if (app.market.open !== key) return;
+    app.market.listings = valueListings(app.character, slot, found.items.map(readListing), wornAt(slot))
+      .sort((a, b) => (b.perGold ?? -Infinity) - (a.perGold ?? -Infinity));
+  } catch (cause) {
+    if (cause?.name === "AbortError") return;
+    app.market.error = cause instanceof LostArkError ? cause.message : "경매장을 읽지 못했습니다.";
+  }
 }

@@ -538,6 +538,7 @@ function gradeFromValue(value, grades) {
 
 export function parseAccessories(payload) {
   const equipment = Array.isArray(payload?.ArmoryEquipment) ? payload.ArmoryEquipment : [];
+  const mainStatType = detectMainStatType(equipment);
   const result = {
     necklace: { additionalDamage: "none", dealtDamage: "none" },
     earrings: [
@@ -548,6 +549,14 @@ export function parseAccessories(payload) {
       { critRate: "none", critDamage: "none" },
       { critRate: "none", critDamage: "none" },
     ],
+  };
+  // 지금 낀 것의 알맹이. 등급만으로는 "이 매물로 바꾸면 얼마"를 뺄 수 없다 —
+  // 주스탯도 평면도 악세마다 다르고, 그 차이가 곧 답이기 때문이다.
+  const empty = () => ({ name: "", grade: "", mainStat: 0, flat: { attackPower: 0, weaponAttack: 0 } });
+  const worn = {
+    necklace: empty(),
+    earrings: [empty(), empty()],
+    rings: [empty(), empty()],
   };
   const notes = [];
   const seen = { 귀걸이: 0, 반지: 0 };
@@ -564,14 +573,27 @@ export function parseAccessories(payload) {
 
     // 목걸이는 하나, 귀걸이·반지는 둘씩 — 나온 순서대로 1번 2번으로 넣는다.
     let target;
+    let mine;
     if (part === "목걸이") {
       target = result.necklace;
+      mine = worn.necklace;
     } else {
       const index = seen[part];
       seen[part] += 1;
       if (index > 1) return;
       target = part === "귀걸이" ? result.earrings[index] : result.rings[index];
+      mine = part === "귀걸이" ? worn.earrings[index] : worn.rings[index];
     }
+
+    // 기본 효과 상자의 주스탯, 연마 상자의 평면. 매물에서 읽는 것과 같은 것들이다.
+    const basic = sectionWith(item?.Tooltip, "기본 효과");
+    mine.name = String(item?.Name ?? "");
+    mine.grade = String(item?.Grade ?? "");
+    if (mainStatType) {
+      mine.mainStat = sumMatches(basic, new RegExp(`\\s*${mainStatType}\\s*\\+\\s*([\\d,]+)`, "g")) ?? 0;
+    }
+    mine.flat.weaponAttack = sumMatches(grind, /무기\s*공격력\s*\+\s*([\d,]+)(?!\s*[.%])/g) ?? 0;
+    mine.flat.attackPower = sumMatches(grind, /(?<!무기\s*)공격력\s*\+\s*([\d,]+)(?!\s*[.%])/g) ?? 0;
 
     GRIND_OPTIONS.filter(option => option.part === part).forEach(option => {
       const match = option.pattern.exec(grind);
@@ -582,7 +604,7 @@ export function parseAccessories(payload) {
     });
   });
 
-  return { accessories: result, notes };
+  return { accessories: result, worn, notes };
 }
 
 // --- 각인 --------------------------------------------------------------------
@@ -1303,6 +1325,7 @@ export function readCharacter(payload) {
     // 실제보다 낮게 잡혔는지 바로 드러난다.
     reportedAttackPower: profile.attackPower,
     accessories: accessories.accessories,
+    accessoriesWorn: accessories.worn,
     engravings: engravings.engravings,
     engravingStones: engravings.stones,
     nodeLevels: arkPassive.nodeLevels,
@@ -1327,3 +1350,71 @@ export function readCharacter(payload) {
 }
 
 export { ENGRAVING_TIERS, BASE_URL };
+
+// --- 경매장 ------------------------------------------------------------------
+//
+// 악세를 살지 말지는 "이걸 끼면 얼마나 세지나 / 얼마인가" 둘이 있어야 정해진다.
+// 앞은 이 계산기가 이미 알고, 뒤는 여기서 받아 온다.
+//
+// 부위 코드와 연마 옵션 코드는 /auctions/options가 알려 준다. 손으로 적으면
+// 패치 때 조용히 어긋나므로 아래 표는 그 응답에서 뽑은 것만 담는다.
+
+export const AUCTION_CATEGORY = { 목걸이: 200010, 귀걸이: 200020, 반지: 200030, 팔찌: 200040 };
+
+/** FirstOption 7 = 연마 효과. SecondOption이 종류다. */
+export const GRIND_FIRST_OPTION = 7;
+export const GRIND_CODE = {
+  "추가 피해": 41,
+  "적에게 주는 피해 증가": 42,
+  "공격력 %": 45,
+  "무기 공격력 %": 46,
+  "치명타 적중률": 49,
+  "치명타 피해": 50,
+  "공격력 +": 53,
+  "무기 공격력 +": 54,
+};
+
+/** 값은 퍼센트 x100으로 보낸다 — 1.55% → 155. */
+export const grindValueCode = percent => Math.round(readApiNumber(percent) * 100);
+
+export async function searchAuction(apiKey, body, { signal } = {}) {
+  const key = String(apiKey ?? "").trim();
+  if (!key) throw new LostArkError("API 키가 없습니다.");
+  if (!/^[\x20-\x7E]+$/.test(key)) {
+    throw new LostArkError("API 키에 한글이나 특수문자가 섞여 있습니다.");
+  }
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}/auctions/items`, {
+      method: "POST",
+      signal,
+      headers: {
+        authorization: `bearer ${key}`,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        ItemLevelMin: 0,
+        ItemLevelMax: 1800,
+        ItemGradeQuality: null,
+        SkillOptions: [],
+        Sort: "BUY_PRICE",
+        SortCondition: "ASC",
+        PageNo: 1,
+        ...body,
+      }),
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    throw new LostArkError("경매장에 닿지 못했습니다.");
+  }
+  if (response.status === 401 || response.status === 403) {
+    throw new LostArkError("API 키가 거부되었습니다.");
+  }
+  if (response.status === 429) {
+    throw new LostArkError("요청이 너무 잦습니다. 잠시 뒤에 다시 시도해 주세요.");
+  }
+  if (!response.ok) throw new LostArkError(`경매장이 ${response.status}로 답했습니다.`);
+  const data = await response.json();
+  return { total: readApiNumber(data?.TotalCount), items: Array.isArray(data?.Items) ? data.Items : [] };
+}
