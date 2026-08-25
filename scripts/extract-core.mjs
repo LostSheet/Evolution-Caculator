@@ -167,7 +167,7 @@ writeFileSync(resolve(OUT, "metrics.js"), buildModule({
   ],
   source: app,
   names: [
-    "DEFAULT_STATE", "MULTIPLICATIVE_DAMAGE_GROUPS", "SQRT_DAMAGE_GROUPS", "damageGroupFactor",
+    "DEFAULT_STATE", "MULTIPLICATIVE_DAMAGE_GROUPS", "SQRT_DAMAGE_GROUPS", "ATTACK_CHAIN_GROUPS", "damageGroupFactor",
     "normalizeSynergy", "legacySynergyRows", "STAGGER_DAMAGE_GROUPS", "getStaggerShare",
     "normalizeArkGrid", "applyCoreEffect", "applyArkGridEffects", "applyCollectionEffects", "applyWeaponEffects",
     "DAMAGE_MIX_KEYS", "DAMAGE_MIX_LABELS", "normalizeDamageMix",
@@ -179,7 +179,7 @@ writeFileSync(resolve(OUT, "metrics.js"), buildModule({
     "applyEngravingEffects", "applyEngravingTier", "getEngravingTierIndex",
     "normalizeBracelet", "applyBraceletEffects", "getBraceletGradeIndex", "isDirectionalConditionActive",
     "normalizeAccessories", "calculateAccessoryBonuses", "getAccessoryOptionValue",
-    "normalizeAttack", "assembleAttack", "baseAttackPower", "emptyFlatBonuses", "applyFlatAttackBonuses", "addFlatBonus",
+    "normalizeAttack", "assembleAttack", "supportAttackPower", "baseAttackPower", "emptyFlatBonuses", "applyFlatAttackBonuses", "addFlatBonus",
     "FOODS", "FOOD_BY_ID", "getFood", "applyFoodEffects", "RANCH_GRADES", "ranchAmount",
     "PASSION_DANCE_GRADES", "passionDanceAmount", "AVATAR_SLOTS", "AVATAR_GRADES", "avatarAmount", "avatarTotal", "derivedMainTotal", "ranchResidual", "autoRanchAmount", "resolveRanchMainStat", "resolveRanchDamage",
     "applyAwakeningEffects", "applySynergyEffects",

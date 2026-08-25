@@ -8,7 +8,7 @@
 //   (c) 평면 증가는 기준값을 나눠 퍼센트가 된다
 //   (d) 기준값이 없으면 평면을 버리되 무엇을 버렸는지 남긴다
 import {
-  DEFAULT_STATE, mergeState, calculateMetrics, baseAttackPower, damageGroupFactor,
+  DEFAULT_STATE, mergeState, calculateMetrics, baseAttackPower, damageGroupFactor, ATTACK_CHAIN_GROUPS,
 } from "../src/lib/core/metrics.js";
 import { explainMetrics } from "../src/lib/core/explain.js";
 
@@ -39,10 +39,17 @@ const state = patch => mergeState(DEFAULT_STATE, patch);
 }
 
 // --- (b) 무공 %는 제곱근으로 접힌다 -------------------------------------------
+//
+// 예전에는 피해 그룹 쪽에서 √를 흉내 냈다(SQRT_DAMAGE_GROUPS). 지금은 공격력
+// 사슬의 C = √(A × B ÷ 6)이 √를 원래대로 처리한다 — 기대값은 그대로다.
+// 다만 사슬이 서려면 공격력 기준값이 있어야 한다. 비어 있으면 사슬이 0이라
+// 지수가 예전 꼴(100 × 치명 × 배수)로 떨어지고 무공이 아무 일도 안 한다.
 {
+  const BASE = { weaponAttack: 70000, mainStat: 90000, flatAttack: 0 };
   // 귀걸이 무기 공격력 상옵 = 3.00%
-  const plain = calculateMetrics(state({}));
+  const plain = calculateMetrics(state({ attack: BASE }));
   const withWeapon = calculateMetrics(state({
+    attack: BASE,
     accessories: { earrings: [{ weaponAttack: "high" }, {}] },
   }));
   const ratio = withWeapon.damageIndex / plain.damageIndex;
@@ -50,6 +57,7 @@ const state = patch => mergeState(DEFAULT_STATE, patch);
 
   // 귀걸이 공격력 상옵 = 1.55%. 무공 상옵보다 근소하게 나아야 한다.
   const withAttack = calculateMetrics(state({
+    attack: BASE,
     accessories: { earrings: [{ attackPower: "high" }, {}] },
   }));
   check(
@@ -60,6 +68,7 @@ const state = patch => mergeState(DEFAULT_STATE, patch);
 
   // 같은 그룹 안에서는 더한 뒤 한 번만 접는다 — √(1.03)·√(1.03) 이 아니라 √(1.06).
   const twoEarrings = calculateMetrics(state({
+    attack: BASE,
     accessories: { earrings: [{ weaponAttack: "high" }, { weaponAttack: "high" }] },
   }));
   check(
@@ -140,15 +149,23 @@ const state = patch => mergeState(DEFAULT_STATE, patch);
     nodeLevels: { "e1-crit": 10, "e1-spec": 30 },
   });
   const report = explainMetrics(source);
-  const product = report.damage.reduce((acc, group) => acc * group.multiplier, 1);
+  // 공격력 사슬이 삼키는 그룹은 배수에서 빠진다 — A·B·E 안에서 한 번 곱해진다.
+  const product = report.damage
+    .filter(group => !ATTACK_CHAIN_GROUPS.has(group.key))
+    .reduce((acc, group) => acc * group.multiplier, 1);
   check(
     "(e) 그룹 배수의 곱 == damageMultiplier",
     close(product, report.metrics.damageMultiplier, 1e-9),
     `${product} vs ${report.metrics.damageMultiplier}`,
   );
 
+  // 평면이 그룹 밖으로 나가면서 힘민지 그룹은 출처가 없으면 아예 안 선다.
+  // 서는 것만 검사한다 — 없는 줄을 세는 것은 이 검사가 할 일이 아니다.
   const rooted = report.damage.filter(group => group.rooted);
-  check("(e) 접히는 그룹이 표시된다", rooted.length === 2, rooted.map(g => g.key).join(", "));
+  check("(e) 접히는 그룹이 표시된다", rooted.length >= 1, rooted.map(g => g.key).join(", "));
+  // 평면은 퍼센트로 안 바뀌고 사슬에 평면대로 실린다.
+  const flatKeys = report.attackChain.flats.map(f => f.key).sort().join(",");
+  check("(e) 평면은 사슬이 든다", flatKeys === "mainStat,weaponAttack", flatKeys);
   rooted.forEach(group => {
     check(
       `(e) ${group.key} 배수는 √(1+합)`,

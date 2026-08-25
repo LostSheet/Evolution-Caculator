@@ -16,6 +16,9 @@ const ARC_PASSIVE_CONSTANTS = {
   staggerDamagePerDomination: 0.0713924,
   // 깨달음의 카르마 1레벨당 무기 공격력. 26레벨에서 게임이 +2.60%라고 적는다.
   awakeningKarmaWeaponPerLevel: 0.1,
+  // 서폿이 얹어 주는 공격력의 비율. 서폿 기본 공격력의 22%가 내 기본
+  // 공격력에 평면으로 더해지고, 거기에 아군 공격력 강화 효과 증가가 곱해진다.
+  supportAttackShare: 0.22,
 };
 
 // 연마 효과. 부위마다 칸이 셋이지만 딜과 무관한 것(낙인력, 아이덴티티, 게이지)이

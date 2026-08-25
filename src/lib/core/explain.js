@@ -87,19 +87,20 @@ function collectSources(state, metrics) {
   const settings = state.settings;
   const manaShare = getManaShareRatio(convenience);
 
-  // 평면 증가는 기준값을 만나야 퍼센트가 된다. 나눗셈이 선형이라 출처별로
-  // 따로 나눠도 합이 같다 — 그래서 여기서는 출처마다 바꿔 적을 수 있다.
-  // 기준값이 없으면 아무것도 안 적는다. 그 사실은 attackSources가 따로 알린다.
+  /**
+   * 평면 증가는 이제 퍼센트로 안 바꾼다.
+   *
+   * 예전에는 기준값으로 나눠 같은 그룹에 퍼센트로 얹었다. 그런데 게임 수식의
+   * A·B는 (평면 합) × (1 + 퍼센트 합)이라, 평면을 퍼센트로 바꿔 더하면
+   * (1+a)(1+p)와 1+p+a의 차이만큼 어긋난다 — 팔찌 무공 9,000에서 실제로
+   * 벌어졌다. 여기서는 평면을 평면대로 적어 두고, 곱은 사슬이 한다.
+   */
   const attack = normalizeAttack(state.attack);
-  const flatTargets = {
-    weaponAttack: { group: "무기 공격력", divisor: attack.weaponAttack },
-    mainStat: { group: "힘민지", divisor: attack.mainStat },
-    attackPower: { group: "평면 공격력", divisor: baseAttackPower(attack) },
-  };
+  const attackFlats = [];
   const addFlat = (key, label, amount) => {
-    const target = flatTargets[key];
-    if (!target || target.divisor <= 0) return;
-    ledger.addDamage(target.group, label, readNumber(amount) / target.divisor * 100);
+    const value = readNumber(amount);
+    if (value === 0) return;
+    attackFlats.push({ key, label, amount: value });
   };
 
   // 1 · 시작 특성
@@ -352,6 +353,8 @@ function collectSources(state, metrics) {
   ledger.addDamage("진화형 피해", BLUNT_THORN_KEY, metrics.bluntThornBonus.damage);
   ledger.addDamage("진화형 피해", SONIC_KEY, metrics.sonicBonus);
 
+  // 사슬에 평면으로 들어간 것들. 그룹의 퍼센트와 섞으면 안 되므로 따로 싣는다.
+  ledger.attackFlats = attackFlats;
   return ledger;
 }
 
@@ -646,6 +649,16 @@ export function explainMetrics(state) {
     metrics,
     stats: buildStats(metrics, ledger),
     damage: buildDamage(metrics, ledger, levels),
+    // 공격력 사슬 A~E와, 그 안에 평면으로 들어간 것들.
+    attackChain: {
+      mainStat: metrics.mainStatTotal,
+      weapon: metrics.weaponTotal,
+      pure: metrics.pureAttack,
+      base: metrics.baseAttack,
+      support: metrics.supportAttack,
+      final: metrics.finalAttack,
+      flats: ledger.attackFlats ?? [],
+    },
     damageMultiplier: metrics.damageMultiplier,
     cooldown: buildCooldown(metrics, ledger),
     speed: buildSpeed(metrics, ledger),

@@ -113,11 +113,20 @@ const CHAOS_CORES = [
   core("moon-lethal", "moon", "치명적인 흔적", {}, "무력화·파티 치피 전용, 딜 기대값 미반영"),
 
   // ── 별 ────────────────────────────────────────────────────────────
+  // 평면 두 줄은 툴팁에 이렇게 온다:
+  //   [10P] 공격력이 900 증가한다.
+  //   [17P] 공격력이 1.10% 증가하고, 추가로 1800 증가한다.
+  // 17P의 평면이 퍼센트 줄에 붙어 있어서 오래 못 보고 지나쳤다. 둘을 넣으니
+  // 게임 공격력 194,227을 오차 0.0004%로 재현한다.
   core("star-attack", "star", "공격", {
+    10: [{ kind: "flat", key: "attackPower", amount: 900 }],
     14: [{ kind: "damage", key: "공격력", amount: 0.55 }],
-    17: [{ kind: "damage", key: "공격력", amounts: [1.1, 1.65] }],
+    17: [
+      { kind: "damage", key: "공격력", amounts: [1.1, 1.65] },
+      { kind: "flat", key: "attackPower", amount: 1800 },
+    ],
     per: [{ kind: "damage", key: "공격력", amount: 0.16 }],
-  }, "10P의 평면 공격력은 수치 미확보로 미반영 — 직접 입력 효과에 숫자로 적을 수 있습니다"),
+  }),
   core("star-weapon", "star", "무기", {
     14: [{ kind: "damage", key: "무기 공격력", amount: 0.75 }],
     17: [{ kind: "damage", key: "무기 공격력", amounts: [1.5, 2.25] }],

@@ -8,7 +8,7 @@ import { CHAOS_CORES, CHAOS_CORE_POINTS, CHAOS_CORE_SLOTS, weaponQualityDamage }
 import { ENGRAVING_TIERS, ENGRAVING_LIBRARY } from "../src/lib/core/engravings.js";
 import { BRACELET_EFFECTS, BRACELET_GRADES } from "../src/lib/core/bracelets.js";
 import {
-  DEFAULT_STATE, mergeState, calculateMetrics, STAGGER_DAMAGE_GROUPS,
+  DEFAULT_STATE, mergeState, calculateMetrics, STAGGER_DAMAGE_GROUPS, ATTACK_CHAIN_GROUPS,
 } from "../src/lib/core/metrics.js";
 import { explainMetrics, marginalGain } from "../src/lib/core/explain.js";
 import { readNumber } from "../src/lib/core/util.js";
@@ -149,12 +149,15 @@ console.log(
 // 그래서 전부 곱하면 안 맞는다. 여기서 그 셈을 그대로 다시 세워 본다.
 const readNumberSafe = value => (Number.isFinite(Number(value)) ? Number(value) : 0);
 
+// 공격력 사슬이 삼키는 넷은 빠진다. 그 넷은 A·B·E 안에서 한 번 곱해지므로
+// 여기서 또 곱하면 두 번이다.
 let mulFailures = 0;
 for (let trial = 0; trial < 200; trial += 1) {
   const state = randomState();
   const report = explainMetrics(state);
   const share = readNumberSafe(report.metrics.staggerShare);
   const fold = keep => report.damage
+    .filter(group => !ATTACK_CHAIN_GROUPS.has(group.key))
     .filter(group => STAGGER_DAMAGE_GROUPS.has(group.key) === keep)
     .reduce((acc, group) => acc * group.multiplier, 1);
   const product = fold(false) * (1 - share + share * fold(true));
@@ -162,6 +165,32 @@ for (let trial = 0; trial < 200; trial += 1) {
   if (relative > 1e-12) mulFailures += 1;
 }
 console.log(`(b) 그룹 배수의 곱 == damageMultiplier: ${mulFailures} failures / 200 states`);
+
+// --- (b2) 공격력 사슬이 게임 수식대로 서는가 --------------------------------
+//
+//   A 힘민지 = (평면 합) × (1 + 증가율 합)
+//   B 무공   = (평면 합) × (1 + 증가율 합)
+//   C = √(A × B ÷ 6) · D = C × (1 + 기본 배율) · E = (D + 평면 + 서폿) × (1 + 공격력%)
+//
+// 사슬을 안 세우던 시절에는 주스탯을 만 넘게 얹어도 지수가 0.000% 움직였다.
+// 계단마다 정의와 맞는지 본다 — 하나가 어긋나면 그 아래가 전부 어긋난다.
+let chainFailures = 0;
+let chainSeen = 0;
+for (let trial = 0; trial < 200; trial += 1) {
+  const state = randomState();
+  const m = calculateMetrics(state);
+  if (!(m.finalAttack > 0)) continue;
+  chainSeen += 1;
+  const near = (a, b) => Math.abs(a - b) / Math.max(1, Math.abs(b)) < 1e-9;
+  if (!near(m.pureAttack, Math.sqrt(m.mainStatTotal * m.weaponTotal / 6))) chainFailures += 1;
+  if (!near(m.baseAttack, m.pureAttack * (1 + readNumberSafe(state.attack?.baseScalePercent) / 100))) chainFailures += 1;
+  // E는 D보다 작을 수 없다 — 괄호 안이 D에 더하기만 하고, 밖은 1 이상이다.
+  if (m.finalAttack < m.baseAttack - 1e-6) chainFailures += 1;
+  // 지수는 사슬 위에 선다.
+  if (!near(m.damageIndex, (m.finalAttack / 1000) * m.critFactor * m.damageMultiplier)) chainFailures += 1;
+}
+console.log(`(b2) 공격력 사슬 A~E: ${chainFailures} failures / ${chainSeen} states`);
+
 
 // --- (c) 쿨감 네 그룹의 곱이 최종 감소율인가 --------------------------------
 // 네 그룹은 모두 적용된다. 어느 하나를 고르거나 버리지 않는다.
@@ -421,7 +450,7 @@ function formatSum(source) {
   return `${source.parts.map(p => p.amount.toFixed(2)).join(" + ")} = ${source.amount.toFixed(2)}%`;
 }
 
-if (failures || mulFailures || cdFailures || marginFailures || nameFailures || groupFailures || partFailures) {
+if (failures || mulFailures || chainFailures || cdFailures || marginFailures || nameFailures || groupFailures || partFailures) {
   console.error("explain: FAILED");
   process.exit(1);
 }

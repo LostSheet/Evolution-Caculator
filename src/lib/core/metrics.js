@@ -159,6 +159,8 @@ const MULTIPLICATIVE_DAMAGE_GROUPS = new Set(["주는 피해"]);
 
 const SQRT_DAMAGE_GROUPS = new Set(["무기 공격력", "힘민지"]);
 
+const ATTACK_CHAIN_GROUPS = new Set(["힘민지", "무기 공격력", "공격력", "시너지 공격력"]);
+
 function damageGroupFactor(key, value) {
   const ratio = 1 + readNumber(value) / 100;
   if (!SQRT_DAMAGE_GROUPS.has(key)) return ratio;
@@ -539,6 +541,7 @@ function calculateMetrics(inputState) {
     synergy,
     jewelCooldownPercent: inputState.jewel?.cooldown,
     specBundles: inputState.specBundles,
+    supportAttackFlat: supportAttackPower(inputState),
   });
 }
 
@@ -564,6 +567,7 @@ function finalizeMetrics(context) {
     synergy,
     jewelCooldownPercent,
     specBundles,
+    supportAttackFlat,
   } = context;
 
   const manaCooldownCoverage = clamp(readNumber(manaCooldownShare ?? 1), 0, 1);
@@ -664,9 +668,55 @@ function finalizeMetrics(context) {
   const critChance = critRateCapped / 100;
   const critOnlyMultiplier = 1 + percentBonuses.critOnlyDamage / 100;
   const critFactor = (1 - critChance) + critChance * (critDamage / 100) * critOnlyMultiplier;
+
+  /**
+   * 공격력 사슬 — 게임 수식의 A~E.
+   *
+   *   A 힘민지 = 총합 × (1 + 힘민지 증가율)
+   *   B 무공   = 총합 × (1 + 무공 증가율)
+   *   C 순수   = √(A × B ÷ 6)
+   *   D 기본   = C × (1 + 보석 기본 공격력 + 어빌리티 스톤)
+   *   E 최종   = (D + 공격력 평면 + 서폿 공증) × (1 + 공격력 증가율) × (1 + 투지 강화)
+   *
+   * 한동안 이 사슬이 통째로 없었다. 힘민지·무기 공격력은 '피해 그룹'에 퍼센트로
+   * 담고 √를 그룹 배수 쪽에서 흉내 냈고(SQRT_DAMAGE_GROUPS), 절대값은 아예 안
+   * 실었다. 진화 배분만 견줄 때는 그래도 됐다 — 공격력이 모든 후보에 똑같이
+   * 곱해져 순위를 안 바꾸니까.
+   *
+   * 그런데 악세를 견주려면 그게 안 된다. 주스탯 11,000을 얹어도 지수가 0.000%
+   * 움직이고, 평면 무공을 더하면 오히려 내려갔다(평면을 퍼센트로 바꿀 때 쓰는
+   * 분모가 같이 커져서). 사슬을 제대로 세우면 그 둘이 제자리를 찾는다.
+   *
+   * 비는 그대로다 — C = √(A×B÷6)이 √를 원래대로 처리하므로, 진화 배분끼리의
+   * 순위와 증감은 예전과 같다. 달라지는 것은 지수의 눈금뿐이다.
+   */
+  //
+  // 연마 퍼센트는 악세 모델(귀걸이 상중하)이 들고 있다. assembleAttack이 쓰는
+  // attack.weaponPercent와 같은 것이라, 둘 다 곱하면 3.6%가 두 번 실린다 —
+  // 그래서 여기서는 조립한 값이 아니라 평면(weaponBase)에서 다시 세운다.
+  const mainFlatSum = Math.max(0, readNumber(attack.mainBase)) + readNumber(flatBonuses.mainStat);
+  const mainStatTotal = mainFlatSum
+    * (1 + readNumber(attack.mainScalePercent) / 100)
+    * (1 + readNumber(damageGroups["힘민지"]) / 100);
+  const weaponFlatSum = Math.max(0, readNumber(attack.weaponBase)) + readNumber(flatBonuses.weaponAttack);
+  const weaponTotal = weaponFlatSum
+    * (1 + (readNumber(attack.karmaWeaponPercent) + readNumber(damageGroups["무기 공격력"])) / 100);
+  const pureAttack = Math.sqrt(Math.max(0, mainStatTotal * weaponTotal / 6));
+  const baseAttack = pureAttack * (1 + Math.max(0, readNumber(attack?.baseScalePercent)) / 100);
+  // 서폿 공증은 퍼센트가 아니라 평면이다 — 버프 시전자의 기본 공격력 × 22% ×
+  // (1 + 아군 공격력 강화 효과 증가)가 내 기본 공격력에 더해진다. 괄호 안에
+  // 들어가기 때문에 무공·힘민지를 희석한다. 곱연산 그룹으로 두면 그 희석이
+  // 일어나지 않아서, 서폿이 붙어도 귀걸이 무공의 값어치가 그대로 나온다.
+  const supportAttack = readNumber(supportAttackFlat);
+  const finalAttack = (baseAttack + readNumber(flatBonuses.attackPower) + supportAttack)
+    * (1 + readNumber(damageGroups["공격력"]) / 100)
+    * (1 + readNumber(damageGroups["시너지 공격력"]) / 100);
+
+  // 위 셋은 사슬이 삼켰다. 피해 배수에서 또 곱하면 두 번이다.
+
   // 평시 배수와 무력화 배수를 따로 접는다. 무력화 쪽은 대난투 비중만큼만 섞는다.
   const plainMultiplier = Object.entries(damageGroups)
-    .filter(([key]) => !STAGGER_DAMAGE_GROUPS.has(key))
+    .filter(([key]) => !STAGGER_DAMAGE_GROUPS.has(key) && !ATTACK_CHAIN_GROUPS.has(key))
     .reduce((acc, [key, value]) => acc * damageGroupFactor(key, value), 1);
   const staggerMultiplier = Object.entries(damageGroups)
     .filter(([key]) => STAGGER_DAMAGE_GROUPS.has(key))
@@ -682,7 +732,11 @@ function finalizeMetrics(context) {
   // 공속을 DPS에 곱하지 않는다. 공속이 곧 딜 사이클 단축이라는 근거가 약하고,
   // 공속의 실제 이득은 음속 돌파의 진화형 피해 전환으로만 반영한다.
   const attackSpeedFactor = 1;
-  const damageIndex = 100 * critFactor * damageMultiplier;
+  // 지수는 공격력 사슬 위에 선다. 1,000으로 나누는 것은 눈금일 뿐이고 —
+  // 공격력을 모르는 상태(불러오기 전)에서는 사슬이 0이라 지수가 통째로 0이
+  // 되므로, 그때는 예전처럼 100을 쓴다. 견주는 데는 비만 필요하다.
+  const attackScale = finalAttack > 0 ? finalAttack / 1000 : 100;
+  const damageIndex = attackScale * critFactor * damageMultiplier;
   const dpsIndex = damageIndex * cooldownFactor * attackSpeedFactor;
 
   /**
@@ -746,6 +800,13 @@ function finalizeMetrics(context) {
     cooldownIncrease,
     critOnlyDamage: percentBonuses.critOnlyDamage,
     critFactor,
+    // 공격력 사슬 — 게임 수식의 A~E. 계기판과 검산이 읽는다.
+    mainStatTotal,
+    weaponTotal,
+    pureAttack,
+    baseAttack,
+    supportAttack,
+    finalAttack,
     damageMultiplier,
     plainMultiplier,
     staggerMultiplier,
@@ -1227,6 +1288,13 @@ function assembleAttack(inputState) {
     weaponAttack: Math.round(weaponAttack),
     mainStat: Math.round(mainStat),
     flatAttack: Math.max(0, readNumber(source.flatAttack)),
+    // 순수 공격력을 기본 공격력으로 부풀리는 배수(보석 + 어빌리티 스톤).
+    // 공격력 사슬이 읽는다 — 조립한 값과 같이 다녀야 흩어지지 않는다.
+    baseScalePercent: Math.max(0, readNumber(source.baseScalePercent)),
+    // 사슬이 쓸 조각. 평면과 퍼센트를 갈라 둔다 — 게임 수식의 A·B가
+    // (평면 합) × (1 + 퍼센트 합)이라 둘이 한 번만 만나야 하기 때문이다.
+    karmaWeaponPercent: karma,
+    mainScalePercent: avatarTotal(source) + ranch,
     // 평면 증가를 나눌 기준. 조립한 값이 아니라 **배수 이전**의 합이다.
     //
     //   지능 = (장비 598,677 + 채끝 12,000) × 1.09
@@ -1242,6 +1310,14 @@ function assembleAttack(inputState) {
       ? mainTotal / mainScale
       : (mainFlat > 0 ? mainFlat : Math.max(0, readNumber(source.mainStat))),
   };
+}
+
+function supportAttackPower(inputState) {
+  const support = inputState?.convenience?.support;
+  const base = Math.max(0, readNumber(support?.baseAttackPower));
+  if (!(base > 0)) return 0;
+  const boost = Math.max(0, readNumber(support?.attackBoostPercent));
+  return base * ARC_PASSIVE_CONSTANTS.supportAttackShare * (1 + boost / 100);
 }
 
 function baseAttackPower(attack) {
@@ -1274,9 +1350,21 @@ function applyFlatAttackBonuses(flat, attack, damageGroups) {
     addDamageGroup(damageGroups, group, value / divisor * 100);
   };
 
-  convert(flat.weaponAttack, base.weaponAttack, "무기 공격력", "평면 무기 공격력");
-  convert(flat.mainStat, base.mainStat, "힘민지", "평면 힘민지");
-  convert(flat.attackPower, power, "평면 공격력", "평면 공격력");
+  // 평면을 퍼센트로 바꾸던 자리였다. 지금은 공격력 사슬이 평면을 평면대로
+  // 받으므로 환산이 필요 없다 — 오히려 틀렸다. 게임 수식의 A·B는
+  // (평면 합) × (1 + 퍼센트 합)이라 둘이 한 번만 만나는데, 환산하면 팔찌
+  // 무공 9,000이 제 몫의 퍼센트가 되어 연마 퍼센트와 한 번 더 곱해졌다.
+  //
+  // 기준값이 없어 못 세는 것만 여기서 걸러 알린다.
+  if (readNumber(flat.weaponAttack) !== 0 && base.weaponAttack <= 0) {
+    dropped.push({ label: "평면 무기 공격력", amount: readNumber(flat.weaponAttack) });
+  }
+  if (readNumber(flat.mainStat) !== 0 && base.mainStat <= 0) {
+    dropped.push({ label: "평면 힘민지", amount: readNumber(flat.mainStat) });
+  }
+  if (readNumber(flat.attackPower) !== 0 && power <= 0) {
+    dropped.push({ label: "평면 공격력", amount: readNumber(flat.attackPower) });
+  }
 
   return dropped;
 }
@@ -1605,6 +1693,7 @@ export {
   DEFAULT_STATE,
   MULTIPLICATIVE_DAMAGE_GROUPS,
   SQRT_DAMAGE_GROUPS,
+  ATTACK_CHAIN_GROUPS,
   damageGroupFactor,
   normalizeSynergy,
   legacySynergyRows,
@@ -1650,6 +1739,7 @@ export {
   getAccessoryOptionValue,
   normalizeAttack,
   assembleAttack,
+  supportAttackPower,
   baseAttackPower,
   emptyFlatBonuses,
   applyFlatAttackBonuses,
