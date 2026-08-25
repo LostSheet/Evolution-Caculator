@@ -9,6 +9,7 @@
 // 화면을 한참 들여다봤다.
 import {
   ACCESSORY_SLOTS, readListing, withListing, valueListings, gradeOf, wornCombo,
+  cellStats, orderedLines, ACCESSORY_PARTS, priceFrontier,
 } from "../src/lib/core/accessory.js";
 import { DEFAULT_STATE, mergeState, calculateMetrics, assembleAttack } from "../src/lib/core/metrics.js";
 
@@ -117,6 +118,46 @@ const now = calculateMetrics(state).damageIndex;
   check("(e) 2.4 → 중", gradeOf("critDamage", 2.4) === "mid");
   check("(e) 3.3은 아무것도 아니다", gradeOf("critDamage", 3.3) === null);
   check("(e) 낀 자리는 격자의 중·중", wornCombo(state, ring).join(":") === "mid:mid");
+}
+
+// (g) 연마 줄은 주요 옵션이 앞이다. 게임은 굴린 순서대로 준다.
+{
+  const ring = ACCESSORY_PARTS.find(item => item.key === "rings");
+  const listing = readListing(listingItem([
+    grind("아군 공격력 강화 효과", 3), grind("치명타 적중률", 1.55), grind("치명타 피해", 4),
+  ]));
+  const names = orderedLines(ring, listing).map(line => line.name);
+  check("(g) 치피 · 치적 · 기타", names.join(" ") === "치명타 피해 치명타 적중률 아군 공격력 강화 효과", names.join(" "));
+}
+
+// (h) 가성비 경계 — 자기보다 싸면서 더 센 것이 없는 것만 남는다.
+{
+  const front = priceFrontier([
+    { gain: 0.1, price: 1_000 }, { gain: 0.05, price: 5_000 },
+    { gain: 0.5, price: 100_000 }, { gain: 0.4, price: 200_000 }, { gain: 1.0, price: 300_000 },
+  ]);
+  check("(h) 셋만 남는다", front.length === 3, String(front.length));
+  check("(h) 가격 오름차순", front.every((row, at) => at === 0 || row.price > front[at - 1].price));
+  check("(h) 딜도 오름차순", front.every((row, at) => at === 0 || row.gain > front[at - 1].gain));
+}
+
+// (f) 칸의 경향 — 최고값 하나로 칸끼리 견주면 편향이 생긴다.
+//
+// 아홉 장이 손해인데 한 장만 싸게 올라온 조합은, 최고값으로 보면 1등이고
+// 중앙값으로 보면 사면 안 되는 칸이다. 둘이 갈리는 것이 이 기능의 요점이다.
+{
+  const rows = [
+    { gain: 0.04, price: 15_000 },                                   // 만골당 0.0267
+    ...Array.from({ length: 9 }, () => ({ gain: -0.07, price: 300_000 })),
+  ];
+  const stats = cellStats(rows);
+  check("(f) 열 장을 다 센다", stats.n === 10, String(stats.n));
+  check("(f) 최고는 튄 한 장을 본다", close(stats.best.rate, 0.04 / 1.5, 1e-9), stats.best.rate.toFixed(4));
+  check("(f) 중앙값은 나머지 아홉 장을 본다", stats.median.gain < 0, stats.median.gain.toFixed(3));
+  check("(f) 그래서 둘이 갈린다", stats.best.rate > 0 && stats.median.rate < 0,
+    `${stats.best.rate.toFixed(4)} vs ${stats.median.rate.toFixed(4)}`);
+  check("(f) 평균도 아홉 장 쪽이다", stats.mean.gain < 0, stats.mean.gain.toFixed(3));
+  check("(f) 빈 칸은 null", cellStats([]) === null);
 }
 
 console.log(failures === 0 ? "accessory: all checks passed" : `accessory: ${failures} failures`);

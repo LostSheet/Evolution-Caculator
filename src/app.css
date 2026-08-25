@@ -4399,8 +4399,14 @@ table.results td em.rel.down { color: var(--bad); }
 .mk-tick { fill: var(--txt-3); font-size: 10px; font-variant-numeric: tabular-nums; }
 .mk-axis { fill: var(--txt-3); font-size: 10px; }
 .mk-front { fill: none; stroke: var(--cool); stroke-width: 2; stroke-linejoin: round; opacity: 0.75; }
-.mk-dot { fill: var(--txt-3); opacity: 0.5; cursor: pointer; transition: r 90ms ease; }
-.mk-dot.lead { fill: var(--cool); opacity: 1; }
+/* 잘 사는 조합 다섯에만 색을 준다. 열여섯 색을 눈으로 가르는 사람은 없다. */
+.mk-dot { fill: var(--mk-cx); opacity: 0.55; cursor: pointer; transition: r 90ms ease; }
+.mk-dot.c0 { fill: var(--mk-c0); opacity: 0.9; }
+.mk-dot.c1 { fill: var(--mk-c1); opacity: 0.9; }
+.mk-dot.c2 { fill: var(--mk-c2); opacity: 0.9; }
+.mk-dot.c3 { fill: var(--mk-c3); opacity: 0.9; }
+.mk-dot.c4 { fill: var(--mk-c4); opacity: 0.9; }
+.mk-dot.lead { opacity: 1; stroke: var(--surface); stroke-width: 1.4; }
 .mk-dot.on { fill: var(--warm-dim); opacity: 1; }
 .mk-tip {
   position: absolute; transform: translate(-50%, -100%);
@@ -4482,3 +4488,70 @@ table.results td em.rel.down { color: var(--bad); }
 .g-gain.down { color: var(--bad); }
 .g-price { font-size: 10px; color: var(--txt-3); }
 .g-none { font-size: 11px; color: var(--txt-3); }
+
+.mk-gridbar {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 760px; margin-bottom: 6px;
+}
+.g-cap { font-size: 11px; color: var(--txt-3); }
+.g-views { display: flex; gap: 2px; margin-left: auto; }
+.g-views button {
+  padding: 2px 9px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surface); color: var(--txt-3); font-size: 11px; cursor: pointer;
+}
+.g-views button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
+.g-per.down { color: var(--bad); }
+
+/* 조합 색. 밝은 바탕과 어두운 바탕 둘 다에서 서로 갈려야 한다. */
+:root {
+  --mk-c0: #1f6fb8; --mk-c1: #c2661b; --mk-c2: #2e8055;
+  --mk-c3: #8a4bb0; --mk-c4: #b23b3b; --mk-cx: #9b9a93;
+}
+:root:not([data-theme="light"]) {
+  --mk-c0: #6ab0f0; --mk-c1: #eaa14e; --mk-c2: #5cc48c;
+  --mk-c3: #c08ce8; --mk-c4: #ef7b7b; --mk-cx: #6c6b65;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --mk-c0: #1f6fb8; --mk-c1: #c2661b; --mk-c2: #2e8055;
+    --mk-c3: #8a4bb0; --mk-c4: #b23b3b; --mk-cx: #9b9a93;
+  }
+}
+:root[data-theme="dark"] {
+  --mk-c0: #6ab0f0; --mk-c1: #eaa14e; --mk-c2: #5cc48c;
+  --mk-c3: #c08ce8; --mk-c4: #ef7b7b; --mk-cx: #6c6b65;
+}
+
+/* 지금 이 부위의 옵션이 딛고 서는 스펙. 없으면 +0.64%가 어디서 왔는지 모른다. */
+.market-context {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px;
+  font-size: 12px; color: var(--txt-2);
+}
+.market-context b { font-size: 11px; color: var(--txt-3); font-weight: 500; }
+.market-context em { font-style: normal; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; }
+
+/* 범례가 곧 조합표다. 색 · 조합 · 만골당 · 딜 · 최저가 · 장수. */
+.mk-legend { border-collapse: collapse; width: 100%; max-width: 620px; margin-bottom: 16px; font-size: 12px; }
+.mk-legend td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line-soft); }
+.mk-legend tr.on td { background: var(--surface-2); }
+.mk-legend .l-dot { width: 16px; padding-right: 0; }
+.mk-legend .dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--mk-cx); }
+.mk-legend .dot.c0 { background: var(--mk-c0); }
+.mk-legend .dot.c1 { background: var(--mk-c1); }
+.mk-legend .dot.c2 { background: var(--mk-c2); }
+.mk-legend .dot.c3 { background: var(--mk-c3); }
+.mk-legend .dot.c4 { background: var(--mk-c4); }
+.mk-legend .l-combo { width: 100%; }
+.mk-legend .l-combo button {
+  display: flex; gap: 12px; width: 100%; padding: 2px 0; text-align: left; cursor: pointer;
+  background: none; border: 0; color: var(--txt-2); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.mk-legend .l-combo button:hover { color: var(--txt); }
+.mk-legend .i-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mk-legend .l-per span {
+  font-weight: 700; color: var(--txt); padding: 1px 6px; border-radius: 2px;
+  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent);
+}
+.mk-legend .l-per span.down { color: var(--bad); background: none; }
+.mk-legend .l-gain.down { color: var(--bad); }
+.mk-legend .l-price, .mk-legend .l-n { color: var(--txt-3); }

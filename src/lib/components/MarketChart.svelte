@@ -1,6 +1,6 @@
 <script>
   /**
-   * 가격 대 딜 상승.
+   * 가격 대 딜 상승. 조합은 색으로 가른다.
    *
    * 표는 순서를 주지만 거리를 안 준다 — 0.98%와 0.10% 사이가 얼마나 먼지,
    * 170만과 1,000골드 사이가 얼마나 먼지는 숫자를 읽어 머리로 재야 한다.
@@ -16,7 +16,7 @@
   import { formatInteger } from "../core/util.js";
   import { orderedLines, priceFrontier } from "../core/accessory.js";
 
-  let { rows = [], part, onpick = () => {} } = $props();
+  let { rows = [], part, colorOf = () => null, onpick = () => {} } = $props();
 
   const PAD = { top: 18, right: 18, bottom: 44, left: 52 };
   const height = 260;
@@ -96,8 +96,8 @@
 
       {#each points as row, at (at)}
         {@const lead = onFront.has(row)}
-        <circle class="mk-dot" class:lead class:on={hovered === row}
-                cx={px(row.price)} cy={py(row.gain)} r={lead ? 5 : 3.2}
+        <circle class="mk-dot c{colorOf(row) ?? 'x'}" class:lead class:on={hovered === row}
+                cx={px(row.price)} cy={py(row.gain)} r={lead ? 5.5 : 3.6}
                 role="button" tabindex="-1"
                 onmouseenter={() => (hovered = row)}
                 onmouseleave={() => (hovered = null)}

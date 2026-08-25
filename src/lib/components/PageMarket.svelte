@@ -10,12 +10,13 @@
    * 보였다 — 답은 1,000골드짜리 치피 상 한 장인데 그건 어느 칸의 얼굴도
    * 아니었다. 열여섯 조합을 다 훑되 결과는 한 목록으로 합쳐 골드당으로 세운다.
    */
-  import { app, marketPart, wornAt, wornOfPart, setMarket } from "../store.svelte.js";
+  import { app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket } from "../store.svelte.js";
   import {
     ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, GRADE_VALUES, partSlots, orderedLines,
-    comboOf, frontierPicks,
+    comboOf, frontierPicks, cellStats, PART_CONTEXT,
   } from "../core/accessory.js";
   import { formatInteger, readNumber } from "../core/util.js";
+  import { calculateMetrics } from "../core/metrics.js";
   import Select from "./Select.svelte";
   import MarketChart from "./MarketChart.svelte";
 
@@ -76,22 +77,60 @@
    * 받아 둔 매물을 조합별로 묶는다. 경매장을 또 쏘지 않으므로 '없음'도
    * 짐작이 아니라 사실이다.
    */
-  const GRID = ["high", "mid", "low", "none"];
+  const VIEWS = [
+    { value: "median", label: "중앙값" },
+    { value: "mean", label: "평균" },
+    { value: "best", label: "최고" },
+  ];
   const cells = $derived.by(() => {
-    const out = new Map();
+    const pooled = new Map();
     all.forEach(row => {
       const key = comboOf(part, row.listing).join(":");
-      const seat = out.get(key);
-      if (!seat) { out.set(key, { rows: [row], best: row }); return; }
-      seat.rows.push(row);
-      const a = row.perGold ?? -Infinity;
-      const b = seat.best.perGold ?? -Infinity;
-      if (a > b || (a === b && row.gain > seat.best.gain)) seat.best = row;
+      if (!pooled.has(key)) pooled.set(key, []);
+      pooled.get(key).push(row);
     });
+    const out = new Map();
+    pooled.forEach((group, key) => out.set(key, cellStats(group)));
     return out;
   });
-  const topCell = $derived(Math.max(0, ...[...cells.values()].map(seat => readNumber(seat.best.perGold))));
+  const seatOf = seat => seat[app.market.cellView];
+
+  /**
+   * 범례 — 조합마다 한 줄.
+   *
+   * 잘 사는 조합 다섯에만 색을 준다. 열여섯 색을 눈으로 가르는 사람은 없고,
+   * 나머지는 회색 구름으로 남아도 "그 위쪽에 뭐가 있나"는 그대로 보인다.
+   */
+  const LEGEND_COLORS = 5;
+  const legend = $derived.by(() => {
+    const list = [...cells.entries()]
+      .map(([key, seat]) => ({ key, seat, view: seatOf(seat), combo: key.split(":") }))
+      .sort((a, b) => b.view.rate - a.view.rate);
+    return list.map((item, at) => ({ ...item, color: at < LEGEND_COLORS ? at : null }));
+  });
+  const colorByCombo = $derived(new Map(legend.map(item => [item.key, item.color])));
+  const colorOf = row => colorByCombo.get(comboOf(part, row.listing).join(":")) ?? null;
+
+  // 이 부위의 옵션이 딛고 서는 현재 스펙. 없으면 +0.64%가 어디서 왔는지 모른다.
+  const context = $derived.by(() => {
+    const report = calculateMetrics(app.character);
+    return (PART_CONTEXT[part.key] ?? [])
+      .map(item => ({ label: item.label, value: readNumber(item.read(report)) }))
+      .filter(item => item.value > 0);
+  });
+  const topCell = $derived(Math.max(0, ...[...cells.values()].map(seat => seatOf(seat).rate)));
   const cellHeat = per => (per > 0 && topCell > 0 ? (per / topCell) ** 0.35 : 0);
+
+  /**
+   * 비어 있으면 스스로 훑는다.
+   *
+   * 부위를 고르고 나서 "훑기"를 또 눌러야 뭔가 나오는 건 걸음이 하나 남는
+   * 것이다. 차 있으면 손대지 않는다 — 시세는 사람이 갱신할 때만 바뀐다.
+   */
+  $effect(() => {
+    if (found || app.market.running || app.market.error || !app.api.key) return;
+    sweepMarket();
+  });
   const gradeText = (field, grade) =>
     (grade === "none" ? "없음" : `${GRADE_LABEL[grade]} ${GRADE_VALUES[field][grade].toFixed(2)}%`);
   const onCell = (a, b) =>
@@ -147,6 +186,15 @@
     {/each}
   </div>
 
+  {#if context.length > 0}
+    <div class="market-context">
+      <b>지금</b>
+      {#each context as item (item.label)}
+        <span>{item.label} <em>{item.value.toFixed(item.value >= 100 ? 0 : 2)}%</em></span>
+      {/each}
+    </div>
+  {/if}
+
   <div class="market-filters">
     <label>등급
       <Select options={GRADE_OPTIONS} value={app.market.grade}
@@ -200,39 +248,41 @@
     </div>
   {/if}
 
+  {#if rows.length > 0}
+    <MarketChart {rows} {part} {colorOf} onpick={row => { picked = row; }} />
+  {/if}
+
   {#if cells.size > 0}
-    <!-- 조합 격자. 이미 받아 둔 매물을 묶은 것이라 경매장을 또 쏘지 않는다. -->
-    <table class="mk-grid">
-      <thead>
-        <tr>
-          <th class="g-corner">
-            <span>↓ {FIELD_LABEL[part.fields[0]]}</span>
-            <span>→ {FIELD_LABEL[part.fields[1]]}</span>
-          </th>
-          {#each GRID as b (b)}<th>{gradeText(part.fields[1], b)}</th>{/each}
-        </tr>
-      </thead>
+    <div class="mk-gridbar">
+      <span class="g-cap">조합별 경향 — 만골당 · 딜 · 최저가</span>
+      <span class="g-views">
+        {#each VIEWS as view (view.value)}
+          <button type="button" class:on={app.market.cellView === view.value}
+                  onclick={() => setMarket({ cellView: view.value })}>{view.label}</button>
+        {/each}
+      </span>
+    </div>
+    <table class="mk-legend">
       <tbody>
-        {#each GRID as a (a)}
-          <tr>
-            <th>{gradeText(part.fields[0], a)}</th>
-            {#each GRID as b (b)}
-              {@const seat = cells.get(`${a}:${b}`)}
-              {@const on = app.market.filter[0] === a && app.market.filter[1] === b}
-              <td class:on>
-                <button type="button" disabled={!seat} onclick={() => onCell(a, b)}>
-                  {#if !seat}
-                    <span class="g-none">·</span>
-                  {:else}
-                    <span class="g-per" style="--heat:{cellHeat(seat.best.perGold)}">
-                      {seat.best.perGold === null ? "—" : seat.best.perGold.toFixed(4)}
-                    </span>
-                    <span class="g-gain" class:down={seat.best.gain < 0}>{pct(seat.best.gain)}</span>
-                    <span class="g-price">{money(seat.best.price)} · {seat.rows.length}장</span>
-                  {/if}
-                </button>
-              </td>
-            {/each}
+        {#each legend as item (item.key)}
+          {@const on = app.market.filter[0] === item.combo[0] && app.market.filter[1] === item.combo[1]}
+          <tr class:on>
+            <td class="l-dot"><i class="dot c{item.color ?? 'x'}"></i></td>
+            <td class="l-combo">
+              <button type="button" onclick={() => onCell(item.combo[0], item.combo[1])}>
+                {#each part.fields as field, at (field)}
+                  <span>{FIELD_LABEL[field]} {gradeText(field, item.combo[at])}</span>
+                {/each}
+              </button>
+            </td>
+            <td class="i-num l-per">
+              <span class:down={item.view.rate < 0} style="--heat:{cellHeat(item.view.rate)}">
+                {item.view.rate > 0 ? item.view.rate.toFixed(4) : "—"}
+              </span>
+            </td>
+            <td class="i-num l-gain" class:down={item.view.gain < 0}>{pct(item.view.gain)}</td>
+            <td class="i-num l-price">{money(Math.round(item.view.price))}</td>
+            <td class="i-num l-n">{item.seat.n}장</td>
           </tr>
         {/each}
       </tbody>

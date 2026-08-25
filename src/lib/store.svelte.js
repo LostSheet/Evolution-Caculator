@@ -347,7 +347,7 @@ export const app = $state({
   // 경매장. 부위 하나를 골라 연마 조합 열여섯 가지를 훑고, 나온 매물을
   // 한 목록으로 합쳐 골드당으로 세운다.
   market: {
-    ...{ part: "rings", grade: "고대", quality: 70, sort: "perGold" },
+    ...{ part: "rings", grade: "고대", quality: 70, sort: "perGold", cellView: "median" },
     ...load(MARKET_KEY, {}),
     // 부위마다 따로 담는다 — 부위를 바꿨다고 앞서 훑은 것을 버릴 이유가 없다.
     found: { necklace: null, rings: null },
@@ -1897,6 +1897,11 @@ export function wornAt(slot) {
   return readNumber(found?.mainStat) > 0 ? found : null;
 }
 
+/** 지금 부위에 이미 훑어 둔 것이 있나. 상단 단추가 '훑기'냐 '갱신'이냐를 가른다. */
+export function marketHasResults() {
+  return (app.market.found[app.market.part]?.items?.length ?? 0) > 0;
+}
+
 /** 이 부위에 낀 것들. 화면이 "지금 뭘 끼고 있나"를 적는 데 쓴다. */
 export function wornOfPart(part) {
   return partSlots(part).map(slot => ({ slot, worn: wornAt(slot) }));
@@ -1907,7 +1912,7 @@ export function setMarket(patch) {
   try {
     localStorage.setItem(MARKET_KEY, JSON.stringify({
       part: app.market.part, grade: app.market.grade,
-      quality: app.market.quality, sort: app.market.sort,
+      quality: app.market.quality, sort: app.market.sort, cellView: app.market.cellView,
     }));
   } catch {}
 }

@@ -1,6 +1,6 @@
 <script>
   import {
-    app, PAGES, PAGE, goPage, goTab, setTab, currentTab, sweepMarket,
+    app, PAGES, PAGE, goPage, goTab, setTab, currentTab, sweepMarket, marketHasResults,
     selectedResult, resultState, boxedSlot, toggleBoxed,
     startSearch, cancelSearch, cycleTheme,
     toggleDrawer, buildState, makeMine,
@@ -220,7 +220,7 @@
       <button class="btn primary" type="button" onclick={() => goPage(PAGE.search)}>탐색으로 →</button>
     {:else if app.page === PAGE.market}
       <button class="btn primary" type="button" disabled={app.market.running || !app.api.key} onclick={sweepMarket}>
-        {app.market.running ? `${app.market.done}/16` : "훑기"}
+        {app.market.running ? `${app.market.done}/16` : marketHasResults() ? "갱신" : "훑기"}
       </button>
     {:else if app.running}
       <button class="btn" type="button" onclick={cancelSearch}>중지</button>

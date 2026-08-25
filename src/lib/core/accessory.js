@@ -366,3 +366,61 @@ export function frontierPicks(rows, limit = 5) {
     picks[picks.length - 1],
   ].slice(0, limit);
 }
+
+/**
+ * 칸 하나의 경향.
+ *
+ * 최고값 한 장으로 칸끼리 견주면 편향이 생긴다 — 극단 통계라, 어쩌다 싸게
+ * 올라온 한 장이 그 조합 전체를 대표해 버린다. 열 장의 중앙값이 훨씬 덜 흔들린다.
+ *
+ * 골드당은 부호를 살려 센다. 줄 하나짜리로 볼 때는 손해에 골드당을 안 매기지만
+ * (싸게 손해 보는 것이 덜 나쁜 것은 아니므로), 칸의 경향으로는 "이 조합은
+ * 사면 대체로 내려간다"가 답이라 음수도 답의 일부다.
+ */
+const median = list => {
+  if (list.length === 0) return 0;
+  const sorted = [...list].sort((a, b) => a - b);
+  const at = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[at] : (sorted[at - 1] + sorted[at]) / 2;
+};
+const mean = list => (list.length === 0 ? 0 : list.reduce((sum, x) => sum + x, 0) / list.length);
+
+export function cellStats(rows) {
+  if (rows.length === 0) return null;
+  const priced = rows.filter(row => row.price > 0);
+  const source = priced.length > 0 ? priced : rows;
+  const rateOf = row => (row.price > 0 ? row.gain / (row.price / 10000) : 0);
+  const rates = source.map(rateOf);
+  const gains = source.map(row => row.gain);
+  const prices = source.map(row => row.price);
+  const top = source.reduce((best, row) => (rateOf(row) > rateOf(best) ? row : best), source[0]);
+  return {
+    n: rows.length,
+    median: { rate: median(rates), gain: median(gains), price: median(prices) },
+    mean: { rate: mean(rates), gain: mean(gains), price: mean(prices) },
+    best: { rate: rateOf(top), gain: top.gain, price: top.price, row: top },
+  };
+}
+
+/**
+ * 이 부위의 옵션이 딛고 서는 현재 스펙.
+ *
+ * 치적 옵션의 값어치는 지금 치피가 얼마인지에 달려 있고, 추피 옵션의 값어치는
+ * 지금 추피 합이 얼마인지에 달려 있다. 그 숫자를 옆에 안 적어 두면 화면이
+ * 내놓는 +0.64%가 어디서 온 건지 알 길이 없다.
+ *
+ * 적주피는 뺐다. 주는 피해는 저희끼리 곱연산이라 지금 값에 거의 안 매인다.
+ */
+export const PART_CONTEXT = {
+  rings: [
+    { label: "치명타 적중률", read: report => report.critRateCapped, unit: "%" },
+    { label: "치명타 피해", read: report => report.critDamage, unit: "%" },
+  ],
+  necklace: [
+    { label: "추가 피해", read: report => report.damageGroups?.["추가 피해"], unit: "%" },
+  ],
+  earrings: [
+    { label: "공격력", read: report => report.damageGroups?.["공격력"], unit: "%" },
+    { label: "무기 공격력", read: report => report.damageGroups?.["무기 공격력"], unit: "%" },
+  ],
+};
