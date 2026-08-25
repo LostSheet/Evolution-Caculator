@@ -694,11 +694,21 @@ function finalizeMetrics(context) {
   // 연마 퍼센트는 악세 모델(귀걸이 상중하)이 들고 있다. assembleAttack이 쓰는
   // attack.weaponPercent와 같은 것이라, 둘 다 곱하면 3.6%가 두 번 실린다 —
   // 그래서 여기서는 조립한 값이 아니라 평면(weaponBase)에서 다시 세운다.
-  const mainFlatSum = Math.max(0, readNumber(attack.mainBase)) + readNumber(flatBonuses.mainStat);
+  //
+  // 기준값을 모르면 사슬은 아예 안 선다.
+  //
+  // 예전에는 평면만 들고도 값을 만들었다. 사전 세팅에 공격력을 안 적은 채
+  // 팔찌 무공 +9,000만 있으면 그게 무공 전부가 되어, 팔찌를 빼면 딜이 0이
+  // 되고 "이 팔찌가 +162%"라는 답이 나왔다. 모르는 것은 모른다고 해야 한다 —
+  // 그 사실은 droppedFlat이 이미 따로 알린다.
+  const mainBase = Math.max(0, readNumber(attack.mainBase));
+  const weaponBase = Math.max(0, readNumber(attack.weaponBase));
+  const chainKnown = mainBase > 0 && weaponBase > 0;
+  const mainFlatSum = chainKnown ? mainBase + readNumber(flatBonuses.mainStat) : 0;
   const mainStatTotal = mainFlatSum
     * (1 + readNumber(attack.mainScalePercent) / 100)
     * (1 + readNumber(damageGroups["힘민지"]) / 100);
-  const weaponFlatSum = Math.max(0, readNumber(attack.weaponBase)) + readNumber(flatBonuses.weaponAttack);
+  const weaponFlatSum = chainKnown ? weaponBase + readNumber(flatBonuses.weaponAttack) : 0;
   const weaponTotal = weaponFlatSum
     * (1 + (readNumber(attack.karmaWeaponPercent) + readNumber(damageGroups["무기 공격력"])) / 100);
   const pureAttack = Math.sqrt(Math.max(0, mainStatTotal * weaponTotal / 6));
@@ -707,16 +717,20 @@ function finalizeMetrics(context) {
   // (1 + 아군 공격력 강화 효과 증가)가 내 기본 공격력에 더해진다. 괄호 안에
   // 들어가기 때문에 무공·힘민지를 희석한다. 곱연산 그룹으로 두면 그 희석이
   // 일어나지 않아서, 서폿이 붙어도 귀걸이 무공의 값어치가 그대로 나온다.
-  const supportAttack = readNumber(supportAttackFlat);
-  const finalAttack = (baseAttack + readNumber(flatBonuses.attackPower) + supportAttack)
-    * (1 + readNumber(damageGroups["공격력"]) / 100)
-    * (1 + readNumber(damageGroups["시너지 공격력"]) / 100);
+  const supportAttack = chainKnown ? readNumber(supportAttackFlat) : 0;
+  const finalAttack = chainKnown
+    ? (baseAttack + readNumber(flatBonuses.attackPower) + supportAttack)
+      * (1 + readNumber(damageGroups["공격력"]) / 100)
+      * (1 + readNumber(damageGroups["시너지 공격력"]) / 100)
+    : 0;
 
   // 위 셋은 사슬이 삼켰다. 피해 배수에서 또 곱하면 두 번이다.
 
   // 평시 배수와 무력화 배수를 따로 접는다. 무력화 쪽은 대난투 비중만큼만 섞는다.
+  // 사슬이 서면 그 넷은 사슬이 삼킨다. 안 서면(공격력을 모르면) 예전처럼
+  // 여기서 곱한다 — 안 그러면 귀걸이 연마가 통째로 사라진다.
   const plainMultiplier = Object.entries(damageGroups)
-    .filter(([key]) => !STAGGER_DAMAGE_GROUPS.has(key) && !ATTACK_CHAIN_GROUPS.has(key))
+    .filter(([key]) => !STAGGER_DAMAGE_GROUPS.has(key) && !(chainKnown && ATTACK_CHAIN_GROUPS.has(key)))
     .reduce((acc, [key, value]) => acc * damageGroupFactor(key, value), 1);
   const staggerMultiplier = Object.entries(damageGroups)
     .filter(([key]) => STAGGER_DAMAGE_GROUPS.has(key))

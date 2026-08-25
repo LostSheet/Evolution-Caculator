@@ -52,6 +52,13 @@ function randomState() {
   return mergeState(DEFAULT_STATE, {
     nodeLevels,
     baseEffects,
+    // 절반은 공격력 기준값을 준다. 안 주면 사슬이 안 서서 (b2)가 한 판도
+    // 못 밟는다 — 실제로 0판이 나온 적이 있다.
+    attack: maybe() ? {} : {
+      weaponAttack: 60000 + Math.floor(Math.random() * 40000),
+      mainStat: 80000 + Math.floor(Math.random() * 60000),
+      baseScalePercent: Math.random() * 10,
+    },
     arkGrid: { cores, gems: { attack: Math.floor(Math.random() * 31), additional: Math.floor(Math.random() * 21), boss: Math.floor(Math.random() * 21) } },
     weapon: { quality: Math.floor(Math.random() * 101) },
     collection: {
@@ -156,8 +163,9 @@ for (let trial = 0; trial < 200; trial += 1) {
   const state = randomState();
   const report = explainMetrics(state);
   const share = readNumberSafe(report.metrics.staggerShare);
+  const chainOn = report.metrics.finalAttack > 0;
   const fold = keep => report.damage
-    .filter(group => !ATTACK_CHAIN_GROUPS.has(group.key))
+    .filter(group => !(chainOn && ATTACK_CHAIN_GROUPS.has(group.key)))
     .filter(group => STAGGER_DAMAGE_GROUPS.has(group.key) === keep)
     .reduce((acc, group) => acc * group.multiplier, 1);
   const product = fold(false) * (1 - share + share * fold(true));

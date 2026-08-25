@@ -12,7 +12,8 @@
     assembleAttack, baseAttackPower, RANCH_GRADES, resolveRanchMainStat, ranchResidual, JEWEL_MAX_LEVEL, jewelCooldown,
     AVATAR_SLOTS, AVATAR_GRADES, avatarTotal,
   } from "../core/metrics.js";
-  import { makeId, formatNumber, formatInteger, clamp, readNumber } from "../core/util.js";
+  import { makeId, formatNumber, formatInteger, formatSignedPercent, clamp, readNumber } from "../core/util.js";
+  import { braceletValue } from "../core/explain.js";
   import { app, persist, resetSection, isOpen, setFold } from "../store.svelte.js";
   import Hint from "./Hint.svelte";
   import Select from "./Select.svelte";
@@ -134,6 +135,9 @@
         return `${entry.item.name} · ${BRACELET_GRADES[entry.gradeIndex].label}${on ? "" : " · 미적용"}`;
       }),
   ]);
+
+  // 팔찌를 껴서 얼마나 세졌나. 줄마다 그것만 뺐을 때와 견준다.
+  const braceletWorth = $derived(braceletChips.length > 0 ? braceletValue(app.character) : null);
 
   const gridChips = $derived.by(() => {
     const grid = app.character.arkGrid;
@@ -430,13 +434,36 @@
                   onclick={e => { e.preventDefault(); e.stopPropagation(); onOpenBracelet(); }}>편집</button>
         </summary>
         <div class="card-body">
-          <div class="summary-line">
-            {#if braceletChips.length === 0}
-              <span class="empty">선택 없음</span>
-            {:else}
+          <!--
+            팔찌는 적어 넣고 마는 칸이 아니다. 리롤할지 말지를 정하려면 지금 낀
+            것이 나에게 무엇을 해주고 있는지가 보여야 한다. 기준은 팔찌를 안 낀
+            나이고, 줄마다도 그 줄만 뺀 나와 견준다.
+          -->
+          {#if braceletChips.length === 0}
+            <div class="summary-line"><span class="empty">선택 없음</span></div>
+          {:else if braceletWorth}
+            <div class="worth">
+              <div class="worth-head">
+                <span>이 팔찌를 껴서</span>
+                <b>{formatSignedPercent(braceletWorth.total)}</b>
+              </div>
+              <ul class="worth-lines">
+                {#each braceletWorth.lines as line (line.key)}
+                  <li>
+                    <span>{line.label}</span>
+                    <em>{formatSignedPercent(line.gain)}</em>
+                  </li>
+                {/each}
+              </ul>
+              <!-- 줄들의 합이 위 숫자와 딱 안 맞는다. 피해 그룹이 곱으로
+                   얽혀 있어서 그렇지 빠진 몫이 있는 것이 아니다. -->
+              <small>줄마다 그것만 뺐을 때와 견준 값입니다</small>
+            </div>
+          {:else}
+            <div class="summary-line">
               {#each braceletChips as chip}<span class="chip">{chip}</span>{/each}
-            {/if}
-          </div>
+            </div>
+          {/if}
         </div>
       </details>
 

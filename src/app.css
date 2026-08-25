@@ -4318,3 +4318,43 @@ table.results td em.rel.down { color: var(--bad); }
   box-shadow: inset 0 -1px 0 var(--line);
 }
 
+
+/* 팔찌 효율 — 이 팔찌를 껴서 얼마나 세졌나.
+   적어 넣고 마는 칸이던 자리를 진단표로 쓴다. 리롤할지 말지는 "지금 것이
+   무엇을 해주고 있나"를 봐야 정해진다. */
+.worth { display: grid; gap: 8px; }
+.worth-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12.5px;
+  color: var(--txt-3);
+}
+.worth-head b {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  color: var(--good);
+}
+.worth-lines { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.worth-lines li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--txt-2);
+}
+.worth-lines li span { flex: 1 1 auto; min-width: 0; }
+/* 줄마다 제 몫이 오른쪽 끝에서 세로로 줄을 맞춘다 — 크기 비교가 눈으로 된다. */
+.worth-lines li em {
+  flex: none;
+  font-style: normal;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--cool);
+}
+.worth small { font-size: 11px; color: var(--txt-3); }

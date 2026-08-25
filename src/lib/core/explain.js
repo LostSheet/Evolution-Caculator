@@ -696,3 +696,62 @@ export function marginalGain(state, node, metrics, budget) {
 }
 
 export { DAMAGE_GROUP_ORDER, STAT_FIELDS };
+
+/**
+ * 팔찌 효율 — 이 팔찌를 껴서 얼마나 세졌나.
+ *
+ * 묻는 것이 "이 줄을 올리면 얼마"가 아니라 "지금 이 팔찌가 나에게 무엇을
+ * 해주고 있나"다. 그래서 기준은 팔찌를 안 낀 나이고, 줄마다도 그 줄만 뺀
+ * 나와 견준다.
+ *
+ * 줄들의 합이 전체와 딱 맞지는 않는다 — 피해 그룹이 곱으로 얽혀 있어서
+ * 그렇다. 그건 오차가 아니라 성질이라 각각 제 기준으로 적는다.
+ */
+export function braceletValue(state) {
+  const now = calculateMetrics(state);
+  if (!(now.damageIndex > 0)) return null;
+  // 공격력을 모르면 팔찌 평면(무공 +9,000 · 힘민지)이 계산에 안 들어간다.
+  // 그 상태로 재면 퍼센트 줄만 값이 있는 반쪽짜리 답이 나오므로 아예 안 잰다.
+  if (!(now.finalAttack > 0)) return null;
+
+  // 뺀 상태를 기준으로 지금이 몇 % 위인가.
+  const gainOver = without => {
+    const base = calculateMetrics(without).damageIndex;
+    return base > 0 ? (now.damageIndex / base - 1) * 100 : 0;
+  };
+  const strip = fn => {
+    const next = { ...state, bracelet: { ...normalizeBracelet(state.bracelet) } };
+    next.bracelet.stats = { ...next.bracelet.stats };
+    next.bracelet.effects = { ...next.bracelet.effects };
+    fn(next.bracelet);
+    return next;
+  };
+
+  const bracelet = normalizeBracelet(state.bracelet);
+  const lines = [];
+  BRACELET_STAT_FIELDS.forEach(field => {
+    const amount = readNumber(bracelet.stats?.[field.key]);
+    if (!(amount > 0)) return;
+    lines.push({
+      key: field.key,
+      // 전투 특성은 정수다. +72.00은 잡음이다.
+      label: `${field.label} +${Math.round(amount)}`,
+      gain: gainOver(strip(b => { b.stats[field.key] = 0; })),
+    });
+  });
+  BRACELET_EFFECTS.forEach(item => {
+    const at = getBraceletGradeIndex(bracelet.effects?.[item.id]);
+    if (at < 0) return;
+    lines.push({
+      key: item.id,
+      label: `${item.name} ${BRACELET_GRADES[at].label}`,
+      gain: gainOver(strip(b => { delete b.effects[item.id]; })),
+    });
+  });
+
+  lines.sort((a, b) => b.gain - a.gain);
+  return {
+    total: gainOver(strip(b => { b.stats = {}; b.effects = {}; b.mainStat = 0; })),
+    lines,
+  };
+}
