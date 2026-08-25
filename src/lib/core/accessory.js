@@ -15,11 +15,11 @@ import { readNumber } from "./util.js";
 
 /** 부위마다 우리가 모델로 든 두 갈래. */
 export const ACCESSORY_SLOTS = [
-  { key: "necklace", part: "목걸이", label: "목걸이", index: 0, fields: ["additionalDamage", "dealtDamage"] },
+  { key: "necklace", part: "목걸이", label: "목걸이", index: 0, fields: ["dealtDamage", "additionalDamage"] },
   { key: "earrings", part: "귀걸이", label: "귀걸이 1", index: 0, fields: ["attackPower", "weaponAttack"] },
   { key: "earrings", part: "귀걸이", label: "귀걸이 2", index: 1, fields: ["attackPower", "weaponAttack"] },
-  { key: "rings", part: "반지", label: "반지 1", index: 0, fields: ["critRate", "critDamage"] },
-  { key: "rings", part: "반지", label: "반지 2", index: 1, fields: ["critRate", "critDamage"] },
+  { key: "rings", part: "반지", label: "반지 1", index: 0, fields: ["critDamage", "critRate"] },
+  { key: "rings", part: "반지", label: "반지 2", index: 1, fields: ["critDamage", "critRate"] },
 ];
 
 /**
@@ -41,7 +41,7 @@ const GRIND_MAP = {
 };
 
 // 상중하를 되짚는 표. 게임이 값을 못 박아 두어서 값 하나면 등급이 정해진다.
-const GRADE_VALUES = {
+export const GRADE_VALUES = {
   critRate: { high: 1.55, mid: 0.95, low: 0.4 },
   critDamage: { high: 4, mid: 2.4, low: 1.1 },
   additionalDamage: { high: 2.6, mid: 1.6, low: 0.6 },
@@ -81,6 +81,8 @@ export function readListing(item) {
     mainStat: 0,
     options: {},
     flat: { attackPower: 0, weaponAttack: 0 },
+    // 연마 세 줄을 온 대로. { name, value, percent, grade, counted }
+    lines: [],
     unmodeled: [],
   };
   (item?.Options ?? []).forEach(option => {
@@ -94,12 +96,15 @@ export function readListing(item) {
     }
     if (type !== "ACCESSORY_UPGRADE") return;
     // 퍼센트인지 평면인지로 같은 이름이 갈린다 — '공격력 +1.55%'와 '공격력 +390'.
-    const key = option?.IsValuePercentage ? `${name} %` : `${name} +`;
+    const percent = !!option?.IsValuePercentage;
+    const key = percent ? `${name} %` : `${name} +`;
     const hit = GRIND_MAP[key] ?? GRIND_MAP[name];
-    if (!hit) { out.unmodeled.push(`${name} ${value}${option?.IsValuePercentage ? "%" : ""}`); return; }
-    if (hit.kind === "flat") { out.flat[hit.field] += value; return; }
+    const line = { name, value, percent, field: hit?.field ?? null, kind: hit?.kind ?? null, grade: null, counted: false };
+    out.lines.push(line);
+    if (!hit) { out.unmodeled.push(`${name} ${value}${percent ? "%" : ""}`); return; }
+    if (hit.kind === "flat") { out.flat[hit.field] += value; line.counted = true; return; }
     const grade = gradeOf(hit.field, value);
-    if (grade) out.options[hit.field] = grade;
+    if (grade) { out.options[hit.field] = grade; line.grade = grade; line.counted = true; }
     else out.unmodeled.push(`${name} ${value}%`);
   });
   return out;
@@ -240,4 +245,124 @@ export function wornCombo(state, slot) {
     const grade = target?.[field] ?? "none";
     return grade === "none" ? "any" : grade;
   });
+}
+
+// --- 부위 -------------------------------------------------------------------
+//
+// 화면이 고르는 단위는 자리가 아니라 부위다. 반지가 둘이라고 시장이 둘로
+// 갈리지는 않는다 — 같은 매물을 놓고 "둘 중 나쁜 쪽을 바꾼다"가 실제 행동이다.
+
+export const ACCESSORY_PARTS = [
+  { key: "necklace", label: "목걸이", part: "목걸이", fields: ["dealtDamage", "additionalDamage"] },
+  { key: "rings", label: "반지", part: "반지", fields: ["critDamage", "critRate"] },
+];
+
+export const partSlots = part => ACCESSORY_SLOTS.filter(slot => slot.key === part.key);
+
+/** 같은 매물이 조합을 넘나들며 여러 번 잡힌다('무관'이 나머지를 품는다). */
+export const listingKey = listing => [
+  listing.name, listing.quality, listing.price, listing.startPrice, listing.mainStat,
+  listing.lines.map(line => `${line.name}:${line.value}:${line.percent ? 1 : 0}`).join(","),
+].join("|");
+
+/**
+ * 이 매물을 어느 자리에 끼는 게 나은가.
+ *
+ * 반지가 둘이면 나쁜 쪽을 바꾼다. 좋은 쪽과 견주면 멀쩡한 매물이 손해로 보인다.
+ */
+export function bestSwap(state, part, listing, wornOf) {
+  let best = null;
+  partSlots(part).forEach(slot => {
+    const worn = wornOf(slot);
+    const after = calculateMetrics(withListing(state, slot, listing, worn)).damageIndex;
+    if (!best || after > best.after) best = { slot, worn, after };
+  });
+  return best;
+}
+
+/** 부위 하나의 매물들에 값을 매긴다. 자리 고르기는 안에서 끝낸다. */
+export function valuePart(state, part, listings, wornOf) {
+  const now = calculateMetrics(state).damageIndex;
+  if (!(now > 0)) return [];
+  return listings.map(listing => {
+    const best = bestSwap(state, part, listing, wornOf);
+    const gain = (best.after / now - 1) * 100;
+    const price = readNumber(listing.price) || readNumber(listing.startPrice);
+    return {
+      listing,
+      slot: best.slot,
+      gain,
+      price,
+      // 골드 만 냥당 딜 %. 손해나는 매물은 안 잰다 — '싸게 손해'를 줄 세우면 안 된다.
+      perGold: price > 0 && gain > 0 ? gain / (price / 10000) : null,
+    };
+  });
+}
+
+/**
+ * 연마 세 줄을 읽는 순서로.
+ *
+ * 주요 옵션이 앞이다 — 목걸이는 적주피·추피, 반지는 치피·치적. 게임은 굴린
+ * 순서대로 적어 주는데, 그러면 같은 반지라도 줄 순서가 매물마다 달라서 표를
+ * 세로로 훑을 수가 없다. 없는 옵션은 자리를 안 잡고 뒤가 당겨진다.
+ */
+export function orderedLines(part, listing) {
+  const rank = line => {
+    if (line.kind === "option") {
+      const at = part.fields.indexOf(line.field);
+      if (at >= 0) return at;
+    }
+    // 평면 공격력·무공은 딜에 실리므로 못 세는 줄보다는 앞이다.
+    return line.counted ? part.fields.length : part.fields.length + 1;
+  };
+  return [...listing.lines]
+    .map((line, at) => ({ line, at, rank: rank(line) }))
+    .sort((a, b) => a.rank - b.rank || a.at - b.at)
+    .map(item => item.line);
+}
+
+/** 이 매물이 격자의 어느 칸인가. 모델이 아는 두 갈래만 본다. */
+export const comboOf = (part, listing) =>
+  part.fields.map(field => listing.options[field] ?? "none");
+
+/**
+ * 가성비 경계 — 자기보다 싸면서 더 센 매물이 없는 것들.
+ *
+ * 경계 아래의 점은 살 이유가 없다. 그리고 경계의 기울기가 곧 한계 골드당이라,
+ * 선이 눕는 지점부터는 돈을 더 써도 덜 오른다. 그래프와 답 띠가 같은 것을
+ * 보게 하려면 한 군데서 세야 한다.
+ */
+export function priceFrontier(rows) {
+  const sorted = rows
+    .filter(row => row.gain > 0 && row.price > 0)
+    .sort((a, b) => a.price - b.price || b.gain - a.gain);
+  const kept = [];
+  let best = 0;
+  sorted.forEach(row => { if (row.gain > best) { best = row.gain; kept.push(row); } });
+  return kept;
+}
+
+/**
+ * 경계에서 '살 만한 것' 몇 장만 골라 낸다.
+ *
+ * 경계에는 옆 점과 0.01%밖에 차이 안 나는 것들이 붙어 있다. 그걸 다 늘어놓으면
+ * 고르라는 건지 읽으라는 건지 알 수 없다. 앞의 것보다 눈에 띄게 세진 것만 남긴다.
+ */
+export function frontierPicks(rows, limit = 5) {
+  const front = priceFrontier(rows);
+  if (front.length === 0) return [];
+  const top = front[front.length - 1].gain;
+  const step = top * 0.12;
+  const picks = [front[0]];
+  front.slice(1).forEach(row => {
+    if (row.gain - picks[picks.length - 1].gain >= step) picks.push(row);
+  });
+  // 제일 센 것은 늘 남는다 — "돈을 다 쓰면 어디까지"가 답의 한쪽 끝이다.
+  const best = front[front.length - 1];
+  if (picks[picks.length - 1] !== best) picks.push(best);
+  return picks.length <= limit ? picks : [
+    picks[0],
+    ...picks.slice(1, -1).filter((_, at) => at % Math.ceil((picks.length - 2) / (limit - 2)) === 0),
+    picks[picks.length - 1],
+  ].slice(0, limit);
 }

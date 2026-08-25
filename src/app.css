@@ -4360,75 +4360,125 @@ table.results td em.rel.down { color: var(--bad); }
 .worth small { font-size: 11px; color: var(--txt-3); }
 
 /* --- 악세 · 경매장 ---------------------------------------------------------
-   답이 지형이라 격자로 둔다. 색은 만골당 하나만 칠한다 — 두 가지를 칠하면
-   무엇을 보라는 건지 알 수 없다. */
+   화면은 목록 한 장이다. 조합별 격자를 그려 봤는데 "어느 칸이 싼가"는 보여도
+   "지금 살 것은 무엇인가"가 안 보였다. 그래프가 거리를 주고, 표가 순서를 준다. */
 
 .market-head { display: grid; gap: 10px; }
 .market-slots { display: flex; gap: 6px; }
 .market-slot {
-  padding: 5px 14px; border: 1px solid var(--line); border-radius: var(--r);
+  padding: 5px 16px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--surface); color: var(--txt-2); font-size: 13px; cursor: pointer;
 }
 .market-slot.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
 
-.market-worn {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
-  font-size: 12px; color: var(--txt-3);
-  padding: 7px 10px; background: var(--sunken); border-radius: var(--r);
-}
-.market-worn b { font-size: 13px; color: var(--txt); }
-.market-empty { color: var(--txt-3); font-size: 12px; }
+.market-worn { display: grid; gap: 3px; padding: 8px 10px; background: var(--sunken); border-radius: var(--r); }
+.worn-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 12px; font-size: 12px; color: var(--txt-2); }
+.worn-row > b { min-width: 46px; font-size: 12px; color: var(--txt); }
+.worn-opt { font-variant-numeric: tabular-nums; }
+.worn-opt em { font-style: normal; color: var(--txt-3); }
+.worn-stat { color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.market-empty { color: var(--txt-3); font-size: 12px; margin: 6px 0; }
 .market-warn { color: var(--warm-dim); font-size: 12px; font-weight: 600; }
 
-.market-filters { display: flex; align-items: center; gap: 14px; }
+.market-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
 .market-filters label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt-2); }
-.market-filters input { width: 56px; }
-.market-filters .btn { margin-left: auto; min-width: 74px; }
+.market-filters input { width: 54px; }
+.filter-gap { flex: 1; min-width: 0; }
 .market-error { color: var(--bad); font-size: 13px; }
 
-.market-legend { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.market-legend { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
 .lg-title { font-size: 13px; font-weight: 600; color: var(--txt); }
 .lg-sub { font-size: 11px; color: var(--txt-3); }
+.lg-run { font-size: 11px; color: var(--cool); font-variant-numeric: tabular-nums; margin-left: auto; }
 
-.market-grid { border-collapse: collapse; width: 100%; max-width: 880px; table-layout: fixed; }
-.market-grid thead th { font-size: 11px; color: var(--txt-3); font-weight: 500; padding-bottom: 4px; }
-.market-grid tbody th {
-  width: 44px; font-size: 12px; color: var(--txt-2); font-weight: 600; text-align: right; padding-right: 8px;
+/* 그래프 — 가격은 로그, 굵은 선이 가성비 경계다. */
+.mk-chart { position: relative; margin: 2px 0 14px; }
+.mk-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mk-grid { stroke: var(--line-soft); stroke-width: 1; }
+.mk-grid.soft { stroke-dasharray: 2 4; }
+.mk-tick { fill: var(--txt-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+.mk-axis { fill: var(--txt-3); font-size: 10px; }
+.mk-front { fill: none; stroke: var(--cool); stroke-width: 2; stroke-linejoin: round; opacity: 0.75; }
+.mk-dot { fill: var(--txt-3); opacity: 0.5; cursor: pointer; transition: r 90ms ease; }
+.mk-dot.lead { fill: var(--cool); opacity: 1; }
+.mk-dot.on { fill: var(--warm-dim); opacity: 1; }
+.mk-tip {
+  position: absolute; transform: translate(-50%, -100%);
+  display: grid; gap: 1px; padding: 6px 9px; pointer-events: none;
+  background: var(--pop); border: 1px solid var(--line-lift); border-radius: var(--r);
+  box-shadow: var(--pop-shadow); font-size: 11px; color: var(--txt-2); white-space: nowrap;
 }
-.market-grid td { padding: 2px; }
-.market-grid td button {
-  width: 100%; min-height: 72px; display: grid; gap: 1px;
-  align-content: center; justify-items: center; padding: 8px 4px;
-  border: 1px solid var(--line-soft); border-radius: var(--r);
-  background: var(--surface); cursor: pointer; font-variant-numeric: tabular-nums;
-}
-.market-grid td button:disabled { cursor: default; opacity: 0.5; }
-.market-grid td.on button { border-color: var(--cool); box-shadow: inset 0 0 0 1px var(--cool); }
-.market-grid td.here button { background: var(--surface-2); }
-.market-grid td.here button::after {
-  content: "지금 낀 것"; font-size: 9px; color: var(--cool); letter-spacing: 0.04em;
-}
-.c-per {
-  font-size: 15px; font-weight: 700; color: var(--txt);
-  /* 칠은 만골당 하나. 제일 잘 사는 칸이 가장 진하다. */
-  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 26%), transparent);
-  padding: 0 6px; border-radius: 2px;
-}
-.c-gain { font-size: 11px; color: var(--txt-2); }
-.c-gain.down { color: var(--bad); }
-.c-price { font-size: 11px; color: var(--txt-3); }
-.c-wait { font-size: 11px; color: var(--txt-3); }
+.mk-tip b { font-size: 14px; color: var(--txt); font-variant-numeric: tabular-nums; }
 
-.market-list h2 { font-size: 13px; margin: 0 0 8px; }
+/* 표 — 게임 경매장처럼 값을 그대로 적는다. '상'이라고만 쓰면 그게 몇 퍼센트인지 모른다. */
+.market-scroll { overflow-x: auto; }
 .market-items { width: 100%; border-collapse: collapse; font-size: 12px; }
 .market-items th {
-  text-align: left; font-weight: 500; font-size: 11px; color: var(--txt-3);
-  border-bottom: 1px solid var(--line); padding: 0 8px 4px 0;
+  position: sticky; top: 0; z-index: 1; text-align: left; font-weight: 500; font-size: 11px;
+  color: var(--txt-3); background: var(--surface);
+  border-bottom: 1px solid var(--line); padding: 0 10px 5px 0; white-space: nowrap;
 }
-.market-items td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.market-items td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line-soft); }
 .market-items .i-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.market-items .i-num.down { color: var(--bad); }
-.market-items .i-per { font-weight: 700; }
-.market-items .i-name { color: var(--txt); white-space: nowrap; }
-.market-items .i-grind { color: var(--txt-2); width: 100%; }
-.market-items .i-skip { display: block; font-size: 11px; color: var(--txt-3); }
+.market-items tr.down td { color: var(--txt-3); }
+.market-items tr.down .i-gain { color: var(--bad); }
+.market-items tr.picked td { background: var(--surface-2); }
+.i-quality { color: var(--txt-3); }
+.i-gain { color: var(--txt); }
+.i-per span { font-weight: 700; padding: 1px 6px; border-radius: 2px;
+  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent); }
+.i-dash { color: var(--txt-3); }
+.i-slot { color: var(--txt-3); white-space: nowrap; }
+.i-grind { width: 100%; }
+.i-grind .grind { display: inline-block; margin-right: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.i-grind .grind em { font-style: normal; color: var(--txt-3); margin-left: 3px; }
+.i-grind .grind.skip { color: var(--txt-3); text-decoration: line-through; text-decoration-color: var(--line-lift); }
+
+/* 답 띠 — 예산별로 지금 사면 제일 나은 한 장씩. 표는 순서를, 그래프는 거리를
+   주지만 "그래서 뭘 사냐"는 둘 다 안 답한다. */
+.mk-picks {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px; margin: 2px 0 14px;
+}
+.mk-pick {
+  display: grid; gap: 2px; padding: 9px 11px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-left: 3px solid var(--cool); border-radius: var(--r);
+  background: var(--surface);
+}
+.mk-pick:hover { border-color: var(--line-lift); }
+.mk-pick.on { background: var(--surface-2); border-color: var(--cool); }
+.p-price { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.p-gain { font-size: 19px; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.p-combo { display: grid; gap: 1px; font-size: 11px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.p-per { font-size: 10.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+/* 조합 격자 — 이미 받아 둔 매물을 묶은 것이라 경매장을 또 쏘지 않는다.
+   그래서 '없음'도 짐작이 아니라 사실이다. 누르면 아래 표가 그 조합만 남는다. */
+.mk-grid { border-collapse: collapse; width: 100%; max-width: 760px; table-layout: fixed; margin: 0 0 16px; }
+.mk-grid thead th { font-size: 10.5px; color: var(--txt-3); font-weight: 500; padding: 0 2px 4px; }
+.mk-grid .g-corner {
+  width: 128px; padding-right: 8px;
+  /* 한 줄에 두 축 이름을 밀어 넣으면 '적에게 주는 추가 피 해'처럼 엉켜 접힌다. */
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  font-size: 10px; color: var(--txt-3); white-space: nowrap;
+}
+.mk-grid tbody th {
+  font-size: 11px; color: var(--txt-2); font-weight: 600; text-align: right; padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.mk-grid td { padding: 2px; }
+.mk-grid td button {
+  width: 100%; min-height: 56px; display: grid; gap: 1px; align-content: center; justify-items: center;
+  padding: 6px 3px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surface); cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.mk-grid td button:disabled { cursor: default; opacity: 0.35; }
+.mk-grid td.on button { border-color: var(--cool); box-shadow: inset 0 0 0 1px var(--cool); background: var(--surface-2); }
+.g-per {
+  font-size: 14px; font-weight: 700; color: var(--txt); padding: 0 5px; border-radius: 2px;
+  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent);
+}
+.g-gain { font-size: 10.5px; color: var(--txt-2); }
+.g-gain.down { color: var(--bad); }
+.g-price { font-size: 10px; color: var(--txt-3); }
+.g-none { font-size: 11px; color: var(--txt-3); }
