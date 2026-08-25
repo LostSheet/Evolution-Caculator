@@ -5,7 +5,7 @@
     ORDER_CORE_SLOTS,
     ARK_GRID_GEM_EFFECTS, arkGridGemDamage, GEM_MAX_LEVEL,
   } from "../core/cores.js";
-  import { formatNumber, clamp, readNumber } from "../core/util.js";
+  import { formatNumber, formatInteger, clamp, readNumber } from "../core/util.js";
   import { app, persist } from "../store.svelte.js";
   import Hint from "./Hint.svelte";
   import Select from "./Select.svelte";
@@ -31,6 +31,10 @@
     attackSpeedOnly: "공격 속도",
     moveSpeedOnly: "이동 속도",
     skillCooldownReduction: "쿨타임 감소 (최훈/타지)",
+    // 평면 공격력. 키 이름이 그대로 화면에 뜨던 자리다.
+    attackPower: "공격력",
+    weaponAttack: "무기 공격력",
+    mainStat: "힘·민첩·지능",
   };
 
   const coresFor = slotKey => CHAOS_CORES.filter(core => core.slot === slotKey);
@@ -50,6 +54,8 @@
       const name = effect.kind === "damage" ? effect.key
         : effect.kind === "critOnlyDamage" ? "치명타 시 주는 피해"
         : LABELS[effect.key] ?? effect.key;
+      // 평면은 퍼센트가 아니다. 붙이면 '+900.00%'가 되어 900배로 읽힌다.
+      if (effect.kind === "flat") return `${name} +${formatInteger(amount)}`;
       return `${name} +${formatNumber(amount)}%`;
     };
 
