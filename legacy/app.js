@@ -78,6 +78,13 @@ const DEFAULT_STATE = {
     // 그리고 팔찌까지 포함한 무공 평면. assembleAttack이 이걸로 힘민지를 푼다.
     baseAttackPower: 0,
     baseScalePercent: 0,
+    // 장비가 평면으로 주는 기본 공격력. 완갑이 +850을 준다.
+    //
+    // 배수와 만나는 순서가 중요하다 — 순수 공격력에 **먼저 더한 뒤** 배수를
+    // 먹는다. 실측: 지능 696,294 · 무공 243,319이면 C = 168,041이고,
+    // (168,041 + 850) x 1.081 = 182,571로 게임의 182,568과 3 차이다.
+    // 나중에 더하면 182,503으로 65가 어긋난다.
+    baseFlat: 0,
     weaponFlatAll: 0,
     // 아바타는 부위별 등급으로 든다. 퍼센트 한 칸이었을 때는 "8%"만 남아서
     // 어느 부위가 비었는지, 영웅을 전설로 갈면 얼마가 오르는지 알 수 없었다.
@@ -162,6 +169,7 @@ const FOODS = [
   { id: "none", label: "안 먹음", summary: "" },
   { id: "wine", label: "베르닐 와인", summary: "이동 속도 +3%", moveSpeed: 3 },
   { id: "blessing", label: "에아달린의 축복", summary: "공격 속도 +3%", attackSpeed: 3 },
+  { id: "skewer", label: "명인의 쫄깃한 꼬치구이", summary: "힘·민첩·지능 +3,000", mainStat: 3000 },
   { id: "steak", label: "거장의 채끝 스테이크", summary: "힘·민첩·지능 +12,000", mainStat: 12000 },
 ];
 
@@ -2076,7 +2084,8 @@ function finalizeMetrics(context) {
   const weaponTotal = weaponFlatSum
     * (1 + (readNumber(attack.karmaWeaponPercent) + readNumber(damageGroups["무기 공격력"])) / 100);
   const pureAttack = Math.sqrt(Math.max(0, mainStatTotal * weaponTotal / 6));
-  const baseAttack = pureAttack * (1 + Math.max(0, readNumber(attack?.baseScalePercent)) / 100);
+  const baseAttack = (pureAttack + Math.max(0, readNumber(attack?.baseFlat)))
+    * (1 + Math.max(0, readNumber(attack?.baseScalePercent)) / 100);
   // 서폿 공증은 퍼센트가 아니라 평면이다 — 버프 시전자의 기본 공격력 × 22% ×
   // (1 + 아군 공격력 강화 효과 증가)가 내 기본 공격력에 더해진다. 괄호 안에
   // 들어가기 때문에 무공·힘민지를 희석한다. 곱연산 그룹으로 두면 그 희석이
@@ -2762,7 +2771,11 @@ function derivedMainTotal(inputState) {
   const baseScale = 1 + Math.max(0, readNumber(source.baseScalePercent)) / 100;
   const weaponAll = Math.max(0, readNumber(source.weaponFlatAll));
   if (!(gameBase > 0) || !(weaponAll > 0)) return 0;
-  return 6 * (gameBase / baseScale) ** 2 / (weaponAll * (1 + (readNumber(source.weaponPercent) + karma) / 100));
+  // D = (C + 평면) x 배수 를 뒤집는다. 평면을 안 빼면 C가 850만큼 커지고,
+  // 제곱으로 들어가므로 힘민지가 1% 부풀어 나온다.
+  const pure = gameBase / baseScale - Math.max(0, readNumber(source.baseFlat));
+  if (!(pure > 0)) return 0;
+  return 6 * pure ** 2 / (weaponAll * (1 + (readNumber(source.weaponPercent) + karma) / 100));
 }
 
 function assembleAttack(inputState) {
@@ -2797,6 +2810,7 @@ function assembleAttack(inputState) {
     // 순수 공격력을 기본 공격력으로 부풀리는 배수(보석 + 어빌리티 스톤).
     // 공격력 사슬이 읽는다 — 조립한 값과 같이 다녀야 흩어지지 않는다.
     baseScalePercent: Math.max(0, readNumber(source.baseScalePercent)),
+    baseFlat: Math.max(0, readNumber(source.baseFlat)),
     // 사슬이 쓸 조각. 평면과 퍼센트를 갈라 둔다 — 게임 수식의 A·B가
     // (평면 합) × (1 + 퍼센트 합)이라 둘이 한 번만 만나야 하기 때문이다.
     karmaWeaponPercent: karma,
@@ -2831,6 +2845,7 @@ function normalizeAttack(attack) {
     mainTotal: Math.max(0, readNumber(attack?.mainTotal)),
     baseAttackPower: Math.max(0, readNumber(attack?.baseAttackPower)),
     baseScalePercent: Math.max(0, readNumber(attack?.baseScalePercent)),
+    baseFlat: Math.max(0, readNumber(attack?.baseFlat)),
     weaponFlatAll: Math.max(0, readNumber(attack?.weaponFlatAll)),
     avatarPercent: Math.max(0, readNumber(attack?.avatarPercent)),
   };

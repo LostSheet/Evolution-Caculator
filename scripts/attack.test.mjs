@@ -9,6 +9,7 @@
 //   (d) 기준값이 없으면 평면을 버리되 무엇을 버렸는지 남긴다
 import {
   DEFAULT_STATE, mergeState, calculateMetrics, baseAttackPower, damageGroupFactor, ATTACK_CHAIN_GROUPS,
+  derivedMainTotal,
 } from "../src/lib/core/metrics.js";
 import { explainMetrics } from "../src/lib/core/explain.js";
 
@@ -176,6 +177,44 @@ const state = patch => mergeState(DEFAULT_STATE, patch);
 
   const residual = report.damage.filter(group => Math.abs(group.residual) > 1e-9);
   check("(e) 설명 못 한 몫 없음", residual.length === 0, residual.map(g => `${g.key} ${g.residual}`).join(", "));
+}
+
+
+// (f) 평면 기본 공격력 — 순수 공격력에 더한 뒤 배수를 먹는다.
+//
+// 완갑이 기본 공격력 +850을 준다. 실측(게임 화면):
+//   지능 696,294 · 무공 243,319 → C = 168,041
+//   (168,041 + 850) x 1.081 = 182,571   게임 182,568   차이 3
+// 나중에 더하면 182,503으로 65가 어긋난다. 그리고 되짚기가 이 순서를 그대로
+// 뒤집지 않으면 C가 850만큼 커지고, 제곱으로 들어가 힘민지가 1% 부푼다.
+{
+  // mergeState는 중첩 칸을 통째로 갈아치운다. 두 상태를 각각 세운다.
+  const attack = {
+    weaponFlat: 228684, weaponFlatAll: 228684, weaponPercent: 6.3993,
+    mainFlat: 696294, baseScalePercent: 8.1, baseFlat: 850, avatarPercent: 0,
+  };
+  const collection = { ranchMainStat: 0, expeditionMainStat: 0 };
+  const state = mergeState(DEFAULT_STATE, { attack, collection });
+  const r = calculateMetrics(state);
+  check("(f) A", close(r.mainStatTotal, 696294, 1), r.mainStatTotal.toFixed(1));
+  check("(f) B", close(r.weaponTotal, 243319, 2), r.weaponTotal.toFixed(1));
+  check("(f) C = √(AB/6)", close(r.pureAttack, Math.sqrt(696294 * 243319 / 6), 1), r.pureAttack.toFixed(1));
+  check("(f) D = (C + 850) x 1.081 == 게임 182,568",
+    close(r.baseAttack, 182568, 6), r.baseAttack.toFixed(1));
+
+  // 되짚기가 같은 순서를 뒤집는가. 게임이 준 D에서 A를 되찾아야 한다.
+  const pinned = mergeState(DEFAULT_STATE, {
+    attack: { ...attack, baseAttackPower: 182568 }, collection,
+  });
+  const back = derivedMainTotal(pinned);
+  check("(f) 되짚은 A == 게임 지능", close(back, 696294, 700), Math.round(back).toString());
+
+  // 평면을 안 세면 얼마나 부푸는가 — 1% 가까이 어긋나야 이 시험이 뜻이 있다.
+  const blind = mergeState(DEFAULT_STATE, {
+    attack: { ...attack, baseAttackPower: 182568, baseFlat: 0 }, collection,
+  });
+  const bloat = derivedMainTotal(blind) / back - 1;
+  check("(f) 안 세면 1%쯤 부푼다", bloat > 0.008 && bloat < 0.014, (bloat * 100).toFixed(3) + "%");
 }
 
 console.log(failures === 0 ? "attack: all checks passed" : `attack: ${failures} failures`);

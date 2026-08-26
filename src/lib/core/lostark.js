@@ -266,6 +266,9 @@ export function parseEquipmentAttack(payload) {
   let weaponAttack = 0;
   let weaponPercent = 0;
   let mainStat = 0;
+  // 장비가 평면으로 주는 기본 공격력. 완갑이 +850을 준다 — 순수 공격력에
+  // 더한 뒤 보석·스톤 배수를 먹는 자리라, 안 세면 힘민지가 1% 부풀어 나온다.
+  let baseFlat = 0;
   // 팔찌 평면은 따로 센다. 피해 계산에는 팔찌 효과가 따로 들어가므로 합에서
   // 빼야 하지만, 힘민지를 되짚을 때 쓰는 무공에는 들어가야 한다.
   let braceletWeapon = 0;
@@ -294,6 +297,7 @@ export function parseEquipmentAttack(payload) {
       if (!ACCESSORY_SLOTS.has(type)) {
         weaponAttack += sumMatches(basic, /^\s*무기\s*공격력\s*\+\s*([\d,]+)\s*$/gm) ?? 0;
       }
+      baseFlat += sumMatches(basic, /^\s*기본\s*공격력\s*\+\s*([\d,]+)\s*$/gm) ?? 0;
       // 주스탯 하나만 더한다. 악세서리가 셋을 다 적어 오므로 안 가르면 세 배가 된다.
       if (mainStatType) {
         mainStat += sumMatches(basic, new RegExp(`^\\s*${mainStatType}\\s*\\+\\s*([\\d,]+)\\s*$`, "gm")) ?? 0;
@@ -309,7 +313,7 @@ export function parseEquipmentAttack(payload) {
 
   // 여기까지가 배수 이전의 합이다. 아바타·목장·카르마는 따로 받아 곱한다 —
   // assembleAttack 참고. 실측으로 이 합에 그 배수를 곱하면 게임 값과 맞는다.
-  return { weaponAttack, weaponPercent, braceletWeapon, mainStat, mainStatType };
+  return { weaponAttack, weaponPercent, braceletWeapon, mainStat, mainStatType, baseFlat };
 }
 
 /**
@@ -1288,6 +1292,7 @@ export function readCharacter(payload) {
     avatarPercent: avatars.percent,
     baseAttackPower: readNumber(detail?.baseAttackPower),
     baseScalePercent: scaling.percent,
+    baseFlat: fromEquipment.baseFlat,
     weaponFlatAll: fromEquipment.weaponAttack + fromEquipment.braceletWeapon,
   };
   const attackSource = {
