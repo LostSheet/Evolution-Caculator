@@ -4546,3 +4546,18 @@ table.results td em.rel.down { color: var(--bad); }
   background: none; color: var(--txt-3); font-size: 11px; cursor: pointer; white-space: nowrap;
 }
 .syn-goto:hover { border-color: var(--cool); color: var(--cool); }
+
+/* 다음 걸음. 화면마다 하는 일이 다르므로 상단바에서 떼어 우하단에 띄운다.
+   비교함 막대 위에 서고, 막대가 없는 화면(악세)에서는 그만큼 내려온다. */
+.fab-wrap { position: fixed; right: clamp(14px, 3vw, 26px); bottom: 76px; z-index: 32; }
+.fab-wrap.bare { bottom: clamp(14px, 3vw, 26px); }
+.fab {
+  min-height: 40px; padding: 0 20px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cool); background: var(--cool); color: var(--on-accent);
+  font-size: 14px; font-weight: 600; white-space: nowrap;
+  box-shadow: var(--pop-shadow);
+  font-variant-numeric: tabular-nums;
+}
+.fab:hover:not(:disabled) { background: var(--cool-strong); border-color: var(--cool-strong); }
+.fab:disabled { opacity: 0.5; cursor: default; }
+.fab.stop { background: var(--surface); color: var(--txt); border-color: var(--line-lift); }

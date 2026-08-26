@@ -214,21 +214,6 @@
 
     <SavesMenu />
 
-    <!-- 이 자리는 늘 '다음 걸음'이다. 빌드를 만졌으면 굴려 보는 것이고,
-         규칙을 세웠으면 돌리는 것이다. -->
-    {#if app.page === PAGE.build}
-      <button class="btn primary" type="button" onclick={() => goPage(PAGE.search)}>탐색으로 →</button>
-    {:else if app.page === PAGE.market}
-      <button class="btn primary" type="button" disabled={app.market.running || !app.api.key} onclick={sweepMarket}>
-        {app.market.running ? `${app.market.done}/16` : marketHasResults() ? "갱신" : "훑기"}
-      </button>
-    {:else if app.running}
-      <button class="btn" type="button" onclick={cancelSearch}>중지</button>
-    {:else}
-      <button class="btn primary" type="button" disabled={plan.engravings.overflow} onclick={startSearch}>
-        {app.results ? "다시 탐색" : "탐색 실행"}
-      </button>
-    {/if}
   </div>
 </header>
 
@@ -263,13 +248,36 @@
   {/if}
 </main>
 
-<!-- 비교함. 접으면 하단 막대, 펼치면 표 — 같은 물건의 두 상태다. -->
-<BuildDrawer {report} {budget} onOpenEngravings={() => (engravingsOpen = true)} />
+<!-- 다음 걸음. 빌드를 만졌으면 굴려 보는 것이고, 규칙을 세웠으면 돌리는 것이고,
+     악세라면 시세를 다시 받는 것이다. 상단바에서 자리를 나눠 쓰다가 떼어 냈다 —
+     화면마다 하는 일이 다른 단추가 저장·캐릭터와 나란히 서면 같은 무게로 읽힌다. -->
+<div class="fab-wrap" class:bare={app.page === PAGE.market}>
+  {#if app.page === PAGE.build}
+    <button class="fab" type="button" onclick={() => goPage(PAGE.search)}>탐색으로 →</button>
+  {:else if app.page === PAGE.market}
+    <button class="fab" type="button" disabled={app.market.running || !app.api.key} onclick={sweepMarket}>
+      {app.market.running ? `${app.market.done}/${app.market.total}` : marketHasResults() ? "갱신" : "훑기"}
+    </button>
+  {:else if app.running}
+    <button class="fab stop" type="button" onclick={cancelSearch}>중지</button>
+  {:else}
+    <button class="fab" type="button" disabled={plan.engravings.overflow} onclick={startSearch}>
+      {app.results ? "다시 탐색" : "탐색 실행"}
+    </button>
+  {/if}
+</div>
 
-<!-- 답이 놓이는 자리. 어느 화면에 있든 늘 보인다. 이름표가 서랍 손잡이다. -->
-<StatusBar {anchor} focus={focused} count={app.compare.length} status={toast} label="비교함"
-           handle={{ open: app.drawer.open, onToggle: toggleDrawer }}
-           onKeep={keepFocused} />
+<!-- 비교함은 빌드와 탐색의 물건이다. 악세는 골드로 사는 이야기라 견줄 빌드가
+     없다 — 거기서는 막대도 서랍도 안 띄운다. -->
+{#if app.page !== PAGE.market}
+  <!-- 접으면 하단 막대, 펼치면 표 — 같은 물건의 두 상태다. -->
+  <BuildDrawer {report} {budget} onOpenEngravings={() => (engravingsOpen = true)} />
+
+  <!-- 답이 놓이는 자리. 이름표가 서랍 손잡이다. -->
+  <StatusBar {anchor} focus={focused} count={app.compare.length} status={toast} label="비교함"
+             handle={{ open: app.drawer.open, onToggle: toggleDrawer }}
+             onKeep={keepFocused} />
+{/if}
 
 <EngravingDialog bind:open={engravingsOpen} />
 <BraceletDialog bind:open={braceletOpen} />
