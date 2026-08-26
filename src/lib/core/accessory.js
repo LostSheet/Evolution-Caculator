@@ -297,25 +297,6 @@ export function bestSwap(state, part, listing, wornOf) {
   return best;
 }
 
-/** 부위 하나의 매물들에 값을 매긴다. 자리 고르기는 안에서 끝낸다. */
-export function valuePart(state, part, listings, wornOf) {
-  const now = calculateMetrics(state).damageIndex;
-  if (!(now > 0)) return [];
-  return listings.map(listing => {
-    const best = bestSwap(state, part, listing, wornOf);
-    const gain = (best.after / now - 1) * 100;
-    const price = readNumber(listing.price) || readNumber(listing.startPrice);
-    return {
-      listing,
-      slot: best.slot,
-      gain,
-      price,
-      // 골드 만 냥당 딜 %. 손해나는 매물은 안 잰다 — '싸게 손해'를 줄 세우면 안 된다.
-      perGold: price > 0 && gain > 0 ? gain / (price / 10000) : null,
-    };
-  });
-}
-
 /**
  * 연마 세 줄을 읽는 순서로.
  *
@@ -479,3 +460,115 @@ export const PART_CONTEXT = {
     { label: "무기 공격력", read: report => report.damageGroups?.["무기 공격력"], unit: "%" },
   ],
 };
+
+// --- 조합별 재탐색 -----------------------------------------------------------
+//
+// 치적·치피는 노드와 정면으로 경쟁한다. 치적은 예리한 감각 4% · 혼신의 강타 12%
+// · 달인 7%로 노드에서 최대 23%를 살 수 있고, 치피는 진화 노드로 못 산다.
+// 그래서 치적 반지의 진짜 값어치는 "치적이 얼마나 늘었나"가 아니라
+// **"노드에서 치적을 얼마나 뺄 수 있나"**다. 빌드를 못 박고 재면 그게 0으로 잡힌다.
+//
+// 매물마다 재탐색하면 336번이라 16분이 걸린다. 그런데 노드 배분을 흔드는 축은
+// (치적 x 치피) 16개뿐이다 — 평면 딜옵과 주스탯은 배분을 안 바꾼다(실측:
+// 공격력 +390 · 무공 +960 · 주스탯 +1,161을 얹어도 최적 배분이 같았다).
+// 그래서 16번이면 336장 전부에 재사용된다.
+
+/** 재탐색이 도는 조합. '무관'은 조건이 아니라 조건 없음이라 여기 안 온다. */
+export const REAL_GRADES = ["high", "mid", "low", "none"];
+
+/** 그 조합만 끼운 상태. 주스탯과 평면은 지금 낀 것 그대로 둔다. */
+export function withCombo(state, slot, combo, worn) {
+  const listing = {
+    name: "", grade: "", quality: 0, price: 0, startPrice: 0,
+    mainStat: readNumber(worn?.mainStat),
+    options: Object.fromEntries(
+      slot.fields.map((field, at) => [field, combo[at]]).filter(([, grade]) => grade !== "none"),
+    ),
+    flat: { attackPower: readNumber(worn?.flat?.attackPower), weaponAttack: readNumber(worn?.flat?.weaponAttack) },
+    lines: [], unmodeled: [], enlighten: 0,
+  };
+  return withListing(state, slot, listing, worn);
+}
+
+/**
+ * 매물에 값을 매긴다 — 두 기준으로.
+ *
+ *   gain     지금 빌드 그대로 끼웠을 때
+ *   gainOpt  그 조합의 최적 빌드로 갈아탔을 때
+ *
+ * 둘 다 지금 빌드의 딜을 1로 놓고 잰다. 그래야 "이 반지를 사고 세팅까지 바꾸면
+ * 얼마"가 "이 반지만 끼면 얼마"와 같은 자로 읽힌다.
+ */
+export function valuePart(state, part, listings, wornOf, optima) {
+  const now = calculateMetrics(state).damageIndex;
+  if (!(now > 0)) return [];
+  // 세팅 바꿔서 열의 분모는 '지금 빌드'가 아니라 **지금 낀 조합의 최적 빌드**다.
+  //
+  // 지금 빌드를 분모로 두면 "노드를 최적으로 다시 짠 이득"이 통째로 섞인다.
+  // 그건 모든 매물에 똑같이 얹히는 값이라(실측: 조합이 뭐든 +64.8~65.2%)
+  // 매물끼리 견주는 데는 쓸모가 없다. 양쪽 다 최적으로 놓아야 악세 차이만 남는다.
+  const optBase = optima?.combos?.[optima?.baseKey] ?? null;
+  const nowOpt = optBase ? calculateMetrics(optBase.state).damageIndex : 0;
+  return listings.map(listing => {
+    const key = comboOf(part, listing).join(":");
+    const best = bestSwap(state, part, listing, wornOf);
+    const gain = (best.after / now - 1) * 100;
+    const price = readNumber(listing.price) || readNumber(listing.startPrice);
+    const optState = optima?.combos?.[key]?.state ?? null;
+    // 최적 빌드 위에 같은 매물을 얹는다. 자리는 그대로 쓴다 — 재탐색이 그 자리
+    // 기준으로 돌았기 때문이다.
+    const opt = optState
+      ? calculateMetrics(withListing(optState, best.slot, listing, best.worn)).damageIndex
+      : 0;
+    const gainOpt = opt > 0 && nowOpt > 0 ? (opt / nowOpt - 1) * 100 : null;
+    const rate = g => (price > 0 && g > 0 ? g / (price / 10000) : null);
+    return {
+      listing, slot: best.slot, gain, price,
+      perGold: rate(gain),
+      // 세팅까지 바꿨을 때. 재탐색을 안 돌렸으면 null이다.
+      gainOpt, perGoldOpt: gainOpt === null ? null : rate(gainOpt),
+      combo: key,
+    };
+  });
+}
+
+// --- 두 짝 -------------------------------------------------------------------
+//
+// 같은 그룹의 옵션은 저희끼리 합연산이라 두 번째가 값이 떨어진다. 반면 공격력%와
+// 무공%는 C = √(A×B/6)를 지나며 곱으로 만나므로 나눠 주는 쪽이 유리해질 수 있다.
+// 그 뒤집힘은 두 짝을 실제로 끼워 봐야 나온다 — 한 짝 딜의 합이 아니다.
+//
+// 그렇다고 336장 중 둘을 고르면 56,280쌍이다. 프론티어 점끼리만 짝지으면
+// 열댓 개의 제곱이라 순식간에 끝나고, 프론티어 밖의 쌍은 어차피 프론티어에
+// 못 오른다 — 둘 다 자기 가격대에서 지는 매물이기 때문이다.
+
+/**
+ * 두 자리를 한꺼번에 갈았을 때.
+ *
+ * 가격은 합계다. 그래야 "200만으로 한 짝 상상을 살까, 두 짝을 100만씩 살까"가
+ * 같은 축에서 비교된다.
+ */
+export function pairRows(state, part, rows, wornOf, limit = 18) {
+  const slots = partSlots(part);
+  if (slots.length < 2) return [];
+  const now = calculateMetrics(state).damageIndex;
+  if (!(now > 0)) return [];
+  const front = priceFrontier(rows).slice(-limit);
+  const out = [];
+  front.forEach((a, i) => {
+    front.forEach((b, j) => {
+      // 같은 매물을 두 번 살 수는 없다. 순서는 뜻이 없으니 절반만 본다.
+      if (j < i) return;
+      if (i === j && a.listing === b.listing) return;
+      const first = withListing(state, slots[0], a.listing, wornOf(slots[0]));
+      const both = withListing(first, slots[1], b.listing, wornOf(slots[1]));
+      const gain = (calculateMetrics(both).damageIndex / now - 1) * 100;
+      const price = a.price + b.price;
+      out.push({
+        pair: [a, b], gain, price,
+        perGold: price > 0 && gain > 0 ? gain / (price / 10000) : null,
+      });
+    });
+  });
+  return priceFrontier(out);
+}

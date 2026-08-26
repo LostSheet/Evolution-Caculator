@@ -6,7 +6,7 @@ import {
 } from "./core/lostark.js";
 import {
   ACCESSORY_PARTS, readListing, listingKey, partSlots,
-  sweepAxes, ENLIGHTEN_FULL, SWEEP_TOTAL,
+  sweepAxes, ENLIGHTEN_FULL, SWEEP_TOTAL, REAL_GRADES, withCombo,
 } from "./core/accessory.js";
 import { getAwakeningNodes, awakeningHeadroom, awakeningDependents } from "./core/awakening.js";
 import {
@@ -357,6 +357,12 @@ export const app = $state({
     running: false,
     done: 0,
     total: SWEEP_TOTAL,
+    // 조합별 최적 빌드. { "high:mid": { state, damage, nodeLevels } }
+    optima: { necklace: null, rings: null },
+    researching: false,
+    researchDone: 0,
+    // 표와 그래프가 어느 기준으로 서나. "as" 그대로 · "opt" 세팅 바꿔서
+    basis: "as",
     // 연마 3줄이 아니라 깨달음이 모자라 버린 매물 수.
     dropped: 0,
     error: "",
@@ -1916,7 +1922,7 @@ export function setMarket(patch) {
   try {
     localStorage.setItem(MARKET_KEY, JSON.stringify({
       part: app.market.part, grade: app.market.grade,
-      quality: app.market.quality, sort: app.market.sort,
+      quality: app.market.quality, sort: app.market.sort, basis: app.market.basis,
     }));
   } catch {}
 }
@@ -2000,4 +2006,69 @@ export async function sweepMarket() {
   };
   await Promise.all([worker(), worker(), worker(), worker()]);
   app.market.running = false;
+}
+
+/**
+ * 조합마다 노드를 다시 짠다.
+ *
+ * 치적·치피는 노드와 정면으로 경쟁한다 — 치적은 예감 4% · 혼강 12% · 달인 7%로
+ * 노드에서 살 수 있고, 치피는 진화 노드로 못 산다. 빌드를 못 박고 재면
+ * "치적 반지를 사고 치명 노드를 빼는" 실제 행동이 이득으로 안 잡힌다.
+ *
+ * 열여섯 번이면 그 부위의 매물 전부에 재사용된다. 매물마다 돌리면 336번이다.
+ */
+export async function researchMarket() {
+  if (app.market.researching || app.market.running) return;
+  const part = marketPart();
+  const slots = partSlots(part);
+  // 갈아끼울 자리는 지금 낀 것 중 나쁜 쪽이다. 재탐색도 그 자리를 기준으로 돈다.
+  const slot = slots.reduce((worst, item) => {
+    const a = readNumber(wornAt(item)?.mainStat);
+    const b = readNumber(wornAt(worst)?.mainStat);
+    return a > 0 && (b === 0 || a < b) ? item : worst;
+  }, slots[0]);
+  const worn = wornAt(slot);
+
+  const combos = [];
+  REAL_GRADES.forEach(a => REAL_GRADES.forEach(b => combos.push([a, b])));
+  // 지금 그 자리에 낀 조합. 이것이 '세팅 바꿔서' 열의 분모가 된다.
+  const target = slot.key === "necklace"
+    ? app.character.accessories.necklace
+    : app.character.accessories[slot.key][slot.index];
+  const baseKey = part.fields.map(field => target?.[field] ?? "none").join(":");
+  setMarket({ researching: true, researchDone: 0, error: "" });
+  const found = {};
+
+  for (const combo of combos) {
+    if (!app.market.researching) break;
+    const seed = withCombo(app.character, slot, combo, worn);
+    // 각인은 고정한다. 탐색은 후보에게 전제 각인 단계를 입혀 내놓는데, 그걸
+    // 그대로 받으면 "노드를 다시 짠 이득"이 아니라 "각인서를 새로 산 이득"이
+    // 섞인다 — 실제로 +79%가 나왔다. 여기서 묻는 것은 노드뿐이다.
+    const result = await runSearch(
+      { ...seed, engravings: app.character.engravings },
+      { ...app.search, engravingSlots: "fixed" },
+      () => {},
+      () => !app.market.researching,
+    );
+    const top = result?.damage?.[0] ?? null;
+    if (top) {
+      // 씨앗 상태 위에 결과의 노드·각인·펫·음식만 얹는다. stateFromResult는
+      // 지금 캐릭터를 바탕으로 삼아서 여기서는 못 쓴다 — 조합이 지워진다.
+      // 노드 배분만 가져온다. 각인·펫·음식은 지금 것을 그대로 둔다 —
+      // "이 반지를 사고 노드를 다시 짜면 얼마"가 묻는 전부다.
+      const state = cloneState(seed);
+      state.nodeLevels = { ...top.nodeLevels };
+      found[combo.join(":")] = { state, damage: top.damageIndex, nodeLevels: top.nodeLevels };
+    }
+    app.market.researchDone += 1;
+    // 도착하는 대로 꽂는다 — 열여섯을 다 기다리면 1분 동안 빈 열만 본다.
+    app.market.optima[part.key] = { combos: { ...found }, baseKey, at: slot.label };
+  }
+  app.market.researching = false;
+}
+
+/** 재탐색을 멈춘다. */
+export function cancelResearch() {
+  app.market.researching = false;
 }

@@ -4570,3 +4570,32 @@ table.results td em.rel.down { color: var(--bad); }
 .sup-out { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
 .sup-out b { font-size: 13.5px; color: var(--cool); }
 .sup-row { align-items: flex-start; }
+
+/* 기준 — 그대로 / 세팅 바꿔서. 치적은 노드로 살 수 있고 치피는 못 산다.
+   그 비대칭이 이 토글의 존재 이유다. */
+.market-basis {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px;
+  padding: 9px 12px; background: var(--sunken); border-radius: var(--r); font-size: 12.5px;
+}
+.market-basis > b { font-size: 12px; color: var(--txt-3); font-weight: 500; }
+.basis-pick { display: flex; gap: 3px; }
+.basis-pick button {
+  padding: 3px 12px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surface); color: var(--txt-3); font-size: 12px; cursor: pointer;
+}
+.basis-pick button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
+.basis-pick button:disabled { opacity: 0.4; cursor: default; }
+.basis-go {
+  padding: 3px 12px; border: 1px solid var(--line-lift); border-radius: var(--r);
+  background: none; color: var(--txt-2); font-size: 12px; cursor: pointer; margin-left: auto;
+}
+.basis-go:hover { border-color: var(--cool); color: var(--cool); }
+.basis-run { color: var(--cool); font-variant-numeric: tabular-nums; margin-left: auto; }
+.basis-note { font-size: 11.5px; color: var(--txt-3); }
+.market-items .i-opt { color: var(--txt-3); }
+.market-items .i-opt.up { color: var(--good); font-weight: 600; }
+
+/* 두 짝 곡선. 한 짝과 같은 평면에 놓아야 "여기부터는 두 짝"이 읽힌다. */
+.mk-front.pair { stroke: var(--warm-dim); stroke-dasharray: 5 4; opacity: 0.85; }
+.mk-dot.pair { fill: var(--warm-dim); opacity: 0.9; stroke: var(--surface); stroke-width: 1.2; }
+.pair-key b { color: var(--warm-dim); }

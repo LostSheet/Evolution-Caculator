@@ -16,7 +16,7 @@
   import { formatInteger } from "../core/util.js";
   import { orderedLines, priceFrontier } from "../core/accessory.js";
 
-  let { rows = [], part, colorOf = () => null, onpick = () => {} } = $props();
+  let { rows = [], pairs = [], part, colorOf = () => null, onpick = () => {} } = $props();
 
   const PAD = { top: 18, right: 18, bottom: 44, left: 52 };
   const height = 260;
@@ -24,14 +24,17 @@
   let hovered = $state(null);
 
   const points = $derived(rows.filter(row => row.gain > 0 && row.price > 0));
+  // 두 짝 곡선. 같은 평면에 놓아야 "여기부터는 두 짝"이 눈으로 읽힌다.
+  const pairPoints = $derived(pairs.filter(row => row.gain > 0 && row.price > 0));
 
   const front = $derived(priceFrontier(points));
   const onFront = $derived(new Set(front));
 
   const bounds = $derived.by(() => {
-    if (points.length === 0) return { x0: 3, x1: 7, y1: 1 };
-    const xs = points.map(row => Math.log10(Math.max(1, row.price)));
-    const maxY = Math.max(...points.map(row => row.gain));
+    const all = [...points, ...pairPoints];
+    if (all.length === 0) return { x0: 3, x1: 7, y1: 1 };
+    const xs = all.map(row => Math.log10(Math.max(1, row.price)));
+    const maxY = Math.max(...all.map(row => row.gain));
     // 자릿수 끝까지 늘리면 왼쪽이 텅 빈다 — 목걸이는 최저가가 30만이라
     // 1,000골드 자리까지 그릴 이유가 없다. 점이 있는 범위에 바짝 붙인다.
     return {
@@ -71,10 +74,17 @@
   });
 
   const path = $derived(front.map((row, i) => `${i === 0 ? "M" : "L"}${px(row.price)},${py(row.gain)}`).join(" "));
-  const grind = row => orderedLines(part, row.listing)
+  const pairPath = $derived(pairPoints.length > 1
+    ? pairPoints.map((row, i) => `${i === 0 ? "M" : "L"}${px(row.price)},${py(row.gain)}`).join(" ")
+    : "");
+  const grind = row => (row.pair
+    ? row.pair.map(p => orderedLines(part, p.listing).filter(l => l.counted)
+        .map(l => `${l.name} ${l.percent ? "+" + l.value.toFixed(2) + "%" : "+" + formatInteger(l.value)}`).join(" · ")).join("  |  ")
+    : orderedLines(part, row.listing)
+    .filter(line => line.counted)
     .filter(line => line.counted)
     .map(line => `${line.name} ${line.percent ? `+${line.value.toFixed(2)}%` : `+${formatInteger(line.value)}`}`)
-    .join(" · ");
+    .join(" · "));
 </script>
 
 <div class="mk-chart" bind:clientWidth={width}>
@@ -93,6 +103,12 @@
       <text class="mk-axis" x={width - PAD.right} y={height - 6} text-anchor="end">가격 (골드, 로그)</text>
 
       <path class="mk-front" d={path} />
+      {#if pairPath}<path class="mk-front pair" d={pairPath} />{/if}
+      {#each pairPoints as row, at (at)}
+        <circle class="mk-dot pair" cx={px(row.price)} cy={py(row.gain)} r="4"
+                role="button" tabindex="-1"
+                onmouseenter={() => (hovered = row)} onmouseleave={() => (hovered = null)} />
+      {/each}
 
       {#each points as row, at (at)}
         {@const lead = onFront.has(row)}
@@ -111,7 +127,11 @@
       <div class="mk-tip" style="left:{left}px; top:{py(hovered.gain) - 8}px">
         <b>{hovered.perGold.toFixed(4)}</b> 만골당
         <span>{grind(hovered)}</span>
-        <span>품질 {hovered.listing.quality} · 주스탯 {formatInteger(hovered.listing.mainStat)}</span>
+        {#if hovered.pair}
+          <span>두 짝 한꺼번에</span>
+        {:else}
+          <span>품질 {hovered.listing.quality} · 주스탯 {formatInteger(hovered.listing.mainStat)}</span>
+        {/if}
         <span>{formatInteger(hovered.price)}골드 · +{hovered.gain.toFixed(2)}%</span>
       </div>
     {/if}

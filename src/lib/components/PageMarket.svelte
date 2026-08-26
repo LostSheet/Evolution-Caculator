@@ -10,10 +10,12 @@
    * 보였다 — 답은 1,000골드짜리 치피 상 한 장인데 그건 어느 칸의 얼굴도
    * 아니었다. 열여섯 조합을 다 훑되 결과는 한 목록으로 합쳐 골드당으로 세운다.
    */
-  import { app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket } from "../store.svelte.js";
+  import {
+    app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket, researchMarket, cancelResearch,
+  } from "../store.svelte.js";
   import {
     ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, FIELD_SHORT, GRADE_VALUES, partSlots, orderedLines,
-    comboOf, frontierPicks, cellStats, PART_CONTEXT, valuePart,
+    comboOf, frontierPicks, cellStats, PART_CONTEXT, valuePart, pairRows, partSlots as slotsOf,
   } from "../core/accessory.js";
   import { formatInteger, readNumber } from "../core/util.js";
   import { calculateMetrics } from "../core/metrics.js";
@@ -40,7 +42,12 @@
   const found = $derived(app.market.found[part.key]);
   // 값은 여기서 매긴다. 훑을 때 박아 두면 빌드를 고쳐도 안 따라온다 —
   // 세팅을 되돌린 뒤에도 되돌리기 전 캐릭터로 잰 값이 화면에 남아 있었다.
-  const all = $derived(valuePart(app.character, part, found?.listings ?? [], wornAt));
+  const optima = $derived(app.market.optima[part.key]);
+  const all = $derived(valuePart(app.character, part, found?.listings ?? [], wornAt, optima));
+  // 재탐색이 돌았고 기준을 '세팅 바꿔서'로 두면 그 값으로 줄을 세운다.
+  const useOpt = $derived(app.market.basis === "opt" && !!optima);
+  const gainOf = row => (useOpt && row.gainOpt !== null ? row.gainOpt : row.gain);
+  const perOf = row => (useOpt && row.perGoldOpt !== null ? row.perGoldOpt : row.perGold);
 
   // 연마 조건은 값으로 적는다. '상'이라고만 쓰면 그게 1.55%인지 4%인지 모른다.
   const pickOptions = field => [
@@ -60,13 +67,17 @@
       return (row.listing.options[field] ?? "none") === want;
     }));
     const key = app.market.sort;
-    return keep.sort((x, y) => {
-      if (key === "price") return x.price - y.price;
-      if (key === "gain") return y.gain - x.gain;
-      return (y.perGold ?? -Infinity) - (x.perGold ?? -Infinity);
-    });
+    return keep
+      .map(row => ({ ...row, gain: gainOf(row), perGold: perOf(row), gainAs: row.gain, perGoldAs: row.perGold }))
+      .sort((x, y) => {
+        if (key === "price") return x.price - y.price;
+        if (key === "gain") return y.gain - x.gain;
+        return (y.perGold ?? -Infinity) - (x.perGold ?? -Infinity);
+      });
   });
   const rising = $derived(rows.filter(row => row.gain > 0).length);
+  // 두 자리를 한꺼번에 갈았을 때. 프론티어 점끼리만 짝지으니 순식간이다.
+  const pairs = $derived(slotsOf(part).length > 1 ? pairRows(app.character, part, rows, wornAt) : []);
 
   // 답 띠 — 예산별로 지금 사면 제일 나은 한 장씩. 걸어 둔 조건을 그대로 딛는다.
   const picks = $derived(frontierPicks(rows, 3));
@@ -193,6 +204,30 @@
     {/if}
   </div>
 
+  {#if found}
+    <!-- 치적은 노드로 살 수 있고 치피는 못 산다. 그래서 치적 반지의 값어치는
+         "치적이 늘었나"가 아니라 "노드에서 치적을 뺄 수 있나"다. 빌드를 못 박고
+         재면 그게 0으로 잡힌다 — 조합마다 노드를 다시 짜서 두 값을 같이 낸다. -->
+    <div class="market-basis">
+      <b>기준</b>
+      <span class="basis-pick">
+        <button type="button" class:on={app.market.basis === "as"}
+                onclick={() => setMarket({ basis: "as" })}>그대로</button>
+        <button type="button" class:on={app.market.basis === "opt"} disabled={!optima}
+                onclick={() => setMarket({ basis: "opt" })}>세팅 바꿔서</button>
+      </span>
+      {#if app.market.researching}
+        <span class="basis-run">노드 다시 짜는 중 {app.market.researchDone}/16</span>
+        <button type="button" class="basis-go" onclick={cancelResearch}>중지</button>
+      {:else}
+        <button type="button" class="basis-go" onclick={researchMarket}>
+          {optima ? "다시 짜기" : "노드 다시 짜기"}
+        </button>
+        <span class="basis-note">{optima ? "16조합 준비됨" : "조합마다 탐색을 돌립니다 · 1분쯤"}</span>
+      {/if}
+    </div>
+  {/if}
+
   <div class="market-filters">
     <label>등급
       <Select options={GRADE_OPTIONS} value={app.market.grade}
@@ -254,9 +289,10 @@
     <div class="band">
       <h2>가격 대 딜</h2>
       <span class="band-sub">굵은 선 아래는 살 이유가 없다 · 점을 누르면 표에서 짚어 준다</span>
+    {#if pairs.length > 0}<span class="band-sub pair-key">점선은 <b>두 짝을 한꺼번에</b> · 가격은 합계</span>{/if}
     {#if found?.dropped > 0}<span class="band-sub">연마 3줄 아님 {found.dropped}장 걸러냄</span>{/if}
     </div>
-    <MarketChart {rows} {part} {colorOf} onpick={row => { picked = row; }} />
+    <MarketChart {rows} {pairs} {part} {colorOf} onpick={row => { picked = row; }} />
     <div class="mk-key">
       {#each legend.filter(item => item.color !== null) as item (item.key)}
         <button type="button" class:on={app.market.filter[0] === item.combo[0] && app.market.filter[1] === item.combo[1]}
@@ -295,6 +331,7 @@
             <th class="i-num">주스탯</th>
             <th class="i-num">즉시 구매가</th>
             <th class="i-num">딜</th>
+            {#if optima}<th class="i-num">세팅 바꿔서</th>{/if}
             <th class="i-num">만골당</th>
             {#if partSlots(part).length > 1}<th>바꿀 자리</th>{/if}
           </tr>
@@ -312,7 +349,12 @@
               </td>
               <td class="i-num">{formatInteger(row.listing.mainStat)}</td>
               <td class="i-num">{money(row.price)}</td>
-              <td class="i-num i-gain">{pct(row.gain)}</td>
+              <td class="i-num i-gain">{pct(row.gainAs)}</td>
+              {#if optima}
+                <td class="i-num i-opt" class:up={row.gainOpt - row.gainAs >= 0.02}>
+                  {row.gainOpt === null ? "—" : pct(row.gainOpt)}
+                </td>
+              {/if}
               <td class="i-num i-per">
                 {#if row.perGold === null}
                   <span class="i-dash">—</span>
