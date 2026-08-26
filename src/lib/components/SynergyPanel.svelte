@@ -14,7 +14,7 @@
     getSynergyJob, synergyAmount, synergyBonuses, synergyChoiceNote,
   } from "../core/synergy.js";
   import {
-    app, addSynergyRow, removeSynergyRow, setSynergyRowJob, toggleSynergyChoice, setSynergyUptime,
+    app, goTab, addSynergyRow, removeSynergyRow, setSynergyRowJob, toggleSynergyChoice, setSynergyUptime,
   } from "../store.svelte.js";
   import { formatNumber } from "../core/util.js";
   import Select from "./Select.svelte";
@@ -71,9 +71,11 @@
         <div class="syn-who">
           {#if row.own}
             <span class="syn-me">내 캐릭터</span>
-            <!-- 내가 나에게 주는 몫은 시너지가 아니라 자버프다. 유효율은
-                 깨달음 쪽에서 매기고 여기서는 결과만 읽는다. -->
+            <!-- 내가 나에게 주는 몫은 시너지가 아니라 자버프다. 값도 유효율도
+                 깨달음이 정하고 여기서는 결과만 읽는다. 이 줄이 여기 서 있는
+                 이유는 하나다 — 딜 시너지 칸을 차지하고 있다는 것이 보여야 한다. -->
             <b>{row.name}</b>
+            <button type="button" class="syn-goto" onclick={() => goTab("awakening")}>깨달음에서 →</button>
           {:else if row.generic}
             <!-- 간략 카드가 세운 줄. 직업이 없으니 고를 것도 없다. -->
             <b>{row.name}</b>

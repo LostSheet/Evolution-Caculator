@@ -4538,3 +4538,11 @@ table.results td em.rel.down { color: var(--bad); }
 .build-drawer .bd-body { overflow-y: hidden; grid-template-rows: minmax(0, 1fr); }
 .build-drawer .compare { min-height: 0; display: flex; flex-direction: column; }
 .build-drawer .compare-scroll { max-height: none; flex: 1 1 auto; min-height: 0; }
+
+/* 내 캐릭터 줄에서 깨달음으로. 값도 가동율도 그쪽이 정하므로,
+   여기서는 "저기서 고친다"는 길만 낸다. */
+.syn-goto {
+  padding: 1px 8px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: none; color: var(--txt-3); font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+.syn-goto:hover { border-color: var(--cool); color: var(--cool); }

@@ -315,6 +315,9 @@
       </div>
       <div class="card-body">
         <SynergyBrief />
+        <!-- 간략과 상세가 따로 있었다. 같은 파티를 두 군데서 읽게 되고,
+             한쪽에서 고친 것이 다른 쪽에 어떻게 비치는지 매번 확인하게 된다. -->
+        <SynergyPanel />
         <!-- 셋 다 파티가 깔아 주는 것이다. 하나만 드롭다운이면 같은 성격인 줄
              셋이 서로 다른 물건처럼 보인다 — 켜고 끄는 칩으로 맞춘다. -->
         <div class="picks">
@@ -369,16 +372,6 @@
       아래층 — 파고드는 것. 처음에는 전부 접혀 있다.
     -->
     <div class="scope-deep">
-    <details class="card card-fold" open={isOpen("synergyDeep", false)} ontoggle={e => setFold("synergyDeep", e.currentTarget.open)}>
-      <summary>
-        <h2>파티 시너지 상세</h2>
-        <span class="fold-note">직업별 갈래와 가동율</span>
-      </summary>
-      <div class="card-body ruled">
-        <SynergyPanel />
-      </div>
-    </details>
-
     <details class="card card-fold" open={isOpen("bounds", false)} ontoggle={e => setFold("bounds", e.currentTarget.open)}>
       <summary>
         <h2>하한 · 상한</h2>
