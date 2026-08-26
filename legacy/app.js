@@ -24,6 +24,9 @@ const DEFAULT_STATE = {
   },
   convenience: {
     petStat: "none",
+    // 서포터가 얹어 주는 공격력. 기본 공격력을 안 적으면 내 것을 쓴다 —
+    // 레이드는 대개 비슷한 스펙끼리 간다.
+    support: { on: false, baseAttackPower: 0, skillLevel: 14, attackBoostPercent: 40 },
     evolutionKarmaRank: 0,
     // 옛 단일 슬라이더. damageMix가 채워지면 더 읽지 않는다.
     manaShare: 100,
@@ -1911,7 +1914,7 @@ function calculateMetrics(inputState) {
     synergy,
     jewelCooldownPercent: inputState.jewel?.cooldown,
     specBundles: inputState.specBundles,
-    supportAttackFlat: supportAttackPower(inputState),
+    support: inputState?.convenience?.support,
   });
 }
 
@@ -1939,7 +1942,7 @@ function finalizeMetrics(context) {
     synergy,
     jewelCooldownPercent,
     specBundles,
-    supportAttackFlat,
+    support,
   } = context;
 
   const manaCooldownCoverage = clamp(readNumber(manaCooldownShare ?? 1), 0, 1);
@@ -2090,7 +2093,7 @@ function finalizeMetrics(context) {
   // (1 + 아군 공격력 강화 효과 증가)가 내 기본 공격력에 더해진다. 괄호 안에
   // 들어가기 때문에 무공·힘민지를 희석한다. 곱연산 그룹으로 두면 그 희석이
   // 일어나지 않아서, 서폿이 붙어도 귀걸이 무공의 값어치가 그대로 나온다.
-  const supportAttack = chainKnown ? readNumber(supportAttackFlat) : 0;
+  const supportAttack = chainKnown ? supportAttackPower(support, baseAttack) : 0;
   const finalAttack = chainKnown
     ? (baseAttack + readNumber(flatBonuses.attackPower) + supportAttack)
       * (1 + readNumber(damageGroups["공격력"]) / 100)
@@ -2871,12 +2874,33 @@ function emptyFlatBonuses() {
  *
  * 서폿을 안 적으면 0이다 — 모르는 것을 짐작해서 넣으면 그게 답인 척한다.
  */
-function supportAttackPower(inputState) {
-  const support = inputState?.convenience?.support;
-  const base = Math.max(0, readNumber(support?.baseAttackPower));
+/** 버프 스킬 레벨별 공격력 증가 계수(%). 10레벨부터 14레벨까지. */
+const SUPPORT_BUFF_BY_LEVEL = { 10: 21, 11: 21.2, 12: 21.5, 13: 21.7, 14: 22 };
+
+/**
+ * 서포터가 얹어 주는 공격력.
+ *
+ *   서폿 기본 공격력 x 버프 계수 x (1 + 아군 공격력 강화 효과 증가)
+ *
+ * 실측(도화가 화면): 기본 공격력 159,411 · 아군 공격력 강화 효과 증가 35.44%
+ * · 버프 스킬 14레벨 → 159,411 x 0.22 x 1.3544 = 47,499.
+ *
+ * 이 값은 퍼센트가 아니라 **평면**으로 최종 공격력 괄호 안에 더해진다.
+ * 공격력 증가율로 놓으면 무공·힘민지가 같이 부풀어 오른다 — 실제로는
+ * 그 반대로, 이 평면이 무공·힘민지의 몫을 희석한다.
+ *
+ * 기준 공격력을 안 적으면 내 기본 공격력을 쓴다. 레이드는 대개 비슷한
+ * 스펙끼리 가므로 그 가정이 맨손보다 낫다.
+ */
+function supportAttackPower(support, myBase) {
+  if (!support || support.on === false) return 0;
+  const typed = Math.max(0, readNumber(support.baseAttackPower));
+  const base = typed > 0 ? typed : Math.max(0, readNumber(myBase));
   if (!(base > 0)) return 0;
-  const boost = Math.max(0, readNumber(support?.attackBoostPercent));
-  return base * ARC_PASSIVE_CONSTANTS.supportAttackShare * (1 + boost / 100);
+  const level = clamp(Math.round(readNumber(support.skillLevel) || 14), 10, 14);
+  const share = (SUPPORT_BUFF_BY_LEVEL[level] ?? 22) / 100;
+  const boost = Math.max(0, readNumber(support.attackBoostPercent));
+  return base * share * (1 + boost / 100);
 }
 
 /**

@@ -4561,3 +4561,12 @@ table.results td em.rel.down { color: var(--bad); }
 .fab:hover:not(:disabled) { background: var(--cool-strong); border-color: var(--cool-strong); }
 .fab:disabled { opacity: 0.5; cursor: default; }
 .fab.stop { background: var(--surface); color: var(--txt); border-color: var(--line-lift); }
+
+/* 서포터 공증. 평면으로 최종 공격력에 더해지는 값이라 결과를 골드가 아니라
+   공격력으로 적는다 — 그래야 무공·힘민지를 얼마나 희석하는지 가늠이 된다. */
+.sup { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.sup label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--txt-3); }
+.sup input { width: 74px; text-align: right; }
+.sup-out { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
+.sup-out b { font-size: 13.5px; color: var(--cool); }
+.sup-row { align-items: flex-start; }

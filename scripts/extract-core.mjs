@@ -179,7 +179,7 @@ writeFileSync(resolve(OUT, "metrics.js"), buildModule({
     "applyEngravingEffects", "applyEngravingTier", "getEngravingTierIndex",
     "normalizeBracelet", "applyBraceletEffects", "getBraceletGradeIndex", "isDirectionalConditionActive",
     "normalizeAccessories", "calculateAccessoryBonuses", "getAccessoryOptionValue",
-    "normalizeAttack", "assembleAttack", "supportAttackPower", "baseAttackPower", "emptyFlatBonuses", "applyFlatAttackBonuses", "addFlatBonus",
+    "normalizeAttack", "assembleAttack", "SUPPORT_BUFF_BY_LEVEL", "supportAttackPower", "baseAttackPower", "emptyFlatBonuses", "applyFlatAttackBonuses", "addFlatBonus",
     "FOODS", "FOOD_BY_ID", "getFood", "applyFoodEffects", "RANCH_GRADES", "ranchAmount",
     "PASSION_DANCE_GRADES", "passionDanceAmount", "AVATAR_SLOTS", "AVATAR_GRADES", "avatarAmount", "avatarTotal", "derivedMainTotal", "ranchResidual", "outsideMainStat", "autoRanchAmount", "resolveRanchMainStat", "resolveRanchDamage",
     "applyAwakeningEffects", "applySynergyEffects",

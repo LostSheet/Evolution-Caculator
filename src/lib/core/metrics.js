@@ -39,6 +39,9 @@ const DEFAULT_STATE = {
   },
   convenience: {
     petStat: "none",
+    // 서포터가 얹어 주는 공격력. 기본 공격력을 안 적으면 내 것을 쓴다 —
+    // 레이드는 대개 비슷한 스펙끼리 간다.
+    support: { on: false, baseAttackPower: 0, skillLevel: 14, attackBoostPercent: 40 },
     evolutionKarmaRank: 0,
     // 옛 단일 슬라이더. damageMix가 채워지면 더 읽지 않는다.
     manaShare: 100,
@@ -555,7 +558,7 @@ function calculateMetrics(inputState) {
     synergy,
     jewelCooldownPercent: inputState.jewel?.cooldown,
     specBundles: inputState.specBundles,
-    supportAttackFlat: supportAttackPower(inputState),
+    support: inputState?.convenience?.support,
   });
 }
 
@@ -581,7 +584,7 @@ function finalizeMetrics(context) {
     synergy,
     jewelCooldownPercent,
     specBundles,
-    supportAttackFlat,
+    support,
   } = context;
 
   const manaCooldownCoverage = clamp(readNumber(manaCooldownShare ?? 1), 0, 1);
@@ -732,7 +735,7 @@ function finalizeMetrics(context) {
   // (1 + 아군 공격력 강화 효과 증가)가 내 기본 공격력에 더해진다. 괄호 안에
   // 들어가기 때문에 무공·힘민지를 희석한다. 곱연산 그룹으로 두면 그 희석이
   // 일어나지 않아서, 서폿이 붙어도 귀걸이 무공의 값어치가 그대로 나온다.
-  const supportAttack = chainKnown ? readNumber(supportAttackFlat) : 0;
+  const supportAttack = chainKnown ? supportAttackPower(support, baseAttack) : 0;
   const finalAttack = chainKnown
     ? (baseAttack + readNumber(flatBonuses.attackPower) + supportAttack)
       * (1 + readNumber(damageGroups["공격력"]) / 100)
@@ -1343,12 +1346,17 @@ function assembleAttack(inputState) {
   };
 }
 
-function supportAttackPower(inputState) {
-  const support = inputState?.convenience?.support;
-  const base = Math.max(0, readNumber(support?.baseAttackPower));
+const SUPPORT_BUFF_BY_LEVEL = { 10: 21, 11: 21.2, 12: 21.5, 13: 21.7, 14: 22 };
+
+function supportAttackPower(support, myBase) {
+  if (!support || support.on === false) return 0;
+  const typed = Math.max(0, readNumber(support.baseAttackPower));
+  const base = typed > 0 ? typed : Math.max(0, readNumber(myBase));
   if (!(base > 0)) return 0;
-  const boost = Math.max(0, readNumber(support?.attackBoostPercent));
-  return base * ARC_PASSIVE_CONSTANTS.supportAttackShare * (1 + boost / 100);
+  const level = clamp(Math.round(readNumber(support.skillLevel) || 14), 10, 14);
+  const share = (SUPPORT_BUFF_BY_LEVEL[level] ?? 22) / 100;
+  const boost = Math.max(0, readNumber(support.attackBoostPercent));
+  return base * share * (1 + boost / 100);
 }
 
 function baseAttackPower(attack) {
@@ -1785,6 +1793,7 @@ export {
   getAccessoryOptionValue,
   normalizeAttack,
   assembleAttack,
+  SUPPORT_BUFF_BY_LEVEL,
   supportAttackPower,
   baseAttackPower,
   emptyFlatBonuses,

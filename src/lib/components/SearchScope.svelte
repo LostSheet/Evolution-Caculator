@@ -1,6 +1,9 @@
 <script>
   import { ENGRAVING_TIERS } from "../core/engravings.js";
-  import { isDirectionalConditionActive, calculateMetrics, FOODS, PASSION_DANCE_GRADES } from "../core/metrics.js";
+  import {
+    isDirectionalConditionActive, calculateMetrics, FOODS, PASSION_DANCE_GRADES,
+    SUPPORT_BUFF_BY_LEVEL, assembleAttack,
+  } from "../core/metrics.js";
   import { formatInteger, formatNumber, clamp, readNumber } from "../core/util.js";
   import {
     OPTIMIZER_ENGRAVING_ROLES, OPTIMIZER_ROLE_LABELS, DIRECTION_REQUIREMENT_LABELS,
@@ -21,6 +24,17 @@
   import Hint from "./Hint.svelte";
 
   let { plan, report, budget } = $props();
+
+  // 서포터가 얹어 주는 공격력. 기본 공격력을 안 적으면 내 것을 쓴다 —
+  // 레이드는 대개 비슷한 스펙끼리 가므로 그 가정이 맨손보다 낫다.
+  const SUPPORT_LEVELS = Object.entries(SUPPORT_BUFF_BY_LEVEL)
+    .map(([level, share]) => ({ value: Number(level), label: `${level}Lv`, hint: `${share}%` }));
+  const sup = $derived(app.character.convenience.support ?? {});
+  const myBase = $derived(Math.round(calculateMetrics(app.character).baseAttack));
+  function setSupport(patch) {
+    app.character.convenience.support = { ...app.character.convenience.support, ...patch };
+    persist();
+  }
 
   // 자버프는 여기서 안 고친다. 무엇이 걸려 있는지만 적고 깨달음으로 보낸다.
   const buffSummary = $derived.by(() => {
@@ -334,6 +348,36 @@
                       onclick={() => { app.character.convenience.feast = !app.character.convenience.feast; persist(); }}>
                 만찬<em>공속 +5%</em>
               </button>
+            </div>
+            <span class="pick-count"></span>
+          </div>
+          <!-- 서포터가 얹어 주는 공격력.
+               퍼센트가 아니라 평면으로 최종 공격력 괄호 안에 더해진다. 그래서
+               무공·힘민지의 몫을 희석한다 — 서폿을 켜면 공격력 옵션의 값어치가
+               내려가고 치명·추피 쪽이 올라간다. 그 뒤집힘이 이 칸의 요점이다. -->
+          <div class="pick-row sup-row">
+            <b>서포터 공증</b>
+            <div class="sup">
+              <button type="button" class="pick-chip" class:on={sup.on} aria-pressed={sup.on}
+                      onclick={() => { setSupport({ on: !sup.on }); }}>
+                {sup.on ? "받는 중" : "없음"}
+              </button>
+              {#if sup.on}
+                <label>기본 공격력
+                  <input type="number" min="0" step="1000" placeholder={formatInteger(myBase)}
+                         value={sup.baseAttackPower || ""}
+                         oninput={e => setSupport({ baseAttackPower: readNumber(e.currentTarget.value) })} />
+                </label>
+                <label>버프 스킬
+                  <Select options={SUPPORT_LEVELS} value={sup.skillLevel}
+                          onchange={v => setSupport({ skillLevel: v })} />
+                </label>
+                <label>버프 효율
+                  <input type="number" min="0" max="200" step="1" value={sup.attackBoostPercent}
+                         oninput={e => setSupport({ attackBoostPercent: readNumber(e.currentTarget.value) })} />%
+                </label>
+                <span class="sup-out">공격력 <b>+{formatInteger(Math.round(report.attackChain?.support ?? 0))}</b></span>
+              {/if}
             </div>
             <span class="pick-count"></span>
           </div>
