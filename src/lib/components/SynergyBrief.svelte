@@ -11,10 +11,11 @@
   import { formatNumber } from "../core/util.js";
   import { app, genericSynergyCount, setGenericSynergyCount } from "../store.svelte.js";
 
-  const KINDS = [
-    { job: "damage", label: "피증" },
-    { job: "critRate", label: "치적" },
-  ];
+  // 목록을 손으로 적어 두었더니 넷이 조용히 빠져 있었다 — 치피증·공증·방깎·백헤드.
+  // 데이터가 종류를 들고 있으므로 거기서 뽑는다. 새 시너지가 생겨도 따라온다.
+  const KINDS = Object.values(SYNERGY_TYPES)
+    .filter(type => type.combat)
+    .map(type => ({ job: type.key, label: type.short ?? type.label }));
 
   const result = $derived(synergyBonuses(
     app.character.awakening, app.character.synergy, app.character.settings,

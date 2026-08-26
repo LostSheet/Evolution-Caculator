@@ -2579,9 +2579,12 @@ input.boxed[type="number"] { text-align: right; }
 
 /* 좁아지면 다시 두 줄로. 한 줄에 우겨넣으면 아무것도 못 읽는다. */
 @media (max-width: 1140px) {
-  .effect-row { grid-template-columns: minmax(0, 1fr) 92px 84px 26px; }
-  .effect-row > input[type="text"]:first-child { grid-column: 1 / -1; }
-  .effect-row.custom { grid-template-columns: minmax(0, 1fr) 92px 84px 26px; }
+  /* 열이 넷인데 자식은 다섯이었다 — 값 다음의 유효율이 26px 칸(삭제 단추
+     자리)으로 밀려 입력칸끼리 겹쳤다. 자식 수만큼 칸을 준다. */
+  .effect-row { grid-template-columns: minmax(0, 1fr) 92px 76px 62px 26px; }
+  .effect-row > input[type="text"] { grid-column: 1 / -1; }
+  .effect-row.custom { grid-template-columns: minmax(0, 1fr) 92px 76px 62px 26px; }
+  .uptime-rate input { width: 44px; }
 }
 
 /* 폭이 남는다고 입력이 끝없이 늘어날 이유는 없다. */
@@ -4528,3 +4531,10 @@ table.results td em.rel.down { color: var(--bad); }
 .floor-pick button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
 .floor-pick input { width: 50px; margin-left: 4px; }
 .floor-pick em { font-style: normal; font-size: 12px; color: var(--txt-3); }
+
+/* 서랍 안에서는 표가 서랍 높이에 맞춰 선다.
+   바깥(.bd-body)이 또 세로로 스크롤되면 가로 막대가 표 바닥에 붙어 내려가,
+   그걸 보려고 세로를 한 번 더 굴려야 한다. 스크롤은 한 겹이면 족하다. */
+.build-drawer .bd-body { overflow-y: hidden; grid-template-rows: minmax(0, 1fr); }
+.build-drawer .compare { min-height: 0; display: flex; flex-direction: column; }
+.build-drawer .compare-scroll { max-height: none; flex: 1 1 auto; min-height: 0; }

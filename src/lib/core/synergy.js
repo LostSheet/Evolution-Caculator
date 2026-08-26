@@ -53,15 +53,15 @@ import JOB_BUFFS from "../data/job-buffs.json" with { type: "json" };
 
 const SYNERGY_TYPES = {
   // combat이 붙은 것이 자리를 센다. 파티에 딜 시너지는 셋까지가 관례다.
-  damage: { key: "damage", label: "피해 증가", amount: 6, group: "시너지 피해 증가", combat: true },
-  attack: { key: "attack", label: "공격력 증가", amount: 6, group: "시너지 공격력", combat: true },
-  defense: { key: "defense", label: "방어력 감소", amount: 12, group: "시너지 방어력 감소", combat: true },
-  critRate: { key: "critRate", label: "치명타 적중률", amount: 10, percent: "critRate", combat: true },
+  damage: { key: "damage", label: "피해 증가", short: "피증", amount: 6, group: "시너지 피해 증가", combat: true },
+  attack: { key: "attack", label: "공격력 증가", short: "공증", amount: 6, group: "시너지 공격력", combat: true },
+  defense: { key: "defense", label: "방어력 감소", short: "방깎", amount: 12, group: "시너지 방어력 감소", combat: true },
+  critRate: { key: "critRate", label: "치명타 적중률", short: "치적", amount: 10, percent: "critRate", combat: true },
   // 치피가 아니다. 회심과 같은 자리이고 회심과는 곱해진다.
-  critOnly: { key: "critOnly", label: "치명타 시 피해 증가", amount: 8, critOnly: true, combat: true },
+  critOnly: { key: "critOnly", label: "치명타 시 피해 증가", short: "치피증", amount: 8, critOnly: true, combat: true },
   // 4% + (백/헤드일 때) 5%. 둘 다 피증 주머니로 들어간다.
   backHead: {
-    key: "backHead", label: "백 · 헤드어택 피해 증가",
+    key: "backHead", label: "백 · 헤드어택 피해 증가", short: "백헤드",
     amount: 4, directional: 5, group: "시너지 피해 증가", combat: true,
   },
   // 속도는 값이 출처마다 다르다. 균등하게 배정된 딜 시너지와 달리 서포터가
