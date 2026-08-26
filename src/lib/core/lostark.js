@@ -1377,7 +1377,41 @@ export const GRIND_CODE = {
 /** 값은 퍼센트 x100으로 보낸다 — 1.55% → 155. */
 export const grindValueCode = percent => Math.round(readApiNumber(percent) * 100);
 
+/**
+ * 분당 몇 번까지 쏠 수 있나.
+ *
+ * 로스트아크 오픈 API는 분당 100회다. 늘려 달라고 할 수는 있지만, 이 도구를
+ * 쓰는 사람마다 그러라고 하는 것보다 덜 쓰고 기다리는 편이 깔끔하다.
+ *
+ * 60초 미끄럼창으로 센다. 한도에 닿으면 가장 오래된 요청이 창을 벗어날 때까지
+ * 기다렸다 쏜다 — 429를 맞고 되돌아오는 것보다 안 맞는 편이 빠르다.
+ */
+const RATE_WINDOW = 60_000;
+const RATE_LIMIT = 92;
+const rateMarks = [];
+
+async function rateGate(signal) {
+  for (;;) {
+    const now = Date.now();
+    while (rateMarks.length > 0 && now - rateMarks[0] >= RATE_WINDOW) rateMarks.shift();
+    if (rateMarks.length < RATE_LIMIT) { rateMarks.push(now); return; }
+    const wait = RATE_WINDOW - (now - rateMarks[0]) + 20;
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, wait);
+      signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+    });
+  }
+}
+
+/** 지금 바로 쏠 수 있는 횟수. 화면이 "얼마나 기다리나"를 말하는 데 쓴다. */
+export function rateHeadroom() {
+  const now = Date.now();
+  while (rateMarks.length > 0 && now - rateMarks[0] >= RATE_WINDOW) rateMarks.shift();
+  return Math.max(0, RATE_LIMIT - rateMarks.length);
+}
+
 export async function searchAuction(apiKey, body, { signal } = {}) {
+  await rateGate(signal);
   const key = String(apiKey ?? "").trim();
   if (!key) throw new LostArkError("API 키가 없습니다.");
   if (!/^[\x20-\x7E]+$/.test(key)) {

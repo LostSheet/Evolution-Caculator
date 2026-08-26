@@ -9,7 +9,8 @@
 // 화면을 한참 들여다봤다.
 import {
   ACCESSORY_SLOTS, readListing, withListing, valueListings, gradeOf, wornCombo,
-  cellStats, orderedLines, ACCESSORY_PARTS, priceFrontier,
+  cellStats, orderedLines, ACCESSORY_PARTS, priceFrontier, frontierPicks,
+  sweepAxes, ENLIGHTEN_FULL, SWEEP_TOTAL,
 } from "../src/lib/core/accessory.js";
 import { DEFAULT_STATE, mergeState, calculateMetrics, assembleAttack } from "../src/lib/core/metrics.js";
 
@@ -158,6 +159,48 @@ const now = calculateMetrics(state).damageIndex;
     `${stats.best.rate.toFixed(4)} vs ${stats.median.rate.toFixed(4)}`);
   check("(f) 평균도 아홉 장 쪽이다", stats.mean.gain < 0, stats.mean.gain.toFixed(3));
   check("(f) 빈 칸은 null", cellStats([]) === null);
+}
+
+// (i) 답 띠 — 살 이유가 없는 끝은 안 올린다.
+//
+// 프론티어의 왼쪽 끝은 대개 "3,000골드에 +0.00%"고, 오른쪽 끝은 "0.03%p 더
+// 얻자고 219만 더 쓰기"다. 둘 다 정의상 프론티어지만 카드로는 거짓말에 가깝다.
+{
+  const rows = [
+    { gain: 0.002, price: 3_000 }, { gain: 0.14, price: 16_000 },
+    { gain: 0.35, price: 250_000 }, { gain: 0.91, price: 2_110_000 }, { gain: 0.94, price: 4_300_000 },
+  ];
+  const picks = frontierPicks(rows, 3);
+  check("(i) 셋", picks.length === 3, String(picks.length));
+  check("(i) +0.00%짜리 시작점은 뺀다", picks[0].price === 16_000, String(picks[0].price));
+  check("(i) 값 못 하는 끝도 뺀다", picks[picks.length - 1].price === 2_110_000, String(picks[picks.length - 1].price));
+  check("(i) 전부 손해면 빈 손", frontierPicks([{ gain: -1, price: 100 }]).length === 0);
+}
+
+// (j) 훑기 축 — 주요 두 갈래 x 세 번째 줄.
+{
+  const ring = ACCESSORY_PARTS.find(item => item.key === "rings");
+  const axes = sweepAxes(ring);
+  check("(j) 48가지", axes.length === 48 && SWEEP_TOTAL === 48, String(axes.length));
+  check("(j) 세 번째 줄을 건 축이 3분의 2",
+    axes.filter(a => a.flatName).length === 32, String(axes.filter(a => a.flatName).length));
+  check("(j) 무관/무관/무관도 있다",
+    axes.some(a => a.picks.length === 0 && !a.flatName));
+  check("(j) 깨달음 기준", ENLIGHTEN_FULL.necklace === 13 && ENLIGHTEN_FULL.rings === 12);
+}
+
+// (k) 깨달음을 읽는다. 연마 3줄이 아니면 이 값이 모자라고, 그것이 거르는 기준이다.
+{
+  const read = readListing({
+    Name: "x", Grade: "고대", GradeQuality: 82, AuctionInfo: { BuyPrice: 1 },
+    Options: [
+      { Type: "ARK_PASSIVE", OptionName: "깨달음", Value: 12 },
+      { Type: "ACCESSORY_UPGRADE", OptionName: "치명타 적중률", Value: 1.55, IsValuePercentage: true },
+      { Type: "STAT", OptionName: "지능", Value: 11736 },
+    ],
+  });
+  check("(k) 깨달음 12", read.enlighten === 12, String(read.enlighten));
+  check("(k) 깨달음은 연마 줄이 아니다", read.lines.length === 1, String(read.lines.length));
 }
 
 console.log(failures === 0 ? "accessory: all checks passed" : `accessory: ${failures} failures`);

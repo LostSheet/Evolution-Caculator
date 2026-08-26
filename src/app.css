@@ -4469,49 +4469,7 @@ table.results td em.rel.down { color: var(--bad); }
 .p-combo { display: grid; gap: 3px; font-size: 12.5px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
 .p-per { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; margin-top: 4px; }
 
-/* 조합 격자 — 이미 받아 둔 매물을 묶은 것이라 경매장을 또 쏘지 않는다.
-   그래서 '없음'도 짐작이 아니라 사실이다. 누르면 아래 표가 그 조합만 남는다. */
-.mk-grid { border-collapse: collapse; width: 100%; max-width: 760px; table-layout: fixed; margin: 0 0 16px; }
-.mk-grid thead th { font-size: 10.5px; color: var(--txt-3); font-weight: 500; padding: 0 2px 4px; }
-.mk-grid .g-corner {
-  width: 128px; padding-right: 8px;
-  /* 한 줄에 두 축 이름을 밀어 넣으면 '적에게 주는 추가 피 해'처럼 엉켜 접힌다. */
-  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
-  font-size: 10px; color: var(--txt-3); white-space: nowrap;
-}
-.mk-grid tbody th {
-  font-size: 11px; color: var(--txt-2); font-weight: 600; text-align: right; padding-right: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.mk-grid td { padding: 2px; }
-.mk-grid td button {
-  width: 100%; min-height: 56px; display: grid; gap: 1px; align-content: center; justify-items: center;
-  padding: 6px 3px; border: 1px solid var(--line-soft); border-radius: var(--r);
-  background: var(--surface); cursor: pointer; font-variant-numeric: tabular-nums;
-}
-.mk-grid td button:disabled { cursor: default; opacity: 0.35; }
-.mk-grid td.on button { border-color: var(--cool); box-shadow: inset 0 0 0 1px var(--cool); background: var(--surface-2); }
-.g-per {
-  font-size: 14px; font-weight: 700; color: var(--txt); padding: 0 5px; border-radius: 2px;
-  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent);
-}
-.g-gain { font-size: 10.5px; color: var(--txt-2); }
-.g-gain.down { color: var(--bad); }
-.g-price { font-size: 10px; color: var(--txt-3); }
-.g-none { font-size: 11px; color: var(--txt-3); }
 
-.mk-gridbar {
-  display: flex; align-items: center; gap: 10px;
-  max-width: 760px; margin-bottom: 6px;
-}
-.g-cap { font-size: 11px; color: var(--txt-3); }
-.g-views { display: flex; gap: 3px; margin-left: auto; }
-.g-views button {
-  padding: 3px 11px; border: 1px solid var(--line-soft); border-radius: var(--r);
-  background: var(--surface); color: var(--txt-3); font-size: 12px; cursor: pointer;
-}
-.g-views button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
-.g-per.down { color: var(--bad); }
 
 /* 조합 색. 밝은 바탕과 어두운 바탕 둘 다에서 서로 갈려야 한다. */
 :root {
@@ -4541,28 +4499,32 @@ table.results td em.rel.down { color: var(--bad); }
 .market-context b { font-size: 11px; color: var(--txt-3); font-weight: 500; }
 .market-context em { font-style: normal; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; }
 
-/* 범례가 곧 조합표다. 색 · 조합 · 만골당 · 딜 · 최저가 · 장수. */
-.mk-legend { border-collapse: collapse; width: 100%; max-width: 700px; font-size: 12.5px; }
-.mk-legend td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
-.mk-legend tr.on td { background: var(--surface-2); }
-.mk-legend .l-dot { width: 22px; padding-right: 0; }
-.mk-legend .dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--mk-cx); }
-.mk-legend .dot.c0 { background: var(--mk-c0); }
-.mk-legend .dot.c1 { background: var(--mk-c1); }
-.mk-legend .dot.c2 { background: var(--mk-c2); }
-.mk-legend .dot.c3 { background: var(--mk-c3); }
-.mk-legend .dot.c4 { background: var(--mk-c4); }
-.mk-legend .l-combo { width: 100%; }
-.mk-legend .l-combo button {
-  display: flex; gap: 18px; width: 100%; padding: 0; text-align: left; cursor: pointer;
-  background: none; border: 0; color: var(--txt-2); font-size: 12.5px; font-variant-numeric: tabular-nums;
+
+/* 색 열쇠. 표가 아니라 열쇠다 — 숫자는 그래프와 아래 표가 말한다. */
+.mk-key { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 2px 0 4px; }
+.mk-key button {
+  display: flex; align-items: center; gap: 7px; padding: 4px 11px 4px 8px;
+  border: 1px solid var(--line-soft); border-radius: 999px;
+  background: var(--surface); color: var(--txt-2); font-size: 12px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
 }
-.mk-legend .l-combo button:hover { color: var(--txt); }
-.mk-legend .i-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mk-legend .l-per span {
-  font-weight: 600; color: var(--txt); padding: 2px 7px; border-radius: 2px;
-  background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent);
+.mk-key button:hover { border-color: var(--line-lift); color: var(--txt); }
+.mk-key button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); }
+.mk-key span + span::before { content: "·"; margin: 0 5px; color: var(--txt-3); }
+.mk-key .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mk-cx); flex: none; }
+.mk-key .dot.c0 { background: var(--mk-c0); }
+.mk-key .dot.c1 { background: var(--mk-c1); }
+.mk-key .dot.c2 { background: var(--mk-c2); }
+.mk-key .dot.c3 { background: var(--mk-c3); }
+.mk-key .dot.c4 { background: var(--mk-c4); }
+
+/* 품질 하한. 깨달음은 검색 조건이 아니라 품질로 대신 건다 —
+   연마 3줄 + 품질 67이면 목걸이 13 · 반지/귀걸이 12다. */
+.floor-pick { display: flex; align-items: center; gap: 4px; }
+.floor-pick button {
+  padding: 3px 11px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surface); color: var(--txt-3); font-size: 12px; cursor: pointer;
 }
-.mk-legend .l-per span.down { color: var(--bad); background: none; }
-.mk-legend .l-gain.down { color: var(--bad); }
-.mk-legend .l-price, .mk-legend .l-n { color: var(--txt-3); }
+.floor-pick button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
+.floor-pick input { width: 50px; margin-left: 4px; }
+.floor-pick em { font-style: normal; font-size: 12px; color: var(--txt-3); }

@@ -84,11 +84,18 @@ export function readListing(item) {
     // 연마 세 줄을 온 대로. { name, value, percent, grade, counted }
     lines: [],
     unmodeled: [],
+    // 아크 패시브 깨달음. 연마 줄 수로 정해진다 — 0줄 3점, 2줄 8점, 3줄 12점
+    // (목걸이는 4/9/13). 품질과는 무관하다: 품질 90짜리도 연마를 안 했으면 4점이다.
+    enlighten: 0,
   };
   (item?.Options ?? []).forEach(option => {
     const type = String(option?.Type ?? "");
     const name = String(option?.OptionName ?? "").trim();
     const value = readNumber(option?.Value);
+    if (type === "ARK_PASSIVE") {
+      if (name === "깨달음") out.enlighten = value;
+      return;
+    }
     if (type === "STAT") {
       // 셋이 같은 값으로 오고 하나만 쓴다. 체력은 딜과 무관하다.
       if (name === "지능" || name === "힘" || name === "민첩") out.mainStat = Math.max(out.mainStat, value);
@@ -216,6 +223,16 @@ export const FIELD_API_NAME = Object.fromEntries(
 export const gradeValue = (field, grade) => GRADE_VALUES[field]?.[grade] ?? 0;
 
 /** 화면에 쓰는 짧은 이름. 경매장 이름은 격자 머리에 넣기엔 길다. */
+/** 알약 하나에 들어갈 만큼 짧은 이름. 게임에서 쓰는 줄임말 그대로다. */
+export const FIELD_SHORT = {
+  critRate: "치적",
+  critDamage: "치피",
+  additionalDamage: "추피",
+  dealtDamage: "적주피",
+  attackPower: "공",
+  weaponAttack: "무공",
+};
+
 export const FIELD_LABEL = {
   critRate: "치명타 적중률",
   critDamage: "치명타 피해",
@@ -352,29 +369,67 @@ export function frontierPicks(rows, limit = 5) {
   const front = priceFrontier(rows);
   if (front.length === 0) return [];
   const top = front[front.length - 1].gain;
+  // 프론티어의 왼쪽 끝은 대개 "3,000골드에 +0.00%"다. 정의상 그 가격대의
+  // 최고이긴 하지만 살 이유가 없고, 카드 한 자리를 먹으며 아무 말도 안 한다.
+  const worth = front.filter(row => row.gain >= top * 0.05);
+  if (worth.length === 0) return [];
   const step = top * 0.12;
-  const picks = [front[0]];
-  front.slice(1).forEach(row => {
+  const picks = [worth[0]];
+  worth.slice(1).forEach(row => {
     if (row.gain - picks[picks.length - 1].gain >= step) picks.push(row);
   });
-  // 제일 센 것은 늘 남는다 — "돈을 다 쓰면 어디까지"가 답의 한쪽 끝이다.
-  const best = front[front.length - 1];
-  if (picks[picks.length - 1] !== best) picks.push(best);
-  return picks.length <= limit ? picks : [
-    picks[0],
-    ...picks.slice(1, -1).filter((_, at) => at % Math.ceil((picks.length - 2) / (limit - 2)) === 0),
-    picks[picks.length - 1],
-  ].slice(0, limit);
+  // 앞에서 세 장만 자르면 제일 센 것들이 통째로 안 보인다 — 3,000골드부터
+  // 300만까지 펼쳐진 답에서 싼 쪽 셋만 남는 꼴이다. 고르게 추린다.
+  if (picks.length <= limit) return picks;
+  const step2 = (picks.length - 1) / (limit - 1);
+  return Array.from({ length: limit }, (_, at) => picks[Math.round(at * step2)]);
 }
+
+// --- 훑기 축 ---------------------------------------------------------------
+//
+// 부위마다 퍼센트 딜옵은 딱 두 종이다 — 실측으로 확인했다. 반지에 공격력%가
+// 붙은 매물은 0개고, 귀걸이에 치적이 붙은 것도 0개다. 그 둘이 slot.fields고,
+// 세 번째 줄에 올 수 있는 딜옵은 평면 둘 — 공격력 +, 무기 공격력 +.
+//
+// 그래서 축은 (주요1 x 주요2 x 세 번째 줄)이다. 평면의 등급까지 쪼개면 조회가
+// 두 배 넘게 드는데, 등급은 응답에서 읽어 어차피 알게 되므로 나누지 않는다.
+
+/**
+ * 연마 3줄을 다 채운 악세의 깨달음.
+ *
+ * 깨달음은 검색 조건이 아니다(경매장이 받는 갈래에 아크 패시브가 없다).
+ * 연마 줄 수와 품질로 정해지므로 품질 하한으로 대신 걸고, 받아서 이 값으로
+ * 한 번 더 거른다 — 임계 품질이 틀려도 결과는 맞는다.
+ */
+export const ENLIGHTEN_FULL = { necklace: 13, earrings: 12, rings: 12 };
+
+/** 세 번째 줄 축. '무관'은 조건을 안 거는 것이라 2줄짜리도 섞여 온다. */
+export const FLAT_AXIS = [
+  { key: "any", label: "무관", name: null },
+  { key: "attackPower", label: "공격력 +", name: "공격력 +" },
+  { key: "weaponAttack", label: "무기 공격력 +", name: "무기 공격력 +" },
+];
+
+/** 한 부위를 훑을 때 쏠 조건 전부. 4 x 4 x 3 = 48개. */
+export function sweepAxes(part) {
+  const out = [];
+  GRADES.forEach(a => GRADES.forEach(b => FLAT_AXIS.forEach(flat => {
+    out.push({ combo: [a, b], flat: flat.key, picks: comboQuery(part, [a, b]), flatName: flat.name });
+  })));
+  return out;
+}
+
+/** 한 부위를 훑을 때 쏘는 조회 수. 진행률을 그리는 데 쓴다. */
+export const SWEEP_TOTAL = GRADES.length * GRADES.length * FLAT_AXIS.length;
 
 /**
  * 칸 하나의 경향.
  *
- * 최고값 한 장으로 칸끼리 견주면 편향이 생긴다 — 극단 통계라, 어쩌다 싸게
- * 올라온 한 장이 그 조합 전체를 대표해 버린다. 열 장의 중앙값이 훨씬 덜 흔들린다.
+ * 최고값 한 장으로 조합끼리 견주면 편향이 생긴다 — 극단 통계라, 어쩌다 싸게
+ * 올라온 한 장이 그 조합 전체를 대표해 버린다. 중앙값이 훨씬 덜 흔들린다.
  *
  * 골드당은 부호를 살려 센다. 줄 하나짜리로 볼 때는 손해에 골드당을 안 매기지만
- * (싸게 손해 보는 것이 덜 나쁜 것은 아니므로), 칸의 경향으로는 "이 조합은
+ * (싸게 손해 보는 것이 덜 나쁜 것은 아니므로), 조합의 경향으로는 "이 조합은
  * 사면 대체로 내려간다"가 답이라 음수도 답의 일부다.
  */
 const median = list => {

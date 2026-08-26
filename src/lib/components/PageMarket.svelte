@@ -12,7 +12,7 @@
    */
   import { app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket } from "../store.svelte.js";
   import {
-    ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, GRADE_VALUES, partSlots, orderedLines,
+    ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, FIELD_SHORT, GRADE_VALUES, partSlots, orderedLines,
     comboOf, frontierPicks, cellStats, PART_CONTEXT, valuePart,
   } from "../core/accessory.js";
   import { formatInteger, readNumber } from "../core/util.js";
@@ -79,11 +79,6 @@
    * 받아 둔 매물을 조합별로 묶는다. 경매장을 또 쏘지 않으므로 '없음'도
    * 짐작이 아니라 사실이다.
    */
-  const VIEWS = [
-    { value: "median", label: "중앙값" },
-    { value: "mean", label: "평균" },
-    { value: "best", label: "최고" },
-  ];
   const cells = $derived.by(() => {
     const pooled = new Map();
     all.forEach(row => {
@@ -95,7 +90,9 @@
     pooled.forEach((group, key) => out.set(key, cellStats(group)));
     return out;
   });
-  const seatOf = seat => seat[app.market.cellView];
+  // 색을 나눌 때는 최고값으로 줄을 세운다 — 어느 조합이 프론티어에 닿는지가
+  // 색으로 알아야 할 전부다. 경향은 그래프의 구름 모양이 말한다.
+  const seatOf = seat => seat.best;
 
   /**
    * 범례 — 조합마다 한 줄.
@@ -201,8 +198,17 @@
       <Select options={GRADE_OPTIONS} value={app.market.grade}
               onchange={value => setMarket({ grade: value })} />
     </label>
-    <label>품질 <input type="number" min="0" max="100" value={app.market.quality}
-                     oninput={e => setMarket({ quality: readNumber(e.currentTarget.value) })} /> 이상</label>
+    <!-- 깨달음은 검색 조건이 아니다. 연마 3줄 + 품질 67이면 목걸이 13 · 반지/귀걸이 12가
+         되므로 품질로 대신 건다. 임계가 틀려도 응답의 깨달음으로 한 번 더 거른다. -->
+    <span class="floor-pick">
+      {#each [{ q: 67, label: "깨달음" }, { q: 70, label: "품질 70" }] as pick (pick.q)}
+        <button type="button" class:on={app.market.quality === pick.q}
+                onclick={() => setMarket({ quality: pick.q })}>{pick.label}</button>
+      {/each}
+      <input type="number" min="0" max="100" value={app.market.quality}
+             oninput={e => setMarket({ quality: readNumber(e.currentTarget.value) })} />
+      <em>품질 이상</em>
+    </span>
     <span class="filter-gap"></span>
     {#each part.fields as field, at (field)}
       <label>{FIELD_LABEL[field]}
@@ -224,7 +230,7 @@
     <div class="band">
       <h2>살 만한 것</h2>
       <span class="band-sub">예산별로 제일 나은 한 장</span>
-      {#if app.market.running}<span class="band-run">{app.market.done}/16</span>{/if}
+      {#if app.market.running}<span class="band-run">{app.market.done}/{app.market.total}</span>{/if}
     </div>
     <!-- 답 띠. 표는 순서를, 그래프는 거리를 주지만 "그래서 뭘 사냐"는 둘 다 안 답한다. -->
     <div class="mk-picks">
@@ -248,55 +254,28 @@
     <div class="band">
       <h2>가격 대 딜</h2>
       <span class="band-sub">굵은 선 아래는 살 이유가 없다 · 점을 누르면 표에서 짚어 준다</span>
+    {#if found?.dropped > 0}<span class="band-sub">연마 3줄 아님 {found.dropped}장 걸러냄</span>{/if}
     </div>
     <MarketChart {rows} {part} {colorOf} onpick={row => { picked = row; }} />
-  {/if}
-
-  {#if cells.size > 0}
-    <div class="band">
-      <h2>조합별 경향</h2>
-      <span class="band-sub">만골당 · 딜 · 최저가 · 장수</span>
-      <span class="g-views">
-        {#each VIEWS as view (view.value)}
-          <button type="button" class:on={app.market.cellView === view.value}
-                  onclick={() => setMarket({ cellView: view.value })}>{view.label}</button>
-        {/each}
-      </span>
+    <div class="mk-key">
+      {#each legend.filter(item => item.color !== null) as item (item.key)}
+        <button type="button" class:on={app.market.filter[0] === item.combo[0] && app.market.filter[1] === item.combo[1]}
+                onclick={() => onCell(item.combo[0], item.combo[1])}>
+          <i class="dot c{item.color}"></i>
+          {#each part.fields as field, at (field)}<span>{FIELD_SHORT[field]} {gradeText(field, item.combo[at])}</span>{/each}
+        </button>
+      {/each}
+      {#if legend.some(item => item.color === null)}
+        <button type="button" class:on={app.market.filter[0] === "any"} onclick={() => setMarket({ filter: ["any", "any"] })}>
+          <i class="dot"></i><span>나머지</span>
+        </button>
+      {/if}
     </div>
-    <table class="mk-legend">
-      <tbody>
-        {#each legend as item (item.key)}
-          {@const on = app.market.filter[0] === item.combo[0] && app.market.filter[1] === item.combo[1]}
-          <tr class:on>
-            <td class="l-dot"><i class="dot c{item.color ?? 'x'}"></i></td>
-            <td class="l-combo">
-              <button type="button" onclick={() => onCell(item.combo[0], item.combo[1])}>
-                {#each part.fields as field, at (field)}
-                  <span>{FIELD_LABEL[field]} {gradeText(field, item.combo[at])}</span>
-                {/each}
-              </button>
-            </td>
-            <td class="i-num l-per">
-              <span class:down={item.view.rate < 0} style="--heat:{cellHeat(item.view.rate)}">
-                {item.view.rate > 0 ? item.view.rate.toFixed(4) : "—"}
-              </span>
-            </td>
-            <td class="i-num l-gain" class:down={item.view.gain < 0}>{pct(item.view.gain)}</td>
-            <td class="i-num l-price">{money(Math.round(item.view.price))}</td>
-            <td class="i-num l-n">{item.seat.n}장</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {/if}
-
-  {#if rows.length > 0}
-    <MarketChart {rows} {part} onpick={row => { picked = row; }} />
   {/if}
 
   <div class="band">
     <h2>매물 {formatInteger(rows.length)}장</h2>
-    {#if rows.length > 0}<span class="band-sub">오르는 것 {rising}장 · 연마 조합 16가지 × 최저가 10장</span>{/if}
+    {#if rows.length > 0}<span class="band-sub">오르는 것 {rising}장 · 조건 {app.market.total}가지 × 최저가 10장</span>{/if}
     <span class="band-sort">
       <Select options={SORTS} value={app.market.sort} onchange={value => setMarket({ sort: value })} />
     </span>
@@ -304,7 +283,7 @@
 
   {#if rows.length === 0}
     <p class="market-empty">
-      {#if app.market.running}읽는 중…{:else if found}조건에 맞는 매물 없음{:else}상단 <b>훑기</b>{/if}
+      {#if app.market.running}읽는 중… {app.market.done}/{app.market.total}{:else if found}조건에 맞는 매물 없음{:else}상단 <b>훑기</b>{/if}
     </p>
   {:else}
     <div class="market-scroll">

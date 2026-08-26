@@ -5,7 +5,8 @@ import {
   AUCTION_CATEGORY, GRIND_FIRST_OPTION, GRIND_CODE, grindValueCode,
 } from "./core/lostark.js";
 import {
-  ACCESSORY_PARTS, GRADES, comboQuery, readListing, listingKey, partSlots,
+  ACCESSORY_PARTS, readListing, listingKey, partSlots,
+  sweepAxes, ENLIGHTEN_FULL, SWEEP_TOTAL,
 } from "./core/accessory.js";
 import { getAwakeningNodes, awakeningHeadroom, awakeningDependents } from "./core/awakening.js";
 import {
@@ -347,7 +348,7 @@ export const app = $state({
   // 경매장. 부위 하나를 골라 연마 조합 열여섯 가지를 훑고, 나온 매물을
   // 한 목록으로 합쳐 골드당으로 세운다.
   market: {
-    ...{ part: "rings", grade: "고대", quality: 70, sort: "perGold", cellView: "median" },
+    ...{ part: "rings", grade: "고대", quality: 67, sort: "perGold" },
     ...load(MARKET_KEY, {}),
     // 부위마다 따로 담는다 — 부위를 바꿨다고 앞서 훑은 것을 버릴 이유가 없다.
     found: { necklace: null, rings: null },
@@ -355,6 +356,9 @@ export const app = $state({
     filter: ["any", "any"],
     running: false,
     done: 0,
+    total: SWEEP_TOTAL,
+    // 연마 3줄이 아니라 깨달음이 모자라 버린 매물 수.
+    dropped: 0,
     error: "",
   },
   // 로스트아크 API. 키는 이 브라우저에만 남는다 — 서버를 거치지 않는다.
@@ -1912,22 +1916,28 @@ export function setMarket(patch) {
   try {
     localStorage.setItem(MARKET_KEY, JSON.stringify({
       part: app.market.part, grade: app.market.grade,
-      quality: app.market.quality, sort: app.market.sort, cellView: app.market.cellView,
+      quality: app.market.quality, sort: app.market.sort,
     }));
   } catch {}
 }
 
-/** 조합 하나의 질의 본문. */
-function marketBody(part, combo) {
+/** 축 하나의 질의 본문. */
+function marketBody(part, axis) {
+  const options = axis.picks.map(pick => ({
+    FirstOption: GRIND_FIRST_OPTION,
+    SecondOption: GRIND_CODE[pick.name],
+    MinValue: grindValueCode(pick.value),
+    MaxValue: grindValueCode(pick.value),
+  }));
+  // 세 번째 줄은 등급을 안 건다. 값을 못 박으면 조회가 세 배로 느는데,
+  // 등급은 어차피 응답에서 읽는다.
+  if (axis.flatName) options.push({ FirstOption: GRIND_FIRST_OPTION, SecondOption: GRIND_CODE[axis.flatName] });
   const body = {
     CategoryCode: AUCTION_CATEGORY[part.part],
     ItemGrade: app.market.grade,
-    EtcOptions: comboQuery(part, combo).map(pick => ({
-      FirstOption: GRIND_FIRST_OPTION,
-      SecondOption: GRIND_CODE[pick.name],
-      MinValue: grindValueCode(pick.value),
-      MaxValue: grindValueCode(pick.value),
-    })),
+    // 티어를 안 걸면 유물 값이 섞여 온다 — 공격력 +가 24·61·118로 나온다.
+    ItemTier: 4,
+    EtcOptions: options,
   };
   const quality = readNumber(app.market.quality);
   if (quality > 0) body.ItemGradeQuality = quality;
@@ -1946,29 +1956,35 @@ function marketBody(part, combo) {
 export async function sweepMarket() {
   if (app.market.running) return;
   const part = marketPart();
-  const combos = [];
-  GRADES.forEach(a => GRADES.forEach(b => combos.push([a, b])));
+  const axes = sweepAxes(part);
+  // 연마 3줄이 아니면 깨달음이 모자란다. 검색 조건으로는 못 거르므로
+  // 받아서 버린다 — 세 번째 줄을 안 건 축에서 2줄짜리가 섞여 온다.
+  const need = ENLIGHTEN_FULL[part.key] ?? 0;
+  let dropped = 0;
 
   const seen = new Set();
   let listings = [];
-  setMarket({ running: true, done: 0, error: "" });
+  setMarket({ running: true, done: 0, total: axes.length, dropped: 0, error: "" });
   // $state 바깥의 배열에 밀어 넣으면 화면이 못 본다. 조합이 도착할 때마다
   // 새 배열을 꽂아 준다 — 열여섯 번뿐이라 아깝지 않다.
   const publish = () => {
-    app.market.found[part.key] = { listings: listings.slice(), quality: readNumber(app.market.quality) };
+    app.market.found[part.key] = {
+      listings: listings.slice(), quality: readNumber(app.market.quality), dropped,
+    };
   };
   publish();
 
-  const queue = combos.slice();
+  const queue = axes.slice();
   const worker = async () => {
     while (queue.length > 0 && !app.market.error) {
-      const combo = queue.shift();
+      const axis = queue.shift();
       try {
-        const found = await searchAuction(app.api.key, marketBody(part, combo));
+        const found = await searchAuction(app.api.key, marketBody(part, axis));
         const fresh = found.items.map(readListing).filter(listing => {
           const key = listingKey(listing);
           if (seen.has(key)) return false;
           seen.add(key);
+          if (readNumber(listing.enlighten) < need) { dropped += 1; return false; }
           return true;
         });
         listings = [...listings, ...fresh];
@@ -1979,6 +1995,7 @@ export async function sweepMarket() {
         return;
       }
       app.market.done += 1;
+      app.market.dropped = dropped;
     }
   };
   await Promise.all([worker(), worker(), worker(), worker()]);
