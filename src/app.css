@@ -4599,3 +4599,17 @@ table.results td em.rel.down { color: var(--bad); }
 .mk-front.pair { stroke: var(--warm-dim); stroke-dasharray: 5 4; opacity: 0.85; }
 .mk-dot.pair { fill: var(--warm-dim); opacity: 0.9; stroke: var(--surface); stroke-width: 1.2; }
 .pair-key b { color: var(--warm-dim); }
+
+/* 악세 화면의 카드들은 제 여백을 안 갖고 있었다 — 테두리가 글자에 붙었다. */
+.market-head, .market-list { padding: 16px 18px 18px; }
+.market-head { gap: 12px; }
+
+/* 굵은 것을 줄인다. 700은 이 크기에서 획이 뭉쳐 오히려 덜 읽힌다. */
+.p-gain { font-weight: 600; }
+.i-per span, .mk-legend .l-per span { font-weight: 600; }
+.worn-row > b { font-weight: 500; }
+.market-items td { line-height: 1.45; }
+.i-grind .grind { font-weight: 400; }
+
+/* 전체 보기. 색 열쇠와 성격이 달라 점을 안 붙인다. */
+.mk-key .key-all { padding-left: 12px; }

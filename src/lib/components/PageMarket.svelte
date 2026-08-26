@@ -209,21 +209,25 @@
          "치적이 늘었나"가 아니라 "노드에서 치적을 뺄 수 있나"다. 빌드를 못 박고
          재면 그게 0으로 잡힌다 — 조합마다 노드를 다시 짜서 두 값을 같이 낸다. -->
     <div class="market-basis">
-      <b>기준</b>
+      <b>딜을 잴 때</b>
       <span class="basis-pick">
         <button type="button" class:on={app.market.basis === "as"}
-                onclick={() => setMarket({ basis: "as" })}>그대로</button>
+                onclick={() => setMarket({ basis: "as" })}>지금 노드 그대로</button>
         <button type="button" class:on={app.market.basis === "opt"} disabled={!optima}
-                onclick={() => setMarket({ basis: "opt" })}>세팅 바꿔서</button>
+                onclick={() => setMarket({ basis: "opt" })}>노드 다시 짜서</button>
       </span>
       {#if app.market.researching}
         <span class="basis-run">노드 다시 짜는 중 {app.market.researchDone}/16</span>
         <button type="button" class="basis-go" onclick={cancelResearch}>중지</button>
       {:else}
         <button type="button" class="basis-go" onclick={researchMarket}>
-          {optima ? "다시 짜기" : "노드 다시 짜기"}
+          {optima ? "노드 다시 계산" : "노드 계산하기"}
         </button>
-        <span class="basis-note">{optima ? "16조합 준비됨" : "조합마다 탐색을 돌립니다 · 1분쯤"}</span>
+        <span class="basis-note">
+          {optima
+            ? "치적은 노드로 살 수 있어, 반지로 얻으면 그만큼 노드를 뺄 수 있습니다"
+            : "조합마다 노드를 다시 짜 봅니다 · 1분쯤"}
+        </span>
       {/if}
     </div>
   {/if}
@@ -301,11 +305,9 @@
           {#each part.fields as field, at (field)}<span>{FIELD_SHORT[field]} {gradeText(field, item.combo[at])}</span>{/each}
         </button>
       {/each}
-      {#if legend.some(item => item.color === null)}
-        <button type="button" class:on={app.market.filter[0] === "any"} onclick={() => setMarket({ filter: ["any", "any"] })}>
-          <i class="dot"></i><span>나머지</span>
-        </button>
-      {/if}
+      <!-- 조건 없음 = 전체다. 색이 안 붙은 조합만 남기는 단추가 아니다. -->
+      <button type="button" class="key-all" class:on={app.market.filter[0] === "any"}
+              onclick={() => setMarket({ filter: ["any", "any"] })}>전체</button>
     </div>
   {/if}
 
@@ -331,7 +333,7 @@
             <th class="i-num">주스탯</th>
             <th class="i-num">즉시 구매가</th>
             <th class="i-num">딜</th>
-            {#if optima}<th class="i-num">세팅 바꿔서</th>{/if}
+            {#if optima}<th class="i-num">노드 다시 짜서</th>{/if}
             <th class="i-num">만골당</th>
             {#if partSlots(part).length > 1}<th>바꿀 자리</th>{/if}
           </tr>
