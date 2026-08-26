@@ -13,7 +13,7 @@
   import { app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket } from "../store.svelte.js";
   import {
     ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, GRADE_VALUES, partSlots, orderedLines,
-    comboOf, frontierPicks, cellStats, PART_CONTEXT,
+    comboOf, frontierPicks, cellStats, PART_CONTEXT, valuePart,
   } from "../core/accessory.js";
   import { formatInteger, readNumber } from "../core/util.js";
   import { calculateMetrics } from "../core/metrics.js";
@@ -38,7 +38,9 @@
   const part = $derived(marketPart());
   const worn = $derived(wornOfPart(part));
   const found = $derived(app.market.found[part.key]);
-  const all = $derived(found?.items ?? []);
+  // 값은 여기서 매긴다. 훑을 때 박아 두면 빌드를 고쳐도 안 따라온다 —
+  // 세팅을 되돌린 뒤에도 되돌리기 전 캐릭터로 잰 값이 화면에 남아 있었다.
+  const all = $derived(valuePart(app.character, part, found?.listings ?? [], wornAt));
 
   // 연마 조건은 값으로 적는다. '상'이라고만 쓰면 그게 1.55%인지 4%인지 모른다.
   const pickOptions = field => [
@@ -67,7 +69,7 @@
   const rising = $derived(rows.filter(row => row.gain > 0).length);
 
   // 답 띠 — 예산별로 지금 사면 제일 나은 한 장씩. 걸어 둔 조건을 그대로 딛는다.
-  const picks = $derived(frontierPicks(rows));
+  const picks = $derived(frontierPicks(rows, 3));
 
   /**
    * 조합 격자.
@@ -184,16 +186,15 @@
         {/if}
       </div>
     {/each}
+    {#if context.length > 0}
+      <div class="worn-row worn-now">
+        <b>지금</b>
+        {#each context as item (item.label)}
+          <span class="worn-opt">{item.label} <em>{item.value.toFixed(item.value >= 100 ? 0 : 2)}%</em></span>
+        {/each}
+      </div>
+    {/if}
   </div>
-
-  {#if context.length > 0}
-    <div class="market-context">
-      <b>지금</b>
-      {#each context as item (item.label)}
-        <span>{item.label} <em>{item.value.toFixed(item.value >= 100 ? 0 : 2)}%</em></span>
-      {/each}
-    </div>
-  {/if}
 
   <div class="market-filters">
     <label>등급
@@ -209,9 +210,6 @@
                 onchange={value => setMarket({ filter: app.market.filter.map((old, i) => (i === at ? value : old)) })} />
       </label>
     {/each}
-    <label>정렬
-      <Select options={SORTS} value={app.market.sort} onchange={value => setMarket({ sort: value })} />
-    </label>
   </div>
 </section>
 
@@ -222,14 +220,12 @@
 {/if}
 
 <section class="card market-list">
-  <div class="market-legend">
-    <span class="lg-title">{part.label} 매물 {formatInteger(rows.length)}장</span>
-    {#if rows.length > 0}<span class="lg-sub">오르는 것 {rising}장</span>{/if}
-    <span class="lg-sub">연마 조합 16가지 × 최저가 10장</span>
-    {#if app.market.running}<span class="lg-run">{app.market.done}/16</span>{/if}
-  </div>
-
   {#if picks.length > 0}
+    <div class="band">
+      <h2>살 만한 것</h2>
+      <span class="band-sub">예산별로 제일 나은 한 장</span>
+      {#if app.market.running}<span class="band-run">{app.market.done}/16</span>{/if}
+    </div>
     <!-- 답 띠. 표는 순서를, 그래프는 거리를 주지만 "그래서 뭘 사냐"는 둘 다 안 답한다. -->
     <div class="mk-picks">
       {#each picks as pick, at (at)}
@@ -249,12 +245,17 @@
   {/if}
 
   {#if rows.length > 0}
+    <div class="band">
+      <h2>가격 대 딜</h2>
+      <span class="band-sub">굵은 선 아래는 살 이유가 없다 · 점을 누르면 표에서 짚어 준다</span>
+    </div>
     <MarketChart {rows} {part} {colorOf} onpick={row => { picked = row; }} />
   {/if}
 
   {#if cells.size > 0}
-    <div class="mk-gridbar">
-      <span class="g-cap">조합별 경향 — 만골당 · 딜 · 최저가</span>
+    <div class="band">
+      <h2>조합별 경향</h2>
+      <span class="band-sub">만골당 · 딜 · 최저가 · 장수</span>
       <span class="g-views">
         {#each VIEWS as view (view.value)}
           <button type="button" class:on={app.market.cellView === view.value}
@@ -292,6 +293,14 @@
   {#if rows.length > 0}
     <MarketChart {rows} {part} onpick={row => { picked = row; }} />
   {/if}
+
+  <div class="band">
+    <h2>매물 {formatInteger(rows.length)}장</h2>
+    {#if rows.length > 0}<span class="band-sub">오르는 것 {rising}장 · 연마 조합 16가지 × 최저가 10장</span>{/if}
+    <span class="band-sort">
+      <Select options={SORTS} value={app.market.sort} onchange={value => setMarket({ sort: value })} />
+    </span>
+  </div>
 
   {#if rows.length === 0}
     <p class="market-empty">

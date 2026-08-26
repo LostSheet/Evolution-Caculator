@@ -4371,9 +4371,12 @@ table.results td em.rel.down { color: var(--bad); }
 }
 .market-slot.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
 
-.market-worn { display: grid; gap: 3px; padding: 8px 10px; background: var(--sunken); border-radius: var(--r); }
-.worn-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 12px; font-size: 12px; color: var(--txt-2); }
-.worn-row > b { min-width: 46px; font-size: 12px; color: var(--txt); }
+.market-worn { display: grid; gap: 7px; padding: 11px 13px; background: var(--sunken); border-radius: var(--r); }
+.worn-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; font-size: 12.5px; color: var(--txt-2); }
+.worn-row > b { min-width: 48px; font-size: 12.5px; color: var(--txt); font-weight: 600; }
+.worn-now { padding-top: 7px; border-top: 1px solid var(--line-soft); }
+.worn-now > b { color: var(--txt-3); font-weight: 500; }
+.worn-now em { font-style: normal; font-weight: 700; color: var(--txt); }
 .worn-opt { font-variant-numeric: tabular-nums; }
 .worn-opt em { font-style: normal; color: var(--txt-3); }
 .worn-stat { color: var(--txt-3); font-variant-numeric: tabular-nums; }
@@ -4386,18 +4389,24 @@ table.results td em.rel.down { color: var(--bad); }
 .filter-gap { flex: 1; min-width: 0; }
 .market-error { color: var(--bad); font-size: 13px; }
 
-.market-legend { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
-.lg-title { font-size: 13px; font-weight: 600; color: var(--txt); }
-.lg-sub { font-size: 11px; color: var(--txt-3); }
-.lg-run { font-size: 11px; color: var(--cool); font-variant-numeric: tabular-nums; margin-left: auto; }
+/* 띠마다 이름표. 없으면 무엇을 보고 있는지 화면이 말하지 않는다. */
+.band {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px;
+  margin: 26px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line-soft);
+}
+.band:first-child { margin-top: 0; }
+.band h2 { margin: 0; font-size: 14px; font-weight: 600; color: var(--txt); }
+.band-sub { font-size: 11.5px; color: var(--txt-3); }
+.band-run { margin-left: auto; font-size: 12px; color: var(--cool); font-variant-numeric: tabular-nums; }
+.band-sort { margin-left: auto; }
 
 /* 그래프 — 가격은 로그, 굵은 선이 가성비 경계다. */
-.mk-chart { position: relative; margin: 2px 0 14px; }
+.mk-chart { position: relative; margin: 0 0 4px; }
 .mk-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .mk-grid { stroke: var(--line-soft); stroke-width: 1; }
 .mk-grid.soft { stroke-dasharray: 2 4; }
-.mk-tick { fill: var(--txt-3); font-size: 10px; font-variant-numeric: tabular-nums; }
-.mk-axis { fill: var(--txt-3); font-size: 10px; }
+.mk-tick { fill: var(--txt-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.mk-axis { fill: var(--txt-3); font-size: 11px; }
 .mk-front { fill: none; stroke: var(--cool); stroke-width: 2; stroke-linejoin: round; opacity: 0.75; }
 /* 잘 사는 조합 다섯에만 색을 준다. 열여섯 색을 눈으로 가르는 사람은 없다. */
 .mk-dot { fill: var(--mk-cx); opacity: 0.55; cursor: pointer; transition: r 90ms ease; }
@@ -4418,13 +4427,13 @@ table.results td em.rel.down { color: var(--bad); }
 
 /* 표 — 게임 경매장처럼 값을 그대로 적는다. '상'이라고만 쓰면 그게 몇 퍼센트인지 모른다. */
 .market-scroll { overflow-x: auto; }
-.market-items { width: 100%; border-collapse: collapse; font-size: 12px; }
+.market-items { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .market-items th {
-  position: sticky; top: 0; z-index: 1; text-align: left; font-weight: 500; font-size: 11px;
+  position: sticky; top: 0; z-index: 1; text-align: left; font-weight: 500; font-size: 11.5px;
   color: var(--txt-3); background: var(--surface);
-  border-bottom: 1px solid var(--line); padding: 0 10px 5px 0; white-space: nowrap;
+  border-bottom: 1px solid var(--line); padding: 0 14px 7px 0; white-space: nowrap;
 }
-.market-items td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line-soft); }
+.market-items td { padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line-soft); }
 .market-items .i-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .market-items tr.down td { color: var(--txt-3); }
 .market-items tr.down .i-gain { color: var(--bad); }
@@ -4436,27 +4445,29 @@ table.results td em.rel.down { color: var(--bad); }
 .i-dash { color: var(--txt-3); }
 .i-slot { color: var(--txt-3); white-space: nowrap; }
 .i-grind { width: 100%; }
-.i-grind .grind { display: inline-block; margin-right: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.i-grind .grind em { font-style: normal; color: var(--txt-3); margin-left: 3px; }
-.i-grind .grind.skip { color: var(--txt-3); text-decoration: line-through; text-decoration-color: var(--line-lift); }
+.i-grind .grind { display: inline-block; margin-right: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.i-grind .grind em { font-style: normal; color: var(--txt-3); margin-left: 5px; }
+/* 못 세는 줄은 지운 줄이 아니라 흐린 줄이다. 취소선은 세 줄이 다 그어져
+   있을 때 표를 읽을 수 없게 만든다. */
+.i-grind .grind.skip { color: var(--txt-3); opacity: 0.65; }
 
 /* 답 띠 — 예산별로 지금 사면 제일 나은 한 장씩. 표는 순서를, 그래프는 거리를
    주지만 "그래서 뭘 사냐"는 둘 다 안 답한다. */
 .mk-picks {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 8px; margin: 2px 0 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px; margin: 0 0 4px;
 }
 .mk-pick {
-  display: grid; gap: 2px; padding: 9px 11px; text-align: left; cursor: pointer;
+  display: grid; gap: 5px; padding: 14px 16px; text-align: left; cursor: pointer;
   border: 1px solid var(--line); border-left: 3px solid var(--cool); border-radius: var(--r);
   background: var(--surface);
 }
 .mk-pick:hover { border-color: var(--line-lift); }
 .mk-pick.on { background: var(--surface-2); border-color: var(--cool); }
-.p-price { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; }
-.p-gain { font-size: 19px; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; line-height: 1.1; }
-.p-combo { display: grid; gap: 1px; font-size: 11px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
-.p-per { font-size: 10.5px; color: var(--txt-3); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.p-price { font-size: 12.5px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.p-gain { font-size: 24px; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.p-combo { display: grid; gap: 3px; font-size: 12.5px; color: var(--txt-2); font-variant-numeric: tabular-nums; }
+.p-per { font-size: 12px; color: var(--txt-3); font-variant-numeric: tabular-nums; margin-top: 4px; }
 
 /* 조합 격자 — 이미 받아 둔 매물을 묶은 것이라 경매장을 또 쏘지 않는다.
    그래서 '없음'도 짐작이 아니라 사실이다. 누르면 아래 표가 그 조합만 남는다. */
@@ -4494,10 +4505,10 @@ table.results td em.rel.down { color: var(--bad); }
   max-width: 760px; margin-bottom: 6px;
 }
 .g-cap { font-size: 11px; color: var(--txt-3); }
-.g-views { display: flex; gap: 2px; margin-left: auto; }
+.g-views { display: flex; gap: 3px; margin-left: auto; }
 .g-views button {
-  padding: 2px 9px; border: 1px solid var(--line-soft); border-radius: var(--r);
-  background: var(--surface); color: var(--txt-3); font-size: 11px; cursor: pointer;
+  padding: 3px 11px; border: 1px solid var(--line-soft); border-radius: var(--r);
+  background: var(--surface); color: var(--txt-3); font-size: 12px; cursor: pointer;
 }
 .g-views button.on { border-color: var(--cool); background: var(--surface-2); color: var(--txt); font-weight: 600; }
 .g-per.down { color: var(--bad); }
@@ -4531,10 +4542,10 @@ table.results td em.rel.down { color: var(--bad); }
 .market-context em { font-style: normal; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; }
 
 /* 범례가 곧 조합표다. 색 · 조합 · 만골당 · 딜 · 최저가 · 장수. */
-.mk-legend { border-collapse: collapse; width: 100%; max-width: 620px; margin-bottom: 16px; font-size: 12px; }
-.mk-legend td { padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line-soft); }
+.mk-legend { border-collapse: collapse; width: 100%; max-width: 700px; font-size: 12.5px; }
+.mk-legend td { padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); }
 .mk-legend tr.on td { background: var(--surface-2); }
-.mk-legend .l-dot { width: 16px; padding-right: 0; }
+.mk-legend .l-dot { width: 22px; padding-right: 0; }
 .mk-legend .dot { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--mk-cx); }
 .mk-legend .dot.c0 { background: var(--mk-c0); }
 .mk-legend .dot.c1 { background: var(--mk-c1); }
@@ -4543,13 +4554,13 @@ table.results td em.rel.down { color: var(--bad); }
 .mk-legend .dot.c4 { background: var(--mk-c4); }
 .mk-legend .l-combo { width: 100%; }
 .mk-legend .l-combo button {
-  display: flex; gap: 12px; width: 100%; padding: 2px 0; text-align: left; cursor: pointer;
-  background: none; border: 0; color: var(--txt-2); font-size: 12px; font-variant-numeric: tabular-nums;
+  display: flex; gap: 18px; width: 100%; padding: 0; text-align: left; cursor: pointer;
+  background: none; border: 0; color: var(--txt-2); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 .mk-legend .l-combo button:hover { color: var(--txt); }
 .mk-legend .i-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mk-legend .l-per span {
-  font-weight: 700; color: var(--txt); padding: 1px 6px; border-radius: 2px;
+  font-weight: 600; color: var(--txt); padding: 2px 7px; border-radius: 2px;
   background: color-mix(in srgb, var(--good) calc(var(--heat, 0) * 30%), transparent);
 }
 .mk-legend .l-per span.down { color: var(--bad); background: none; }

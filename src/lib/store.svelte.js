@@ -5,7 +5,7 @@ import {
   AUCTION_CATEGORY, GRIND_FIRST_OPTION, GRIND_CODE, grindValueCode,
 } from "./core/lostark.js";
 import {
-  ACCESSORY_PARTS, GRADES, comboQuery, readListing, valuePart, listingKey, partSlots,
+  ACCESSORY_PARTS, GRADES, comboQuery, readListing, listingKey, partSlots,
 } from "./core/accessory.js";
 import { getAwakeningNodes, awakeningHeadroom, awakeningDependents } from "./core/awakening.js";
 import {
@@ -1899,7 +1899,7 @@ export function wornAt(slot) {
 
 /** 지금 부위에 이미 훑어 둔 것이 있나. 상단 단추가 '훑기'냐 '갱신'이냐를 가른다. */
 export function marketHasResults() {
-  return (app.market.found[app.market.part]?.items?.length ?? 0) > 0;
+  return (app.market.found[app.market.part]?.listings?.length ?? 0) > 0;
 }
 
 /** 이 부위에 낀 것들. 화면이 "지금 뭘 끼고 있나"를 적는 데 쓴다. */
@@ -1946,16 +1946,17 @@ function marketBody(part, combo) {
 export async function sweepMarket() {
   if (app.market.running) return;
   const part = marketPart();
-  const state = app.character;
   const combos = [];
   GRADES.forEach(a => GRADES.forEach(b => combos.push([a, b])));
 
   const seen = new Set();
-  let items = [];
+  let listings = [];
   setMarket({ running: true, done: 0, error: "" });
   // $state 바깥의 배열에 밀어 넣으면 화면이 못 본다. 조합이 도착할 때마다
   // 새 배열을 꽂아 준다 — 열여섯 번뿐이라 아깝지 않다.
-  const publish = () => { app.market.found[part.key] = { items: items.slice(), quality: readNumber(app.market.quality) }; };
+  const publish = () => {
+    app.market.found[part.key] = { listings: listings.slice(), quality: readNumber(app.market.quality) };
+  };
   publish();
 
   const queue = combos.slice();
@@ -1970,7 +1971,7 @@ export async function sweepMarket() {
           seen.add(key);
           return true;
         });
-        items = [...items, ...valuePart(state, part, fresh, wornAt)];
+        listings = [...listings, ...fresh];
         publish();
       } catch (cause) {
         if (cause?.name === "AbortError") return;
