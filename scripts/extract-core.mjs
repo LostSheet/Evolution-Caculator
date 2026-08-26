@@ -181,7 +181,7 @@ writeFileSync(resolve(OUT, "metrics.js"), buildModule({
     "normalizeAccessories", "calculateAccessoryBonuses", "getAccessoryOptionValue",
     "normalizeAttack", "assembleAttack", "supportAttackPower", "baseAttackPower", "emptyFlatBonuses", "applyFlatAttackBonuses", "addFlatBonus",
     "FOODS", "FOOD_BY_ID", "getFood", "applyFoodEffects", "RANCH_GRADES", "ranchAmount",
-    "PASSION_DANCE_GRADES", "passionDanceAmount", "AVATAR_SLOTS", "AVATAR_GRADES", "avatarAmount", "avatarTotal", "derivedMainTotal", "ranchResidual", "autoRanchAmount", "resolveRanchMainStat", "resolveRanchDamage",
+    "PASSION_DANCE_GRADES", "passionDanceAmount", "AVATAR_SLOTS", "AVATAR_GRADES", "avatarAmount", "avatarTotal", "derivedMainTotal", "ranchResidual", "outsideMainStat", "autoRanchAmount", "resolveRanchMainStat", "resolveRanchDamage",
     "applyAwakeningEffects", "applySynergyEffects",
     "addDamageGroup", "calculateBluntThornBonus", "calculateSonicBreakthroughBonus",
     "COOLDOWN_GROUP_KEYS", "COOLDOWN_GROUP_LABELS", "JEWEL_MAX_LEVEL", "jewelCooldown",

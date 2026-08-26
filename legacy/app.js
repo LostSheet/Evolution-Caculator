@@ -108,8 +108,15 @@ const DEFAULT_STATE = {
     //
     // 힘민지 쪽만 되짚을 수 있다("auto"). 기본 공격력에서 푼 총합에 그 몫이
     // 들어 있기 때문이다. 추가 피해 목장은 어디에도 안 드러나서 손으로 고른다.
-    ranchDamage: 0,
+    // 추가 피해 목장은 되짚을 길이 없다 — 게임이 추가 피해 총합을 어디에도
+    // 안 알려 준다. 그래서 손으로 고르는데, 기본을 0으로 두면 목장을 올려 둔
+    // 사람의 딜을 0.74% 낮게 잰다. 있는 쪽이 훨씬 흔하므로 1%로 시작한다.
+    ranchDamage: 1,
     ranchMainStat: "auto",
+    // 원정대 레벨 보상으로 붙는 힘민지. 장비 밖에서 오는 것이라 장비 합에
+    // 없고, 그래서 목장을 되짚을 때 잔차에 섞여 목장을 부풀린다.
+    // 게임의 원정대 창 '원정대 증가 효과'에 적혀 있는 값이다.
+    expeditionMainStat: 1900,
     critStat: 0,
     specStat: 0,
     swiftStat: 0,
@@ -246,12 +253,30 @@ function avatarTotal(attack) {
  * 목장 한 등급과 같은 크기라 한 칸 높게 집을 수 있다 — 그래서 화면에 되짚은
  * 값을 그대로 적어 두고 손으로 덮을 수 있게 둔다.
  */
+/**
+ * 되짚은 힘민지 총합에서 장비와 아바타를 걷어 낸 나머지.
+ *
+ * 이 나머지는 목장만이 아니다 — 원정대 보상, 전투 레벨, 카드 도감, 물약이
+ * 전부 장비 밖에서 온다. 아는 것부터 빼야 목장이 제 크기로 보인다.
+ * 원정대만 빼도 이 캐릭터에서 잔차가 2.52%에서 2.19%로 내려간다.
+ */
 function ranchResidual(inputState) {
+  const source = inputState?.attack || {};
+  const mainFlat = Math.max(0, readNumber(source.mainFlat));
+  const outside = Math.max(0, readNumber(inputState?.collection?.expeditionMainStat));
+  const total = derivedMainTotal(inputState);
+  if (!(total > 0) || !(mainFlat > 0)) return null;
+  return (total / (mainFlat + outside) - 1) * 100 - avatarTotal(source);
+}
+
+/** 장비와 아바타·목장으로 설명되지 않는 힘민지. 화면이 이름을 붙여 주는 데 쓴다. */
+function outsideMainStat(inputState) {
   const source = inputState?.attack || {};
   const mainFlat = Math.max(0, readNumber(source.mainFlat));
   const total = derivedMainTotal(inputState);
   if (!(total > 0) || !(mainFlat > 0)) return null;
-  return (total / mainFlat - 1) * 100 - avatarTotal(source);
+  const scale = 1 + (avatarTotal(source) + resolveRanchMainStat(inputState)) / 100;
+  return total / scale - mainFlat;
 }
 
 function autoRanchAmount(inputState) {

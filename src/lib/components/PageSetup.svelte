@@ -9,7 +9,7 @@
     getBraceletGradeIndex, isDirectionalConditionActive,
     DAMAGE_MIX_KEYS, DAMAGE_MIX_LABELS, getManaShareRatio, getManaCooldownShareRatio,
     FORMULA_VARIABLES, getFormulaStage, evaluateFormula, buildFormulaVariables, calculateMetrics,
-    assembleAttack, baseAttackPower, RANCH_GRADES, resolveRanchMainStat, ranchResidual, JEWEL_MAX_LEVEL, jewelCooldown,
+    assembleAttack, baseAttackPower, RANCH_GRADES, resolveRanchMainStat, ranchResidual, outsideMainStat, JEWEL_MAX_LEVEL, jewelCooldown,
     AVATAR_SLOTS, AVATAR_GRADES, avatarTotal,
   } from "../core/metrics.js";
   import { makeId, formatNumber, formatInteger, formatSignedPercent, clamp, readNumber } from "../core/util.js";
@@ -57,6 +57,11 @@
   const RANCH_OPTIONS = [{ value: "auto", label: "자동", hint: "역산" }, ...RANCH_GRADE_OPTIONS];
   const ranchPercent = $derived(resolveRanchMainStat(app.character));
   const ranchGuess = $derived(ranchResidual(app.character));
+  // 장비·아바타·목장으로 설명 안 되는 힘민지. 원정대 칸을 채우면 그만큼 줄어든다.
+  const outside = $derived(outsideMainStat(app.character));
+  const outsideLeft = $derived(
+    outside === null ? null : outside - readNumber(app.character.collection.expeditionMainStat),
+  );
 
   const AVATAR_OPTIONS = AVATAR_GRADES.map(grade => ({
     value: grade.value,
@@ -231,6 +236,23 @@
           <!-- 목장은 둘이다. 추가 피해를 주는 것과 힘민지를 주는 것이 따로 있고
                등급도 따로 매긴다. -->
           <div class="field">
+            <span class="field-label">
+              <span>원정대 · 힘민지</span>
+              <Hint label="원정대 힘민지">
+                <p>게임 <b>원정대</b> 창의 '원정대 증가 효과'에 적힌 지능(또는 힘·민첩)입니다.</p>
+                <p>장비 밖에서 오는 값이라, 이걸 안 빼면 목장 역산이 부풀어 오릅니다.</p>
+              </Hint>
+            </span>
+            <input type="number" min="0" step="1" aria-label="원정대 힘민지"
+                   value={app.character.collection.expeditionMainStat ?? 0}
+                   oninput={e => { app.character.collection.expeditionMainStat = readNumber(e.currentTarget.value); persist(); }} />
+            {#if outsideLeft !== null}
+              <small class="derived">
+                장비 밖 {formatInteger(Math.round(outside))} · 남은 것 {formatInteger(Math.round(outsideLeft))}
+              </small>
+            {/if}
+          </div>
+          <div class="field">
             <span>펫 목장 · 추가 피해</span>
             <Select label="추가 피해 목장" options={RANCH_GRADE_OPTIONS}
                     value={app.character.collection.ranchDamage ?? 0}
@@ -241,7 +263,7 @@
               <span>펫 목장 · 힘민지</span>
               <Hint label="힘민지 목장">
                 <p>기본 공격력에서 역산할 수 있어 <b>자동</b>이 기본값입니다.</p>
-                <p>도감 · 물약 힘민지가 섞여 한 등급 높게 잡힐 수 있습니다.</p>
+                <p>원정대 칸을 채우면 그만큼 빼고 잽니다. 남은 것은 전투 레벨 · 도감 · 물약입니다.</p>
               </Hint>
             </span>
             <Select label="힘민지 목장" options={RANCH_OPTIONS}
