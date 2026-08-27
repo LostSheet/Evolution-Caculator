@@ -4613,3 +4613,17 @@ table.results td em.rel.down { color: var(--bad); }
 
 /* 전체 보기. 색 열쇠와 성격이 달라 점을 안 붙인다. */
 .mk-key .key-all { padding-left: 12px; }
+
+/* 띠. 값 하나가 아니라 범위로 답한다 — 세팅을 하나로 못 정하기 때문이다.
+   폭이 좁으면 확정, 0을 걸치면 도박이다. */
+.mk-bar { stroke: var(--mk-cx); stroke-width: 3; opacity: 0.35; stroke-linecap: round; }
+.mk-bar.c0 { stroke: var(--mk-c0); }
+.mk-bar.c1 { stroke: var(--mk-c1); }
+.mk-bar.c2 { stroke: var(--mk-c2); }
+.mk-bar.c3 { stroke: var(--mk-c3); }
+.mk-bar.c4 { stroke: var(--mk-c4); }
+.mk-front.edge { stroke: var(--cool); stroke-width: 1; opacity: 0.4; stroke-dasharray: 3 3; }
+.market-items .i-band { color: var(--txt-2); white-space: nowrap; }
+/* 0을 걸치는 매물 — 지금 세팅에서는 손해인데 노드를 다시 짜면 이득이다. */
+.market-items .i-band.risky { color: var(--warm-dim); }
+.band-firm { color: var(--txt-3); }

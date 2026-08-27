@@ -572,3 +572,70 @@ export function pairRows(state, part, rows, wornOf, limit = 18) {
   });
   return priceFrontier(out);
 }
+
+// --- 밴드 -------------------------------------------------------------------
+//
+// 조합별 최적 빌드를 하나씩 뽑아 견주려 했더니, 그 '최적'이 축(한 방 딜이냐
+// DPS냐)에 따라 완전히 다른 빌드였다. 실측: 같은 조합에서 한 방 딜 최적은
+// 7,259/10,105이고 DPS 최적은 5,447/11,516이다. 축을 안 고르면 최적이 없고,
+// 고르면 그 선택이 답을 정해 버린다.
+//
+// 그래서 값 하나 대신 **범위**로 답한다. 세팅을 하나로 정하지 않고, 쓸 만한
+// 세팅 전부에서 이 악세의 값어치를 재어 min~max를 낸다. 파레토 프론트를 쓰면
+// 그 띠가 곧 "어떤 축을 고르든 답은 이 안"이 된다.
+//
+// 띠의 폭이 그 자체로 답이다:
+//   좁다        세팅과 무관하게 확정 (치적을 지금과 같게 두는 조합은 0.01%p)
+//   넓다        세팅이 정한다
+//   0을 걸친다  도박 — 지금 세팅에서는 손해인데 노드를 다시 짜면 이득이다
+
+/** 노드 배분만 갈아 끼운 상태. 세팅 집합을 훑을 때 쓴다. */
+const withNodes = (state, nodeLevels) => {
+  const next = mergeState(DEFAULT_STATE, state);
+  next.nodeLevels = { ...nodeLevels };
+  return next;
+};
+
+/**
+ * 조합마다 값어치의 띠.
+ *
+ * 세팅마다 딜의 절대값이 다르므로(5,325~7,195) 그 세팅 **안에서의** 상대 증감을
+ * 잰다. 그래야 세팅끼리 견줄 수 있다.
+ */
+export function comboBands(state, part, slot, worn, settings) {
+  if (!settings || settings.length === 0) return null;
+  const base = wornCombo(state, slot).map(g => (g === "any" ? "none" : g));
+  const out = new Map();
+  const seats = settings.map(nodes => withNodes(state, nodes));
+  const nowOf = seats.map(seat => calculateMetrics(withCombo(seat, slot, base, worn)).damageIndex);
+
+  REAL_GRADES.forEach(a => REAL_GRADES.forEach(b => {
+    const combo = [a, b];
+    let lo = Infinity;
+    let hi = -Infinity;
+    seats.forEach((seat, at) => {
+      const now = nowOf[at];
+      if (!(now > 0)) return;
+      const got = calculateMetrics(withCombo(seat, slot, combo, worn)).damageIndex;
+      const v = (got / now - 1) * 100;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    });
+    if (lo <= hi) out.set(combo.join(":"), { lo, hi, width: hi - lo });
+  }));
+  return { bands: out, baseKey: base.join(":"), count: settings.length };
+}
+
+/**
+ * 매물 하나의 띠.
+ *
+ * 조합의 띠에 주스탯·평면 몫을 얹는다. 그 둘은 세팅과 무관하므로(실측: 최적
+ * 배분을 안 바꾼다) 띠를 통째로 평행 이동시킨다. 매물 344장을 세팅 46개에서
+ * 다시 재면 3만 번인데, 이렇게 하면 조합 16개만 재면 된다.
+ */
+export function listingBand(row, bands, comboGain) {
+  const band = bands?.bands?.get(row.combo);
+  if (!band) return null;
+  const extra = row.gain - (comboGain.get(row.combo) ?? 0);
+  return { lo: band.lo + extra, hi: band.hi + extra, width: band.width };
+}

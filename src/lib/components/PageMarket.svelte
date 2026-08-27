@@ -12,10 +12,12 @@
    */
   import {
     app, marketPart, wornAt, wornOfPart, setMarket, sweepMarket, researchMarket, cancelResearch,
+    sweepSettings,
   } from "../store.svelte.js";
   import {
     ACCESSORY_PARTS, GRADE_LABEL, FIELD_LABEL, FIELD_SHORT, GRADE_VALUES, partSlots, orderedLines,
     comboOf, frontierPicks, cellStats, PART_CONTEXT, valuePart, pairRows, partSlots as slotsOf,
+    comboBands, listingBand, withCombo, REAL_GRADES,
   } from "../core/accessory.js";
   import { formatInteger, readNumber } from "../core/util.js";
   import { calculateMetrics } from "../core/metrics.js";
@@ -42,6 +44,31 @@
   const found = $derived(app.market.found[part.key]);
   // 값은 여기서 매긴다. 훑을 때 박아 두면 빌드를 고쳐도 안 따라온다 —
   // 세팅을 되돌린 뒤에도 되돌리기 전 캐릭터로 잰 값이 화면에 남아 있었다.
+  // 띠를 재는 자리는 갈아끼울 자리 — 지금 낀 것 중 나쁜 쪽이다.
+  const bandSlot = $derived(slotsOf(part).reduce((worst, item) => {
+    const a = readNumber(wornAt(item)?.mainStat);
+    const b = readNumber(wornAt(worst)?.mainStat);
+    return a > 0 && (b === 0 || a < b) ? item : worst;
+  }, slotsOf(part)[0]));
+
+  // 조합별 값어치의 띠. 세팅 하나를 고르는 대신 쓸 만한 세팅 전부에서 잰다.
+  const bands = $derived(
+    app.market.settings ? comboBands(app.character, part, bandSlot, wornAt(bandSlot), app.market.settings) : null,
+  );
+  // 지금 빌드에서 조합만 갈았을 때의 값. 띠를 매물로 옮길 때 기준이 된다.
+  const comboGain = $derived.by(() => {
+    const out = new Map();
+    if (!bands) return out;
+    const worn = wornAt(bandSlot);
+    const baseNow = calculateMetrics(withCombo(app.character, bandSlot, bands.baseKey.split(":"), worn)).damageIndex;
+    REAL_GRADES.forEach(a => REAL_GRADES.forEach(b => {
+      const combo = [a, b];
+      const got = calculateMetrics(withCombo(app.character, bandSlot, combo, worn)).damageIndex;
+      out.set(combo.join(":"), baseNow > 0 ? (got / baseNow - 1) * 100 : 0);
+    }));
+    return out;
+  });
+
   const optima = $derived(app.market.optima[part.key]);
   const all = $derived(valuePart(app.character, part, found?.listings ?? [], wornAt, optima));
   // 재탐색이 돌았고 기준을 '세팅 바꿔서'로 두면 그 값으로 줄을 세운다.
@@ -68,7 +95,10 @@
     }));
     const key = app.market.sort;
     return keep
-      .map(row => ({ ...row, gain: gainOf(row), perGold: perOf(row), gainAs: row.gain, perGoldAs: row.perGold }))
+      .map(row => ({
+        ...row, gain: gainOf(row), perGold: perOf(row), gainAs: row.gain, perGoldAs: row.perGold,
+        band: listingBand(row, bands, comboGain),
+      }))
       .sort((x, y) => {
         if (key === "price") return x.price - y.price;
         if (key === "gain") return y.gain - x.gain;
@@ -216,10 +246,15 @@
         <button type="button" class:on={app.market.basis === "opt"} disabled={!optima}
                 onclick={() => setMarket({ basis: "opt" })}>노드 다시 짜서</button>
       </span>
-      {#if app.market.researching}
+      {#if app.market.settingsRunning}
+        <span class="basis-run">세팅 모으는 중…</span>
+      {:else if app.market.researching}
         <span class="basis-run">노드 다시 짜는 중 {app.market.researchDone}/16</span>
         <button type="button" class="basis-go" onclick={cancelResearch}>중지</button>
       {:else}
+        <button type="button" class="basis-go" onclick={sweepSettings}>
+          {bands ? "세팅 다시 모으기" : "세팅 범위 잡기"}
+        </button>
         <button type="button" class="basis-go" onclick={researchMarket}>
           {optima ? "노드 다시 계산" : "노드 계산하기"}
         </button>
@@ -333,6 +368,7 @@
             <th class="i-num">주스탯</th>
             <th class="i-num">즉시 구매가</th>
             <th class="i-num">딜</th>
+            {#if bands}<th class="i-num">세팅에 따라</th>{/if}
             {#if optima}<th class="i-num">노드 다시 짜서</th>{/if}
             <th class="i-num">만골당</th>
             {#if partSlots(part).length > 1}<th>바꿀 자리</th>{/if}
@@ -352,6 +388,18 @@
               <td class="i-num">{formatInteger(row.listing.mainStat)}</td>
               <td class="i-num">{money(row.price)}</td>
               <td class="i-num i-gain">{pct(row.gainAs)}</td>
+              {#if bands}
+                {@const b = row.band}
+                <td class="i-num i-band" class:risky={b && b.lo < 0 && b.hi > 0}>
+                  {#if !b}
+                    —
+                  {:else if b.width < 0.02}
+                    <span class="band-firm">확정</span>
+                  {:else}
+                    {pct(b.lo)} ~ {pct(b.hi)}
+                  {/if}
+                </td>
+              {/if}
               {#if optima}
                 <td class="i-num i-opt" class:up={row.gainOpt - row.gainAs >= 0.02}>
                   {row.gainOpt === null ? "—" : pct(row.gainOpt)}

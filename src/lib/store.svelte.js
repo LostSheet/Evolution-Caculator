@@ -363,6 +363,9 @@ export const app = $state({
     researchDone: 0,
     // 표와 그래프가 어느 기준으로 서나. "as" 그대로 · "opt" 세팅 바꿔서
     basis: "as",
+    // 쓸 만한 세팅들의 노드 배분. 띠를 재는 바탕이다 — 탐색 한 번이면 된다.
+    settings: null,
+    settingsRunning: false,
     // 연마 3줄이 아니라 깨달음이 모자라 버린 매물 수.
     dropped: 0,
     error: "",
@@ -2071,4 +2074,42 @@ export async function researchMarket() {
 /** 재탐색을 멈춘다. */
 export function cancelResearch() {
   app.market.researching = false;
+}
+
+/**
+ * 띠를 재는 바탕이 될 세팅들을 모은다.
+ *
+ * 조합마다 최적 빌드를 하나씩 뽑으려 했더니 그 '최적'이 축에 따라 딴 빌드였다
+ * (한 방 딜 최적 7,259/10,105 · DPS 최적 5,447/11,516). 축을 고르는 대신
+ * 파레토 프론트를 통째로 들고 와서 값어치를 범위로 낸다 — 정의상 "어느 축에서도
+ * 지지 않는 세팅들"이라, 그 띠가 곧 "어떤 축을 고르든 답은 이 안"이 된다.
+ *
+ * 각인은 고정한다. 탐색이 전제 각인을 입혀 내놓으면 노드가 아니라 각인서
+ * 차이를 재게 된다.
+ */
+export async function sweepSettings() {
+  if (app.market.settingsRunning) return;
+  setMarket({ settingsRunning: true, error: "" });
+  try {
+    const result = await runSearch(
+      { ...cloneState(app.character), engravings: app.character.engravings },
+      { ...app.search, engravingSlots: "fixed" },
+      () => {},
+      () => !app.market.settingsRunning,
+    );
+    // 파레토에 한 방 딜·DPS 상위를 더한다. 프론트가 성길 때 양 끝을 놓치지 않는다.
+    const seen = new Set();
+    const nodes = [...(result.pareto ?? []), ...(result.damage ?? []), ...(result.dps ?? [])]
+      .map(entry => entry.nodeLevels)
+      .filter(levels => {
+        const key = JSON.stringify(levels);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    app.market.settings = nodes;
+  } catch (cause) {
+    app.market.error = cause instanceof LostArkError ? cause.message : "세팅을 못 모았습니다.";
+  }
+  app.market.settingsRunning = false;
 }

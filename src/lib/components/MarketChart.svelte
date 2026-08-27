@@ -20,7 +20,10 @@
 
   const PAD = { top: 18, right: 18, bottom: 44, left: 52 };
   const height = 260;
-  let width = $state(900);
+  // 판이 안 보이는 동안 clientWidth가 0으로 온다. 0으로 그리면 좌표가 전부
+  // 한 점에 모인다 — 마지막으로 알던 폭을 지킨다.
+  let measured = $state(900);
+  const width = $derived(measured > 0 ? measured : 900);
   let hovered = $state(null);
 
   const points = $derived(rows.filter(row => row.gain > 0 && row.price > 0));
@@ -34,7 +37,7 @@
     const all = [...points, ...pairPoints];
     if (all.length === 0) return { x0: 3, x1: 7, y1: 1 };
     const xs = all.map(row => Math.log10(Math.max(1, row.price)));
-    const maxY = Math.max(...all.map(row => row.gain));
+    const maxY = Math.max(...all.map(row => Math.max(row.gain, row.band?.hi ?? row.gain)));
     // 자릿수 끝까지 늘리면 왼쪽이 텅 빈다 — 목걸이는 최저가가 30만이라
     // 1,000골드 자리까지 그릴 이유가 없다. 점이 있는 범위에 바짝 붙인다.
     return {
@@ -74,6 +77,17 @@
   });
 
   const path = $derived(front.map((row, i) => `${i === 0 ? "M" : "L"}${px(row.price)},${py(row.gain)}`).join(" "));
+  // 띠가 있으면 프론티어가 둘이 된다 — "최소한 이만큼"과 "잘 짜면 이만큼".
+  const banded = $derived(points.filter(row => row.band));
+  const edgePath = pick => {
+    const list = priceFrontier(banded.map(row => ({ ...row, gain: pick(row) })));
+    return list.length > 1
+      ? list.map((row, i) => `${i === 0 ? "M" : "L"}${px(row.price)},${py(row.gain)}`).join(" ")
+      : "";
+  };
+  const loPath = $derived(banded.length > 0 ? edgePath(row => row.band.lo) : "");
+  const hiPath = $derived(banded.length > 0 ? edgePath(row => row.band.hi) : "");
+
   const pairPath = $derived(pairPoints.length > 1
     ? pairPoints.map((row, i) => `${i === 0 ? "M" : "L"}${px(row.price)},${py(row.gain)}`).join(" ")
     : "");
@@ -87,7 +101,7 @@
     .join(" · "));
 </script>
 
-<div class="mk-chart" bind:clientWidth={width}>
+<div class="mk-chart" bind:clientWidth={measured}>
   {#if points.length === 0}
     <p class="market-empty">오르는 매물이 없습니다</p>
   {:else}
@@ -102,6 +116,13 @@
       {/each}
       <text class="mk-axis" x={width - PAD.right} y={height - 6} text-anchor="end">가격 (골드, 로그)</text>
 
+      {#if hiPath}<path class="mk-front edge" d={hiPath} />{/if}
+      {#if loPath}<path class="mk-front edge" d={loPath} />{/if}
+      {#each banded as row, at (at)}
+        <line class="mk-bar c{colorOf(row) ?? 'x'}"
+              x1={px(row.price)} x2={px(row.price)}
+              y1={py(Math.max(row.band.lo, 0))} y2={py(row.band.hi)} />
+      {/each}
       <path class="mk-front" d={path} />
       {#if pairPath}<path class="mk-front pair" d={pairPath} />{/if}
       {#each pairPoints as row, at (at)}
@@ -127,6 +148,9 @@
       <div class="mk-tip" style="left:{left}px; top:{py(hovered.gain) - 8}px">
         <b>{hovered.perGold.toFixed(4)}</b> 만골당
         <span>{grind(hovered)}</span>
+        {#if hovered.band}
+          <span>세팅에 따라 {(hovered.band.lo >= 0 ? "+" : "") + hovered.band.lo.toFixed(2)}% ~ {(hovered.band.hi >= 0 ? "+" : "") + hovered.band.hi.toFixed(2)}%</span>
+        {/if}
         {#if hovered.pair}
           <span>두 짝 한꺼번에</span>
         {:else}
