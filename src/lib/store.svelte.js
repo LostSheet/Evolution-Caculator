@@ -218,6 +218,12 @@ function migrateSearch(search, character) {
   // 각인 슬롯은 게임이 5로 못 박는다 — 고를 것이 아니었다. 옛 저장본에 3이나
   // "fixed"가 남아 있으면 탐색이 조용히 각인을 덜 끼운 채로 돈다.
   merged.engravingSlots = "5";
+  // 빔 폭의 옛 기본값 600은 고른 값이 아니라 물려받은 값이다. 그 폭에서는
+  // 빔이 정답 가지를 쳐내는 것이 실측됐다 — 같은 탐색을 좁히면 DPS 축
+  // 최댓값이 더 크게 나왔다(30,341 > 30,103). 부분집합의 최댓값이 더 클 수는
+  // 없으므로 놓친 것이다. 그래서 600은 '안 정한 것'으로 보고 새 기본값을 준다.
+  // 직접 다른 값을 넣어 둔 사람은 그대로 둔다.
+  if (readNumber(merged.beamWidth) === 600) merged.beamWidth = SEARCH_DEFAULTS.beamWidth;
   // 펫·음식이 켬/끔 스위치에서 고정·후보·제외로 바뀌었다. 꺼 둔 상태는
   // "지금 쓰는 것 하나로"라는 뜻이었으므로 그것을 고정으로 옮긴다.
   if (merged.petSearch === false && !search?.petRoles) {

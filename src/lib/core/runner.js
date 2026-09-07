@@ -45,7 +45,16 @@ export const SEARCH_DEFAULTS = {
   engravingTiers: {},
   fullBudget: true,
   mode: "auto",
-  beamWidth: 600,
+  // 600에서 1500으로 올렸다.
+  //
+  // 실측(리퍼 한 캐릭터): 자유 탐색의 DPS 축 1등이 30,103이었는데, 같은 탐색을
+  // '신속 30 고정'으로 **좁히자** 30,341이 나왔다. 좁힌 공간은 자유 공간의
+  // 부분집합이므로 그 축의 최댓값이 더 클 수 없다 — 빔이 정답 가지를 쳐낸
+  // 것이다. 축을 하나 정해 놓고 비교한 것이라 '어느 빌드가 나은가'라는
+  // 판단은 들어가지 않는다.
+  //
+  // 1500이면 찾고(30,341), 3000까지 올려도 답이 같다. 값은 0.6초.
+  beamWidth: 1500,
   resultLimit: 20,
   // 하한 조건. 0이면 안 건다.
   floors: { critRate: 0, critRateThorn: 0, attackSpeed: 0, moveSpeed: 0, cooldown: 0 },
@@ -729,9 +738,50 @@ async function runExhaustive(context, report, isCancelled) {
   }
 }
 
+/**
+ * 지금 낀 빌드가 차원마다 어느 선택지인가.
+ *
+ * 빔은 앞 차원에서 자른 가지를 뒤에서 되돌리지 못한다. 그런데 1T는 선택지가
+ * 만 개가 넘고 맨 앞에 서므로, 2T~5T가 정해지기도 전의 점수로 잘린다. 지금
+ * 빌드의 1T가 거기서 밀리면 그 언저리가 통째로 사라진다.
+ *
+ * 그래서 이 경로만은 지표와 무관하게 매 라운드 빔에 도로 넣는다.
+ *
+ * 무엇을 보장하나: 지금 빌드를 이어 붙인 조합이 반드시 평가된다. 그래서 결과에
+ * "지금과 비슷한 세팅"이 나올 수 있다. 그뿐이다 — 어느 축에서든 지금보다 낫다는
+ * 뜻이 아니고, 목록에 반드시 오른다는 뜻도 아니다(상위 N에서 밀릴 수 있다).
+ * 축이 넷이라 '더 낫다'는 하나로 못 정한다.
+ *
+ * 못 알아보는 차원에서 경로는 끊는다. 각인이 마지막 차원이라 노드까지만 살아
+ * 있으면 마지막 라운드에서 각인을 전부 그 위에 얹어 보므로 충분하다.
+ */
+function homePath(plan, sourceState) {
+  const levels = sourceState?.nodeLevels ?? {};
+  const pet = sourceState?.convenience?.petStat || "none";
+  const food = sourceState?.convenience?.food || "none";
+  const out = [];
+  for (const dimension of plan.dimensions) {
+    const index = dimension.options.findIndex(option => {
+      if (option.kind === "nodes") {
+        for (const [id, level] of option.levels) {
+          if (readNumber(levels[id]) !== readNumber(level)) return false;
+        }
+        return true;
+      }
+      if (option.kind === "pet") return option.pet === pet;
+      if (option.kind === "food") return option.food === food;
+      return false;
+    });
+    if (index < 0) break;
+    out.push(index);
+  }
+  return out;
+}
+
 async function runBeam(context, report, isCancelled, beamWidth) {
   const { plan, evaluate } = context;
   const dimensions = plan.dimensions;
+  const home = homePath(plan, context.sourceState);
   let beam = [{ indexes: [], points: 0 }];
 
   for (let dimensionIndex = 0; dimensionIndex < dimensions.length; dimensionIndex += 1) {
@@ -776,6 +826,15 @@ async function runBeam(context, report, isCancelled, beamWidth) {
     if (candidates.length === 0) return;
 
     beam = selectBeam(candidates, beamWidth);
+    // 지금 빌드의 경로는 점수와 상관없이 남긴다. 맨 앞에 둔다 — sources가
+    // 앞에서부터 잘리므로 뒤에 붙이면 다음 라운드에 또 사라진다.
+    if (dimensionIndex < home.length) {
+      const want = home.slice(0, dimensionIndex + 1).join(",");
+      if (!beam.some(item => item.indexes.join(",") === want)) {
+        const found = candidates.find(item => item.indexes.join(",") === want);
+        if (found) beam.unshift(found);
+      }
+    }
     report({ phase: `빔 탐색 ${dimension.label}`, progress: (dimensionIndex + 1) / (dimensions.length + 1), evaluated: context.evaluated });
     await nextTick();
     if (isCancelled()) return;
@@ -887,6 +946,8 @@ export async function runSearch(sourceState, options, onProgress = () => {}, isC
   const limit = clamp(Math.round(readNumber(settings.resultLimit)), 1, 50);
   const context = {
     plan,
+    // 빔이 지금 빌드를 쳐내지 않게 하려면 원본이 필요하다 — homePath 참고.
+    sourceState,
     evaluate: buildEvaluator(sourceState, new Set(plan.engravings.controlledIds)),
     baseEngravings: sourceState.engravings || {},
     damageTop: createTopList(limit, "damageIndex"),
