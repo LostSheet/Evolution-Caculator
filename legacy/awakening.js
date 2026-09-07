@@ -114,8 +114,20 @@ function awakeningGroupInfo(job, group) {
  * 기본은 100이다 — 전부 실린다고 보고 시작해서, 아니라고 아는 줄만 내린다.
  * 안 적힌 줄이 조용히 0이 되면 안 되므로 undefined는 100으로 읽는다.
  */
-function awakeningUptimeKey(nodeName, key) {
-  return `${nodeName}|${key ?? ""}`;
+/**
+ * 줄 하나를 가리키는 열쇠.
+ *
+ * 한 노드가 같은 효과키를 두 번 갖는 일이 있다 — 발키리 '성검 개방'은 주는
+ * 피해를 1.5와 150 두 줄로, '삼위일체'는 14와 35 두 줄로 준다. 이름과 키만
+ * 쓰면 두 줄이 같은 열쇠를 갖게 되어, 유효율 칸 하나를 나눠 쓰고(둘 중 하나만
+ * 적을 수 있다) 화면의 keyed each가 중복 키로 통째로 죽는다.
+ *
+ * 그래서 같은 노드 안에서 몇 번째로 나온 키인지를 붙인다. 첫 줄은 예전 열쇠를
+ * 그대로 쓴다 — 적어 둔 유효율이 살아남아야 한다. 둘째부터만 #2, #3이 붙는다.
+ */
+function awakeningUptimeKey(nodeName, key, seq = 0) {
+  const base = `${nodeName}|${key ?? ""}`;
+  return seq > 0 ? `${base}#${seq + 1}` : base;
 }
 
 /**
@@ -131,8 +143,8 @@ function awakeningUptimeKey(nodeName, key) {
  */
 const AWAKENING_SCOPE_UPTIME = { global: 100, branch: 100, conditional: 100, partial: 0 };
 
-function awakeningUptimeRate(uptime, nodeName, key, scope) {
-  const value = uptime?.[awakeningUptimeKey(nodeName, key)];
+function awakeningUptimeRate(uptime, uptimeKey, scope) {
+  const value = uptime?.[uptimeKey];
   if (value === undefined || value === null || value === "") {
     return (AWAKENING_SCOPE_UPTIME[scope] ?? 100) / 100;
   }
@@ -172,6 +184,9 @@ function awakeningBonuses(job, levels, uptime) {
     const level = levelOf(item);
     if (level <= 0) return;
 
+    // 같은 노드 안에서 효과키가 몇 번째로 나왔나. 열쇠를 가르는 데 쓴다.
+    const keySeq = new Map();
+
     item.effects.forEach(effect => {
       if (effect.kind === "replaces") {
         // 갈아치운 사실 자체는 보여 준다. 수치는 대상 노드 줄에서 센다.
@@ -206,15 +221,22 @@ function awakeningBonuses(job, levels, uptime) {
       const isGlobal = item.group === "깨달음"
         && (!effect.branch || taken.has(effect.branch));
 
+      // 열쇠는 갈래를 나누기 전에 센다 — 실리든 안 실리든 줄은 줄이고,
+      // 순번이 실리느냐에 따라 달라지면 같은 줄의 열쇠가 오락가락한다.
+      const keyName = effect.kind === "formula" ? effect.category : effect.key;
+      const seq = keySeq.get(keyName) ?? 0;
+      keySeq.set(keyName, seq + 1);
+      const uptimeKey = awakeningUptimeKey(item.name, keyName, seq);
+      const rate = awakeningUptimeRate(uptime, uptimeKey, effect.scope);
+
       if (effect.kind === "formula") {
         const ratio = readNumber(effect.amounts?.[level - 1]);
         const cap = Array.isArray(effect.caps) ? effect.caps[level - 1] : effect.caps;
-        const rate = awakeningUptimeRate(uptime, item.name, effect.category, effect.scope);
         const row = {
           node: item.name, level, scope: effect.scope, note: effect.scopeNote,
           key: effect.category, amount: null, formula: effect.expression, ratio,
           kind: "formula", group: item.group,
-          uptimeKey: awakeningUptimeKey(item.name, effect.category),
+          uptimeKey,
           uptime: Math.round(rate * 100),
           replacedBy: "",
         };
@@ -236,13 +258,12 @@ function awakeningBonuses(job, levels, uptime) {
       const override = overrides.get(`${item.name}|${effect.key}`);
       const raw = Array.isArray(effect.amounts) ? readNumber(effect.amounts[level - 1]) : null;
       const amount = override ? override.amount : raw;
-      const rate = awakeningUptimeRate(uptime, item.name, effect.key, effect.scope);
       const effective = amount === null ? null : amount * rate;
       const row = {
         node: item.name, level, scope: effect.scope, note: effect.scopeNote,
         key: effect.key ?? "", amount,
         kind: effect.kind, group: item.group,
-        uptimeKey: awakeningUptimeKey(item.name, effect.key),
+        uptimeKey,
         uptime: Math.round(rate * 100), effective,
         replacedBy: override?.by ?? "",
       };
